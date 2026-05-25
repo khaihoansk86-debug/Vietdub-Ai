@@ -1,0 +1,103 @@
+const form = document.querySelector('#jobForm');
+const logs = document.querySelector('#logs');
+const state = document.querySelector('#state');
+const result = document.querySelector('#result');
+const cleanupBtn = document.querySelector('#cleanupBtn');
+const submitBtn = form.querySelector('button[type="submit"]');
+
+bindRangeValue('subtitleSize', 'subtitleSizeValue');
+bindRangeValue('subtitleBottomMargin', 'subtitleBottomValue');
+bindRangeValue('subtitleBgOpacity', 'subtitleBgOpacityValue');
+bindRangeValue('subtitleLineLength', 'subtitleLineLengthValue');
+bindRangeValue('watermarkWidthPercent', 'watermarkWidthValue');
+bindRangeValue('watermarkOpacity', 'watermarkOpacityValue');
+
+form.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  logs.innerHTML = '';
+  result.classList.add('hidden');
+  result.innerHTML = '';
+  state.textContent = 'Đang gửi';
+  submitBtn.disabled = true;
+
+  try {
+    const response = await fetch('/api/jobs', {
+      method: 'POST',
+      body: new FormData(form)
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Không tạo được job');
+    watchJob(data.id);
+  } catch (error) {
+    state.textContent = 'Lỗi';
+    appendLog(error.message, true);
+    submitBtn.disabled = false;
+  }
+});
+
+cleanupBtn.addEventListener('click', async () => {
+  const ok = window.confirm('Xoá tất cả file job cũ trong data/jobs? Các link tải cũ sẽ không dùng được nữa.');
+  if (!ok) return;
+  await fetch('/api/cleanup', { method: 'POST' });
+  logs.innerHTML = '';
+  result.classList.add('hidden');
+  state.textContent = 'Đã dọn dữ liệu tạm';
+});
+
+function watchJob(id) {
+  const events = new EventSource(`/api/jobs/${id}/events`);
+  events.onmessage = (event) => {
+    const job = JSON.parse(event.data);
+    state.textContent = label(job.status);
+    for (const item of job.logs || []) appendLog(item.message);
+
+    if (job.status === 'done') {
+      const cleanupNote = job.result.autoCleanup
+        ? `<br><small>File sẽ tự xoá sau ${job.result.cleanupDelayMinutes} phút.</small>`
+        : '';
+      result.innerHTML = `<strong>Hoàn tất.</strong><br><a href="${job.result.url}" download="${job.result.fileName}">Tải ${job.result.fileName}</a>${cleanupNote}`;
+      result.classList.remove('hidden');
+      submitBtn.disabled = false;
+      events.close();
+    }
+
+    if (job.status === 'error') {
+      appendLog(job.error, true);
+      submitBtn.disabled = false;
+      events.close();
+    }
+  };
+  events.onerror = () => {
+    appendLog('Mất kết nối log tiến trình.', true);
+    submitBtn.disabled = false;
+    events.close();
+  };
+}
+
+function appendLog(message, error = false) {
+  if (!message) return;
+  const li = document.createElement('li');
+  li.textContent = message;
+  if (error) li.className = 'error';
+  logs.appendChild(li);
+  logs.scrollTop = logs.scrollHeight;
+}
+
+function label(status) {
+  if (status === 'queued') return 'Đang chờ';
+  if (status === 'running') return 'Đang xử lý';
+  if (status === 'done') return 'Hoàn tất';
+  if (status === 'error') return 'Lỗi';
+  return 'Sẵn sàng';
+}
+
+function bindRangeValue(inputId, outputId) {
+  const input = document.querySelector(`#${inputId}`);
+  const output = document.querySelector(`#${outputId}`);
+  if (!input || !output) return;
+  const sync = () => {
+    output.value = input.value;
+  };
+  input.addEventListener('input', sync);
+  sync();
+}

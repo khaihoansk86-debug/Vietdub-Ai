@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>VietDub AI Local</title>
+    <link rel="stylesheet" href="/style.css">
+  </head>
+  <body>
+    <main class="shell">
+      <section class="workspace">
+        <header class="topbar">
+          <div class="brand">
+            <img class="brand-logo" src="/assets/vietdub-logo.jpg" alt="VietDub AI logo">
+            <div>
+              <h1><span class="title-icon">🤖</span><span>VietDub AI</span></h1>
+              <p>Tải video, ghép clip, tạo phụ đề và lồng tiếng AI.</p>
+            </div>
+          </div>
+          <button id="cleanupBtn" class="clean-btn" title="Xoá tất cả file job cũ">Dọn file cũ</button>
+        </header>
+
+        <form id="jobForm" class="panel">
+          <section class="form-section">
+            <div class="section-head">
+              <div>
+                <h2>Nguồn đầu vào</h2>
+                <p>Nhập link hoặc tải file video/SRT trực tiếp từ máy.</p>
+              </div>
+            </div>
+
+            <label class="field">
+              <span>Link video hoặc link SRT</span>
+              <textarea name="links" rows="5" placeholder="Dán một hoặc nhiều link video. Có thể dán kèm URL .srt"></textarea>
+            </label>
+
+            <div class="grid">
+              <label class="field">
+                <span>File video</span>
+                <input name="videos" type="file" accept="video/*,.mp4,.mov,.mkv,.webm" multiple>
+              </label>
+              <label class="field">
+                <span>File SRT có sẵn</span>
+                <input name="srtFile" type="file" accept=".srt,text/*">
+              </label>
+            </div>
+
+            <label class="field">
+              <span>URL SRT riêng</span>
+              <input name="srtUrl" type="url" placeholder="https://.../subtitle.srt">
+            </label>
+          </section>
+
+          <section class="form-section">
+            <div class="section-head">
+              <div>
+                <h2>Thiết lập xử lý</h2>
+                <p>Chọn cách xuất video và giọng lồng tiếng.</p>
+              </div>
+            </div>
+
+            <fieldset class="segmented">
+              <legend>Chế độ xử lý</legend>
+              <label><input type="radio" name="mode" value="dub" checked> <span>Tạo phụ đề + lồng tiếng</span></label>
+              <label><input type="radio" name="mode" value="download"> <span>Chỉ tải/gộp video</span></label>
+              <label><input type="radio" name="mode" value="raw"> <span>Raw</span></label>
+            </fieldset>
+
+            <label class="field">
+              <span>Giọng lồng tiếng</span>
+              <select name="voice">
+                <option value="vi-VN-HoaiMyNeural" selected>Nữ tự nhiên</option>
+                <option value="vi-VN-NamMinhNeural">Nam tự nhiên</option>
+              </select>
+            </label>
+          </section>
+
+          <section class="form-section">
+            <div class="section-head">
+              <div>
+                <h2>Hiển thị</h2>
+                <p>Tinh chỉnh phụ đề và watermark khi render video.</p>
+              </div>
+            </div>
+
+            <fieldset class="settings-group">
+              <legend>Tùy chỉnh phụ đề</legend>
+              <label class="field">
+                <span>Font chữ phụ đề</span>
+                <select name="subtitleFont">
+                  <option value="segoe-ui" selected>Segoe UI</option>
+                  <option value="arial">Arial</option>
+                  <option value="times-new-roman">Times New Roman</option>
+                  <option value="tahoma">Tahoma</option>
+                  <option value="verdana">Verdana</option>
+                  <option value="calibri">Calibri</option>
+                  <option value="georgia">Georgia</option>
+                </select>
+              </label>
+              <div class="control-row">
+                <label class="field">
+                  <span>Kích thước sub: <output id="subtitleSizeValue">11</output></span>
+                  <input name="subtitleSize" id="subtitleSize" type="range" min="8" max="24" step="1" value="11">
+                </label>
+                <label class="field">
+                  <span>Khoảng cách đáy: <output id="subtitleBottomValue">34</output></span>
+                  <input name="subtitleBottomMargin" id="subtitleBottomMargin" type="range" min="12" max="120" step="1" value="34">
+                </label>
+              </div>
+              <div class="control-row">
+                <label class="field">
+                  <span>Nền phụ đề</span>
+                  <select name="subtitleBackground" id="subtitleBackground">
+                    <option value="none" selected>Không nền</option>
+                    <option value="box">Nền hộp</option>
+                  </select>
+                </label>
+                <label class="field">
+                  <span>Màu nền</span>
+                  <input name="subtitleBgColor" type="color" value="#000000">
+                </label>
+              </div>
+              <label class="field">
+                <span>Độ đậm nền: <output id="subtitleBgOpacityValue">65</output>%</span>
+                <input name="subtitleBgOpacity" id="subtitleBgOpacity" type="range" min="0" max="100" step="5" value="65">
+              </label>
+              <label class="field">
+                <span>Độ dài mỗi dòng: <output id="subtitleLineLengthValue">28</output> ký tự</span>
+                <input name="subtitleLineLength" id="subtitleLineLength" type="range" min="18" max="42" step="1" value="28">
+              </label>
+            </fieldset>
+
+            <fieldset class="settings-group">
+              <legend>Chèn hình ảnh watermark</legend>
+              <label class="check-row">
+                <input name="watermarkEnabled" type="checkbox">
+                <span>Bật watermark</span>
+              </label>
+              <label class="field">
+                <span>Chọn ảnh watermark</span>
+                <input name="watermarkFile" type="file" accept="image/png,image/jpeg,image/webp,image/gif">
+              </label>
+              <div class="control-row">
+                <label class="field">
+                  <span>Vị trí hiển thị</span>
+                  <select name="watermarkPosition">
+                    <option value="top-right" selected>Góc trên phải</option>
+                    <option value="top-left">Góc trên trái</option>
+                    <option value="bottom-right">Góc dưới phải</option>
+                    <option value="bottom-left">Góc dưới trái</option>
+                    <option value="center">Giữa video</option>
+                  </select>
+                </label>
+                <label class="field">
+                <span>Kích thước watermark: <output id="watermarkWidthValue">14</output>%</span>
+                <input name="watermarkWidthPercent" id="watermarkWidthPercent" type="range" min="5" max="40" step="1" value="14">
+              </label>
+            </div>
+            <label class="field">
+              <span>Độ rõ watermark: <output id="watermarkOpacityValue">85</output>%</span>
+              <input name="watermarkOpacity" id="watermarkOpacity" type="range" min="10" max="100" step="5" value="85">
+            </label>
+            </fieldset>
+          </section>
+
+          <section class="form-section">
+            <div class="section-head">
+              <div>
+                <h2>Quản lý file</h2>
+                <p>Tự dọn dữ liệu tạm để không làm nặng máy.</p>
+              </div>
+            </div>
+
+            <fieldset class="settings-group compact">
+              <legend>Dọn file sau khi xử lý</legend>
+              <label class="check-row">
+                <input name="autoCleanup" type="checkbox" checked>
+                <span>Tự xoá thư mục job sau khi hoàn tất</span>
+              </label>
+              <label class="field">
+                <span>Giữ file để tải trong</span>
+                <select name="cleanupDelayMinutes">
+                  <option value="5">5 phút</option>
+                  <option value="15">15 phút</option>
+                  <option value="30" selected>30 phút</option>
+                  <option value="60">1 giờ</option>
+                  <option value="180">3 giờ</option>
+                  <option value="1440">1 ngày</option>
+                </select>
+              </label>
+            </fieldset>
+          </section>
+
+          <div class="action-bar">
+            <button class="primary" type="submit">Bắt đầu xử lý</button>
+          </div>
+        </form>
+      </section>
+
+      <aside class="status">
+        <div class="status-head">
+          <div>
+            <h2>Tiến trình</h2>
+            <p>Theo dõi log xử lý theo thời gian thực.</p>
+          </div>
+          <span id="state">Sẵn sàng</span>
+        </div>
+        <div id="result" class="result hidden"></div>
+        <ol id="logs" class="logs"></ol>
+      </aside>
+    </main>
+
+    <script src="/app.js"></script>
+  </body>
+</html>
