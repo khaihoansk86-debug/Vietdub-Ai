@@ -23,6 +23,9 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '';
 const OPENAI_TTS_MODEL = process.env.OPENAI_TTS_MODEL || 'gpt-4o-mini-tts';
 const FFMPEG_BIN = process.env.FFMPEG_BIN || ffmpegStatic || 'ffmpeg';
 const YTDLP_BIN = process.env.YTDLP_BIN || path.join(ROOT, 'node_modules', 'yt-dlp-exec', 'bin', process.platform === 'win32' ? 'yt-dlp.exe' : 'yt-dlp');
+const TTS_CUE_GUARD_MS = 80;
+const TTS_SYNC_OFFSET_MS = 60;
+const MAX_TTS_TEMPO = 1.08;
 
 await fs.mkdir(JOBS_DIR, { recursive: true });
 await fs.mkdir(PUBLIC_DIR, { recursive: true });
@@ -389,9 +392,15 @@ YEU CAU DICH VA NGU CANH:
 YEU CAU NHIP LONG TIENG:
 - Moi cau phai du ngan de TTS doc kip trong khoang thoi gian cua block.
 - Uu tien cau Viet gon, tu nhien; bo tu dem khong can thiet.
-- Moi block toi da 42 ky tu hoac 10 tu; neu cau dai hay chia nhieu block noi tiep.
+- Moi block toi da 24 ky tu hoac 6 tu; neu cau dai hay chia nhieu block noi tiep.
+- Neu block ngan hon 1.5 giay, toi da 4 tu tieng Viet va phai tom y that gon.
+- Neu loi dich tieng Viet doc khong kip bang toc do noi tu nhien, bat buoc rut gon y thay vi viet day du.
 - Moi block nen dai 1.0 den 3.2 giay, tranh block qua ngan duoi 0.7 giay tru khi bat buoc.
 - Khong de loi thoai Viet dai hon nhip noi goc; neu can hay tom y.
+- Khong chen so thu tu, timestamp hoac ky tu "-->" vao noi dung phu de.
+- Timestamp phai bam sat thoi diem bat dau va ket thuc cau noi trong audio goc, khong chia deu theo video.
+- Neu giua hai cau co khoang lang, giu khoang lang do; khong keo dai cau truoc de lap khoang trong.
+- Neu nhieu nguoi noi gan nhau, tach block theo tung cau/ngat hoi de long tieng khong bi cham nhip.
 
 DINH DANG BAT BUOC:
 1
@@ -426,7 +435,7 @@ Chi tra ve SRT thuan, khong markdown, khong code fence va khong ghi chu.`;
   await fs.writeFile(srtPath, srt, 'utf8');
 }
 
-async function normalizeAndParseSrt(input, output, maxLineLength = 28) {
+async function normalizeAndParseSrtLegacy(input, output, maxLineLength = 28) {
   let srt = await fs.readFile(input, 'utf8');
   srt = srt.replace(/^\uFEFF/, '').replace(/\r/g, '').trim();
   const blocks = srt.split(/\n{2,}/);
@@ -450,13 +459,72 @@ async function normalizeAndParseSrt(input, output, maxLineLength = 28) {
   return cues;
 }
 
+async function normalizeAndParseSrt(input, output, maxLineLength = 28) {
+  let srt = await fs.readFile(input, 'utf8');
+  srt = srt.replace(/^\uFEFF/, '').replace(/\r/g, '').trim();
+  const lines = srt.split('\n').map((line) => line.trim());
+  const cues = [];
+  let index = 0;
+
+  while (index < lines.length) {
+    const line = lines[index];
+    if (!line.includes('-->')) {
+      index += 1;
+      continue;
+    }
+
+    const [rawStart, rawEnd] = line.split('-->').map((part) => part.trim());
+    const start = parseSrtTime(rawStart);
+    const end = parseSrtTime(rawEnd);
+    index += 1;
+    if (!start || !end || end.ms <= start.ms) continue;
+
+    const textLines = [];
+    while (index < lines.length) {
+      const textLine = lines[index];
+      if (!textLine) {
+        index += 1;
+        if (textLines.length) break;
+        continue;
+      }
+      if (textLine.includes('-->')) break;
+      if (/^\d+$/.test(textLine)) {
+        index += 1;
+        continue;
+      }
+      textLines.push(textLine);
+      index += 1;
+    }
+
+    const text = cleanSubtitleText(textLines.join(' '));
+    if (text) cues.push({ index: cues.length + 1, start: start.ms, end: end.ms, text });
+  }
+
+  if (!cues.length) throw new Error('SRT không có dòng phụ đề hợp lệ.');
+  const normalized = cues.map((cue, i) => {
+    return `${i + 1}\n${formatSrtTime(cue.start)} --> ${formatSrtTime(cue.end)}\n${wrapSubtitleText(cue.text, maxLineLength)}\n`;
+  }).join('\n');
+  await fs.writeFile(output, normalized, 'utf8');
+  return cues;
+}
+
+function cleanSubtitleText(text) {
+  return text
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\d+\s+\d{1,2}:\d{2}:\d{2}[,.]\d{1,3}\s*-->\s*\d{1,2}:\d{2}:\d{2}[,.]\d{1,3}/g, ' ')
+    .replace(/\d{1,2}:\d{2}:\d{2}[,.]\d{1,3}\s*-->\s*\d{1,2}:\d{2}:\d{2}[,.]\d{1,3}/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 async function createTtsFiles(job, cues, tts) {
   const files = [];
 
   for (const cue of cues) {
-    const target = path.join(job.dir, `tts_${String(cue.index).padStart(4, '0')}.mp3`);
+    const rawTarget = path.join(job.dir, `tts_raw_${String(cue.index).padStart(4, '0')}.mp3`);
     const text = cue.text.slice(0, 180);
-    await synthesizeTtsText(text, target, tts, job, cue.index);
+    await synthesizeTtsText(text, rawTarget, tts, job, cue.index);
+    const target = await fitTtsToCue(job, cue, rawTarget);
     files.push(target);
     if (cue.index % 5 === 0 || cue.index === cues.length) log(job, `Đã tạo TTS ${cue.index}/${cues.length}.`);
   }
@@ -509,6 +577,56 @@ async function synthesizeTtsText(text, target, tts, job, cueIndex = 0) {
 async function synthesizeGoogleTts(text, target) {
   const url = `https://translate.google.com/translate_tts?ie=UTF-8&tl=vi&client=tw-ob&q=${encodeURIComponent(text)}`;
   await downloadToFile(url, target, { 'User-Agent': 'Mozilla/5.0' });
+}
+
+async function fitTtsToCue(job, cue, rawFile) {
+  const id = String(cue.index).padStart(4, '0');
+  const trimmed = path.join(job.dir, `tts_trimmed_${id}.mp3`);
+  const fitted = path.join(job.dir, `tts_${id}.mp3`);
+  const cueDuration = Math.max(500, cue.end - cue.start);
+  const targetDuration = Math.max(450, cueDuration - TTS_CUE_GUARD_MS);
+
+  await run(FFMPEG_BIN, [
+    '-y',
+    '-i', rawFile,
+    '-af', 'silenceremove=start_periods=1:start_duration=0.03:start_threshold=-45dB,aresample=44100',
+    '-c:a', 'libmp3lame',
+    '-q:a', '4',
+    trimmed
+  ], job);
+
+  const duration = await getMediaDurationMs(trimmed);
+  if (!duration || duration <= targetDuration) {
+    await fs.copyFile(trimmed, fitted);
+    return fitted;
+  }
+
+  const tempo = Math.min(MAX_TTS_TEMPO, duration / targetDuration);
+  await run(FFMPEG_BIN, [
+    '-y',
+    '-i', trimmed,
+    '-af', buildAtempoFilter(tempo),
+    '-c:a', 'libmp3lame',
+    '-q:a', '4',
+    fitted
+  ], job);
+
+  const finalDuration = await getMediaDurationMs(fitted);
+  if (finalDuration && finalDuration > cueDuration + 80) {
+    log(job, `Câu ${cue.index} vẫn hơi dài hơn khung gốc (${(finalDuration / 1000).toFixed(2)}s/${(cueDuration / 1000).toFixed(2)}s). Nên rút ngắn phụ đề nếu còn lệch.`);
+  }
+  return fitted;
+}
+
+function buildAtempoFilter(tempo) {
+  const filters = [];
+  let remaining = Math.max(0.5, tempo);
+  while (remaining > 2.0) {
+    filters.push('atempo=2.0');
+    remaining /= 2.0;
+  }
+  filters.push(`atempo=${remaining.toFixed(3)}`);
+  return filters.join(',');
 }
 
 async function synthesizeEdgeTts(text, target, tts, job) {
@@ -599,7 +717,8 @@ async function renderFinal(job, video, srt, cues, voiceFiles, output, subtitle, 
   cues.forEach((cue, i) => {
     const label = `a${i + 1}`;
     const ttsMixVolume = (1.1 * tts.volume).toFixed(2);
-    filters.push(`[${i + 1}:a]loudnorm=I=-15:TP=-1.2:LRA=9,volume=${ttsMixVolume},adelay=${cue.start}|${cue.start}[${label}]`);
+    const delay = Math.max(0, cue.start - TTS_SYNC_OFFSET_MS);
+    filters.push(`[${i + 1}:a]loudnorm=I=-15:TP=-1.2:LRA=9,volume=${ttsMixVolume},adelay=${delay}|${delay}[${label}]`);
     audioLabels.push(`[${label}]`);
   });
   filters.push(`${audioLabels.join('')}amix=inputs=${audioLabels.length}:duration=first:dropout_transition=0:normalize=0,loudnorm=I=-14:TP=-1.0:LRA=10,alimiter=limit=0.96[aout]`);
@@ -731,6 +850,34 @@ function run(command, args, job) {
       else reject(new Error(`${command} thoát mã ${code}. ${stderr.slice(-1200)}`));
     });
   });
+}
+
+function runCapture(command, args) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(command, args, { windowsHide: true });
+    let stdout = '';
+    let stderr = '';
+    child.stdout.on('data', (data) => {
+      stdout += data.toString();
+    });
+    child.stderr.on('data', (data) => {
+      stderr += data.toString();
+    });
+    child.on('error', reject);
+    child.on('close', (code) => {
+      resolve({ code, stdout, stderr });
+    });
+  });
+}
+
+async function getMediaDurationMs(file) {
+  const result = await runCapture(FFMPEG_BIN, ['-hide_banner', '-i', file]);
+  const match = result.stderr.match(/Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)/);
+  if (!match) return 0;
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  const seconds = Number(match[3]);
+  return Math.round(((hours * 3600) + (minutes * 60) + seconds) * 1000);
 }
 
 function parseLinks(text) {
