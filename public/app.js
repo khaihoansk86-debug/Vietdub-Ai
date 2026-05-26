@@ -27,13 +27,13 @@ const voiceCatalog = {
     ['vi-VN-NamMinhNeural', 'Nam Minh - Nam Việt rõ chữ']
   ],
   'openai-tts': [
+    ['nova', 'Nova - Nữ trẻ'],
     ['coral', 'Coral - Tự nhiên, sáng'],
     ['alloy', 'Alloy - Trung tính'],
     ['ash', 'Ash - Nam nhẹ'],
     ['ballad', 'Ballad - Kể chuyện'],
     ['echo', 'Echo - Nam rõ'],
     ['fable', 'Fable - Cảm xúc'],
-    ['nova', 'Nova - Nữ trẻ'],
     ['onyx', 'Onyx - Nam trầm'],
     ['sage', 'Sage - Bình tĩnh'],
     ['shimmer', 'Shimmer - Nữ mềm'],
@@ -79,8 +79,8 @@ previewVoiceBtn?.addEventListener('click', async () => {
     body.set('ttsProvider', document.querySelector('#ttsProvider')?.value || 'edge-neural');
     body.set('voice', document.querySelector('#voice')?.value || 'vi-VN-HoaiMyNeural');
     body.set('ttsStyle', document.querySelector('#ttsStyle')?.value || 'natural');
-    body.set('ttsVolume', document.querySelector('#ttsVolume')?.value || '1.15');
-    body.set('ttsSpeed', document.querySelector('#ttsSpeed')?.value || '0.92');
+    body.set('ttsVolume', document.querySelector('#ttsVolume')?.value || '1.05');
+    body.set('ttsSpeed', document.querySelector('#ttsSpeed')?.value || '0.9');
     body.set('previewText', document.querySelector('#previewText')?.value || 'Xin chào, đây là giọng đọc thử của VietDub AI.');
 
     const response = await fetch('/api/tts-preview', {

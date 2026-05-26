@@ -23,9 +23,9 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '';
 const OPENAI_TTS_MODEL = process.env.OPENAI_TTS_MODEL || 'gpt-4o-mini-tts';
 const FFMPEG_BIN = process.env.FFMPEG_BIN || ffmpegStatic || 'ffmpeg';
 const YTDLP_BIN = process.env.YTDLP_BIN || path.join(ROOT, 'node_modules', 'yt-dlp-exec', 'bin', process.platform === 'win32' ? 'yt-dlp.exe' : 'yt-dlp');
-const TTS_CUE_GUARD_MS = 80;
-const TTS_SYNC_OFFSET_MS = 60;
-const MAX_TTS_TEMPO = 1.08;
+const TTS_CUE_GUARD_MS = 40;
+const TTS_SYNC_OFFSET_MS = 30;
+const MAX_TTS_TEMPO = 1.03;
 
 await fs.mkdir(JOBS_DIR, { recursive: true });
 await fs.mkdir(PUBLIC_DIR, { recursive: true });
@@ -208,7 +208,7 @@ function parseTtsOptions(body) {
   const style = TTS_STYLES.has(String(body.ttsStyle || '')) ? String(body.ttsStyle) : 'natural';
   let voice;
   if (provider === 'openai-tts') {
-    voice = OPENAI_VOICES.has(requestedVoice) ? requestedVoice : 'coral';
+    voice = OPENAI_VOICES.has(requestedVoice) ? requestedVoice : 'nova';
   } else {
     voice = EDGE_VOICES.get(requestedVoice) || 'vi-VN-HoaiMyNeural';
   }
@@ -217,8 +217,8 @@ function parseTtsOptions(body) {
     provider,
     voice,
     style,
-    speed: clampNumber(body.ttsSpeed, 0.7, 1.3, 0.92),
-    volume: clampNumber(body.ttsVolume, 0.6, 2, 1.15)
+    speed: clampNumber(body.ttsSpeed, 0.7, 1.3, 0.9),
+    volume: clampNumber(body.ttsVolume, 0.6, 2, 1.05)
   };
 }
 
@@ -388,6 +388,8 @@ YEU CAU DICH VA NGU CANH:
 - Neu audio da la tieng Viet, chep hoac luoc lai cho ro nghia va de long tieng.
 - Giu dung dai tu xung ho, cam xuc, y hai huoc, muc do lich su/than mat neu co.
 - Khong them noi dung khong co trong audio.
+- Viet nhu loi noi hang ngay, tranh van viet, tranh cau dai hoac trang trong qua muc.
+- Cho phep rut gon y neu can de nghe tu nhien hon, mien la khong sai nghia chinh.
 
 YEU CAU NHIP LONG TIENG:
 - Moi cau phai du ngan de TTS doc kip trong khoang thoi gian cua block.
@@ -401,6 +403,7 @@ YEU CAU NHIP LONG TIENG:
 - Timestamp phai bam sat thoi diem bat dau va ket thuc cau noi trong audio goc, khong chia deu theo video.
 - Neu giua hai cau co khoang lang, giu khoang lang do; khong keo dai cau truoc de lap khoang trong.
 - Neu nhieu nguoi noi gan nhau, tach block theo tung cau/ngat hoi de long tieng khong bi cham nhip.
+- Uu tien nhip noi tu nhien hon viec nhoi qua nhieu chu vao mot block ngan.
 
 DINH DANG BAT BUOC:
 1
@@ -613,7 +616,7 @@ async function fitTtsToCue(job, cue, rawFile) {
 
   const finalDuration = await getMediaDurationMs(fitted);
   if (finalDuration && finalDuration > cueDuration + 80) {
-    log(job, `Câu ${cue.index} vẫn hơi dài hơn khung gốc (${(finalDuration / 1000).toFixed(2)}s/${(cueDuration / 1000).toFixed(2)}s). Nên rút ngắn phụ đề nếu còn lệch.`);
+    log(job, `Câu ${cue.index} dài hơn nhịp gốc (${(finalDuration / 1000).toFixed(2)}s/${(cueDuration / 1000).toFixed(2)}s). Đã giữ tốc độ tự nhiên, nếu còn lệch hãy rút ngắn câu phụ đề.`);
   }
   return fitted;
 }
@@ -669,9 +672,10 @@ function buildOpenAiTtsInstructions(tts) {
   const base = TTS_STYLES.get(tts.style) || TTS_STYLES.get('natural');
   return [
     base,
-    'Ưu tiên phát âm tiếng Việt rõ ràng, không nuốt chữ, không đọc quá nhanh.',
-    'Giữ cảm xúc đúng ngữ cảnh như một người thật đang nói trong video.',
+    'Đọc tiếng Việt như hội thoại thật: có nhịp nghỉ nhẹ, không nuốt chữ, không đọc vội.',
+    'Giữ cảm xúc đúng ngữ cảnh nhưng tiết chế, như một người bình thường đang nói trong video.',
     'Nếu câu ngắn, vẫn tạo nhịp tự nhiên thay vì đọc đều đều như máy.',
+    'Không kéo giọng quá sân khấu, không nhấn quá mạnh từng chữ.',
     'Không thêm nội dung ngoài văn bản được cung cấp.'
   ].join(' ');
 }
@@ -712,16 +716,16 @@ async function renderFinal(job, video, srt, cues, voiceFiles, output, subtitle, 
   const filters = [`[0:v]subtitles='${escapedSrt}':charenc=UTF-8:force_style='${subtitleStyle}'[subv]`];
   const videoLabel = addWatermarkFilter(filters, '[subv]', watermarkInputIndex, watermark);
   const audioLabels = [];
-  filters.push('[0:a]volume=0.38[a0]');
+  filters.push('[0:a]volume=0.52[a0]');
   audioLabels.push('[a0]');
   cues.forEach((cue, i) => {
     const label = `a${i + 1}`;
-    const ttsMixVolume = (1.1 * tts.volume).toFixed(2);
+    const ttsMixVolume = (0.95 * tts.volume).toFixed(2);
     const delay = Math.max(0, cue.start - TTS_SYNC_OFFSET_MS);
-    filters.push(`[${i + 1}:a]loudnorm=I=-15:TP=-1.2:LRA=9,volume=${ttsMixVolume},adelay=${delay}|${delay}[${label}]`);
+    filters.push(`[${i + 1}:a]loudnorm=I=-16:TP=-1.5:LRA=10,volume=${ttsMixVolume},adelay=${delay}|${delay}[${label}]`);
     audioLabels.push(`[${label}]`);
   });
-  filters.push(`${audioLabels.join('')}amix=inputs=${audioLabels.length}:duration=first:dropout_transition=0:normalize=0,loudnorm=I=-14:TP=-1.0:LRA=10,alimiter=limit=0.96[aout]`);
+  filters.push(`${audioLabels.join('')}amix=inputs=${audioLabels.length}:duration=first:dropout_transition=0:normalize=0,loudnorm=I=-15:TP=-1.0:LRA=11,alimiter=limit=0.96[aout]`);
 
   args.push(
     '-filter_complex', filters.join(';'),
