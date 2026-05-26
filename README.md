@@ -6,11 +6,14 @@ Web local/LAN để tải video, ghép clip, tạo phụ đề, lồng tiếng t
 
 ```powershell
 npm install
+pip install edge-tts
 copy .env.example .env
 npm start
 ```
 
 Điền `GEMINI_API_KEY` và `RAPIDAPI_KEY` trong `.env` trước khi dùng các tính năng tương ứng.
+
+Máy cần có Python trong PATH vì phần lồng tiếng dùng `python -m edge_tts`.
 
 Mặc định web chạy ở:
 
