@@ -19,6 +19,7 @@ const PUBLIC_DIR = path.join(ROOT, 'public');
 
 const RAPIDAPI_KEY = process.env.RAPIDAPI_KEY || '';
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-pro';
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '';
 const OPENAI_TTS_MODEL = process.env.OPENAI_TTS_MODEL || 'gpt-4o-mini-tts';
 const FFMPEG_BIN = process.env.FFMPEG_BIN || ffmpegStatic || 'ffmpeg';
@@ -445,20 +446,37 @@ async function normalizeVideoForConcat(job, input, output, index) {
 
 async function createSrtWithGemini(job, video, srtPath) {
   if (!GEMINI_API_KEY) throw new Error('Thiếu GEMINI_API_KEY trong file .env');
-  const audio = path.join(job.dir, 'audio.mp3');
+  const audio = path.join(job.dir, 'audio_for_transcription.wav');
   log(job, 'Đang trích xuất audio để tạo phụ đề.');
-  await run(FFMPEG_BIN, ['-y', '-i', video, '-q:a', '0', '-map', 'a', audio], job);
+  await run(FFMPEG_BIN, [
+    '-y',
+    '-i', video,
+    '-vn',
+    '-ac', '1',
+    '-ar', '16000',
+    '-af', 'highpass=f=90,lowpass=f=7600,dynaudnorm=f=150:g=15,loudnorm=I=-18:TP=-2:LRA=9',
+    '-c:a', 'pcm_s16le',
+    audio
+  ], job);
   const audioBase64 = await fs.readFile(audio, 'base64');
   log(job, 'Đang gọi Gemini để tạo SRT.');
 
-  const systemInstruction = 'Ban la bien dich vien phu de va dao dien long tieng tieng Viet. Nhiem vu: nghe audio, hieu dung ngu canh video, dich hoac viet lai bang tieng Viet tu nhien, ngan gon, de doc thanh tieng. Chi tra ve SRT hop le, tuyet doi khong giai thich.';
+  const systemInstruction = 'Ban la chuyen gia transcript, dich phu de va dao dien long tieng tieng Viet. Nhiem vu bat buoc: nghe audio that ky, xac dinh chinh xac loi thoai goc va timestamp, sau do moi dich sang tieng Viet tu nhien. Khong duoc doan noi dung khi khong nghe ro. Chi tra ve SRT hop le.';
   const prompt = `Tao phu de SRT tieng Viet tu audio dinh kem de dung cho long tieng.
+
+QUY TRINH NOI BO BAT BUOC, KHONG IN RA:
+1. Nghe va transcript nguyen van loi thoai goc theo tung cau/ngat hoi.
+2. Kiem tra lai ten rieng, dai tu, so dem, phu dinh, cau hoi/cau cam than.
+3. Chi sau khi transcript dung moi dich sang tieng Viet.
+4. Neu mot doan khong nghe ro, hay viet ban dich ngan theo phan chac chan nghe duoc, khong tu them chi tiet.
 
 YEU CAU DICH VA NGU CANH:
 - Neu audio la ngon ngu khac, dich thoat y sang tieng Viet tu nhien, dung ngu canh, dung sac thai, khong dich tung chu.
 - Neu audio da la tieng Viet, chep hoac luoc lai cho ro nghia va de long tieng.
 - Giu dung dai tu xung ho, cam xuc, y hai huoc, muc do lich su/than mat neu co.
 - Khong them noi dung khong co trong audio.
+- Khong thay doi y nghia chinh, khong dao nguoc phu dinh/khang dinh, khong bo qua cau noi quan trong.
+- Ten rieng nhu Ross, Rachel, Phoebe, Monica, Joey, Chandler phai giu dung neu nghe thay.
 - Viet nhu loi noi hang ngay, tranh van viet, tranh cau dai hoac trang trong qua muc.
 - Cho phep rut gon y neu can de nghe tu nhien hon, mien la khong sai nghia chinh.
 
@@ -486,17 +504,22 @@ Noi dung tieng Viet.
 Noi dung tiep theo.
 
 Chi tra ve SRT thuan, khong markdown, khong code fence va khong ghi chu.`;
-  const response = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+  const response = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
+      generationConfig: {
+        temperature: 0.1,
+        topP: 0.7,
+        responseMimeType: 'text/plain'
+      },
       systemInstruction: {
         parts: [{ text: systemInstruction }]
       },
       contents: [{
         parts: [
           { text: prompt },
-          { inlineData: { mimeType: 'audio/mp3', data: audioBase64 } }
+          { inlineData: { mimeType: 'audio/wav', data: audioBase64 } }
         ]
       }]
     })
