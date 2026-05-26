@@ -16,6 +16,60 @@ bindRangeValue('ttsSpeed', 'ttsSpeedValue');
 
 const previewVoiceBtn = document.querySelector('#previewVoiceBtn');
 const ttsPreviewAudio = document.querySelector('#ttsPreviewAudio');
+const ttsProvider = document.querySelector('#ttsProvider');
+const voiceSelect = document.querySelector('#voice');
+const ttsVolumeInput = document.querySelector('#ttsVolume');
+const ttsSpeedInput = document.querySelector('#ttsSpeed');
+
+const voiceCatalog = {
+  'edge-neural': [
+    ['vi-VN-HoaiMyNeural', 'Hoài My - Nữ Việt tự nhiên'],
+    ['vi-VN-NamMinhNeural', 'Nam Minh - Nam Việt rõ chữ']
+  ],
+  'openai-tts': [
+    ['coral', 'Coral - Tự nhiên, sáng'],
+    ['alloy', 'Alloy - Trung tính'],
+    ['ash', 'Ash - Nam nhẹ'],
+    ['ballad', 'Ballad - Kể chuyện'],
+    ['echo', 'Echo - Nam rõ'],
+    ['fable', 'Fable - Cảm xúc'],
+    ['nova', 'Nova - Nữ trẻ'],
+    ['onyx', 'Onyx - Nam trầm'],
+    ['sage', 'Sage - Bình tĩnh'],
+    ['shimmer', 'Shimmer - Nữ mềm'],
+    ['verse', 'Verse - Năng lượng'],
+    ['marin', 'Marin - Tự nhiên'],
+    ['cedar', 'Cedar - Ấm']
+  ]
+};
+
+function refreshVoices() {
+  if (!ttsProvider || !voiceSelect) return;
+  const current = voiceSelect.value;
+  const voices = voiceCatalog[ttsProvider.value] || voiceCatalog['edge-neural'];
+  document.querySelector('#ttsStyleField')?.classList.toggle('hidden', ttsProvider.value !== 'openai-tts');
+  voiceSelect.innerHTML = '';
+  for (const [value, label] of voices) {
+    const option = document.createElement('option');
+    option.value = value;
+    option.textContent = label;
+    voiceSelect.appendChild(option);
+  }
+  voiceSelect.value = voices.some(([value]) => value === current) ? current : voices[0][0];
+}
+
+ttsProvider?.addEventListener('change', refreshVoices);
+refreshVoices();
+
+function syncPreviewPlayback() {
+  if (!ttsPreviewAudio) return;
+  ttsPreviewAudio.volume = Math.min(1, Math.max(0, Number(ttsVolumeInput?.value || 1) / 2));
+  ttsPreviewAudio.playbackRate = Math.min(1.3, Math.max(0.7, Number(ttsSpeedInput?.value || 1)));
+}
+
+ttsVolumeInput?.addEventListener('input', syncPreviewPlayback);
+ttsSpeedInput?.addEventListener('input', syncPreviewPlayback);
+syncPreviewPlayback();
 
 previewVoiceBtn?.addEventListener('click', async () => {
   previewVoiceBtn.disabled = true;
@@ -24,6 +78,7 @@ previewVoiceBtn?.addEventListener('click', async () => {
     const body = new URLSearchParams();
     body.set('ttsProvider', document.querySelector('#ttsProvider')?.value || 'edge-neural');
     body.set('voice', document.querySelector('#voice')?.value || 'vi-VN-HoaiMyNeural');
+    body.set('ttsStyle', document.querySelector('#ttsStyle')?.value || 'natural');
     body.set('ttsVolume', document.querySelector('#ttsVolume')?.value || '1.15');
     body.set('ttsSpeed', document.querySelector('#ttsSpeed')?.value || '0.92');
     body.set('previewText', document.querySelector('#previewText')?.value || 'Xin chào, đây là giọng đọc thử của VietDub AI.');
@@ -41,6 +96,7 @@ previewVoiceBtn?.addEventListener('click', async () => {
     if (ttsPreviewAudio.src) URL.revokeObjectURL(ttsPreviewAudio.src);
     ttsPreviewAudio.src = URL.createObjectURL(blob);
     ttsPreviewAudio.hidden = false;
+    syncPreviewPlayback();
     await ttsPreviewAudio.play();
   } catch (error) {
     appendLog(error.message, true);

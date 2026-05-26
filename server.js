@@ -19,6 +19,8 @@ const PUBLIC_DIR = path.join(ROOT, 'public');
 
 const RAPIDAPI_KEY = process.env.RAPIDAPI_KEY || '';
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '';
+const OPENAI_TTS_MODEL = process.env.OPENAI_TTS_MODEL || 'gpt-4o-mini-tts';
 const FFMPEG_BIN = process.env.FFMPEG_BIN || ffmpegStatic || 'ffmpeg';
 const YTDLP_BIN = process.env.YTDLP_BIN || path.join(ROOT, 'node_modules', 'yt-dlp-exec', 'bin', process.platform === 'win32' ? 'yt-dlp.exe' : 'yt-dlp');
 
@@ -27,6 +29,38 @@ await fs.mkdir(PUBLIC_DIR, { recursive: true });
 
 const upload = multer({ dest: path.join(os.tmpdir(), 'vietdub_uploads') });
 const jobs = new Map();
+
+const EDGE_VOICES = new Map([
+  ['vi-VN-HoaiMyNeural', 'vi-VN-HoaiMyNeural'],
+  ['vi-VN-NamMinhNeural', 'vi-VN-NamMinhNeural']
+]);
+
+const OPENAI_VOICES = new Set([
+  'alloy',
+  'ash',
+  'ballad',
+  'coral',
+  'echo',
+  'fable',
+  'marin',
+  'nova',
+  'onyx',
+  'sage',
+  'shimmer',
+  'verse',
+  'cedar'
+]);
+
+const TTS_STYLES = new Map([
+  ['natural', 'Đọc như hội thoại đời thường: tự nhiên, rõ chữ, nhịp vừa phải, không diễn quá lố.'],
+  ['friendly', 'Đọc thân thiện và ấm áp, có nụ cười nhẹ trong giọng, gần gũi như đang nói chuyện với người quen.'],
+  ['cheerful', 'Đọc tươi sáng, vui hơn, có năng lượng và nhấn nhá rõ hơn nhưng vẫn tự nhiên.'],
+  ['calm', 'Đọc bình tĩnh, nhẹ, chậm hơn một chút, phát âm từng chữ rõ và không vội.'],
+  ['serious', 'Đọc nghiêm túc, chắc giọng, ít cười, phù hợp nội dung thông tin hoặc cảnh căng thẳng.'],
+  ['story', 'Đọc như kể chuyện, có cảm xúc, lên xuống giọng theo ý nghĩa câu, giữ nhịp cuốn hút.'],
+  ['news', 'Đọc như người dẫn chương trình: rõ, mạch lạc, chuyên nghiệp, ít cảm xúc cá nhân.'],
+  ['soft', 'Đọc mềm, nhẹ, êm tai, giảm lực ở cuối câu, phù hợp nội dung tình cảm hoặc đời thường.']
+]);
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
@@ -166,16 +200,22 @@ async function processJob(job, payload) {
 }
 
 function parseTtsOptions(body) {
-  const provider = ['edge-neural', 'google-translate'].includes(body.ttsProvider) ? body.ttsProvider : 'edge-neural';
-  const voices = new Map([
-    ['vi-VN-HoaiMyNeural', 'vi-VN-HoaiMyNeural'],
-    ['vi-VN-NamMinhNeural', 'vi-VN-NamMinhNeural']
-  ]);
+  const provider = ['edge-neural', 'openai-tts'].includes(body.ttsProvider) ? body.ttsProvider : 'edge-neural';
+  const requestedVoice = String(body.voice || '');
+  const style = TTS_STYLES.has(String(body.ttsStyle || '')) ? String(body.ttsStyle) : 'natural';
+  let voice;
+  if (provider === 'openai-tts') {
+    voice = OPENAI_VOICES.has(requestedVoice) ? requestedVoice : 'coral';
+  } else {
+    voice = EDGE_VOICES.get(requestedVoice) || 'vi-VN-HoaiMyNeural';
+  }
+
   return {
     provider,
-    voice: voices.get(String(body.voice || '')) || 'vi-VN-HoaiMyNeural',
-    speed: clampNumber(body.ttsSpeed, 0.75, 1.25, 0.92),
-    volume: clampNumber(body.ttsVolume, 0.6, 1.8, 1.15)
+    voice,
+    style,
+    speed: clampNumber(body.ttsSpeed, 0.7, 1.3, 0.92),
+    volume: clampNumber(body.ttsVolume, 0.6, 2, 1.15)
   };
 }
 
@@ -423,7 +463,7 @@ async function createTtsFiles(job, cues, tts) {
   return files;
 }
 
-async function synthesizeTtsText(text, target, tts, job, cueIndex = 0) {
+async function synthesizeTtsTextLegacy(text, target, tts, job, cueIndex = 0) {
   if (tts.provider === 'google-translate') {
     const url = `https://translate.google.com/translate_tts?ie=UTF-8&tl=vi&client=tw-ob&q=${encodeURIComponent(text)}`;
     await downloadToFile(url, target, { 'User-Agent': 'Mozilla/5.0' });
@@ -449,6 +489,82 @@ async function synthesizeTtsText(text, target, tts, job, cueIndex = 0) {
     const url = `https://translate.google.com/translate_tts?ie=UTF-8&tl=vi&client=tw-ob&q=${encodeURIComponent(text)}`;
     await downloadToFile(url, target, { 'User-Agent': 'Mozilla/5.0' });
   }
+}
+
+async function synthesizeTtsText(text, target, tts, job, cueIndex = 0) {
+  try {
+    if (tts.provider === 'google-translate') return await synthesizeGoogleTts(text, target);
+    if (tts.provider === 'openai-tts') return await synthesizeOpenAiTts(text, target, tts);
+    return await synthesizeEdgeTts(text, target, tts, job);
+  } catch (error) {
+    if (job) log(job, `TTS lỗi${cueIndex ? ` ở câu ${cueIndex}` : ''}, chuyển sang Edge/Google: ${error.message}`);
+    try {
+      await synthesizeEdgeTts(text, target, { ...tts, voice: 'vi-VN-HoaiMyNeural' }, job);
+    } catch {
+      await synthesizeGoogleTts(text, target);
+    }
+  }
+}
+
+async function synthesizeGoogleTts(text, target) {
+  const url = `https://translate.google.com/translate_tts?ie=UTF-8&tl=vi&client=tw-ob&q=${encodeURIComponent(text)}`;
+  await downloadToFile(url, target, { 'User-Agent': 'Mozilla/5.0' });
+}
+
+async function synthesizeEdgeTts(text, target, tts, job) {
+  const ratePercent = Math.round((tts.speed - 1) * 100);
+  const volumePercent = Math.round((tts.volume - 1) * 100);
+  const rateArg = `--rate=${ratePercent >= 0 ? '+' : ''}${ratePercent}%`;
+  const volumeArg = `--volume=${volumePercent >= 0 ? '+' : ''}${volumePercent}%`;
+  await run('python', [
+    '-m', 'edge_tts',
+    '--voice', EDGE_VOICES.get(tts.voice) || 'vi-VN-HoaiMyNeural',
+    rateArg,
+    volumeArg,
+    '--text', text,
+    '--write-media', target
+  ], job);
+}
+
+async function synthesizeOpenAiTts(text, target, tts) {
+  if (!OPENAI_API_KEY) throw new Error('Thiếu OPENAI_API_KEY trong file .env');
+  const response = await fetchWithRetry('https://api.openai.com/v1/audio/speech', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${OPENAI_API_KEY}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      model: OPENAI_TTS_MODEL,
+      voice: OPENAI_VOICES.has(tts.voice) ? tts.voice : 'coral',
+      input: text,
+      response_format: 'mp3',
+      speed: tts.speed,
+      instructions: buildOpenAiTtsInstructions(tts)
+    })
+  }, { logs: [] }, 'OpenAI TTS');
+  if (!response.ok) throw new Error(`OpenAI TTS lỗi ${response.status}: ${await response.text()}`);
+  await fs.writeFile(target, Buffer.from(await response.arrayBuffer()));
+}
+
+function buildOpenAiTtsInstructions(tts) {
+  const base = TTS_STYLES.get(tts.style) || TTS_STYLES.get('natural');
+  return [
+    base,
+    'Ưu tiên phát âm tiếng Việt rõ ràng, không nuốt chữ, không đọc quá nhanh.',
+    'Giữ cảm xúc đúng ngữ cảnh như một người thật đang nói trong video.',
+    'Nếu câu ngắn, vẫn tạo nhịp tự nhiên thay vì đọc đều đều như máy.',
+    'Không thêm nội dung ngoài văn bản được cung cấp.'
+  ].join(' ');
+}
+
+function xmlEscape(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
 }
 
 async function renderFinal(job, video, srt, cues, voiceFiles, output, subtitle, watermarkPath, watermark, tts) {

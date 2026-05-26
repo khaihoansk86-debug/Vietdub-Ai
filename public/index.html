@@ -72,8 +72,8 @@
                 <label class="field">
                   <span>Máy chủ TTS</span>
                   <select name="ttsProvider" id="ttsProvider">
-                    <option value="edge-neural" selected>Microsoft Edge Neural</option>
-                    <option value="google-translate">Google Translate TTS</option>
+                    <option value="edge-neural" selected>Microsoft Edge Neural - ổn định</option>
+                    <option value="openai-tts">OpenAI TTS - nhiều tone giọng</option>
                   </select>
                 </label>
                 <label class="field">
@@ -84,6 +84,19 @@
                   </select>
                 </label>
               </div>
+              <label class="field hidden" id="ttsStyleField">
+                <span>Tone giọng</span>
+                <select name="ttsStyle" id="ttsStyle">
+                  <option value="natural" selected>Tự nhiên, rõ chữ</option>
+                  <option value="friendly">Thân thiện, gần gũi</option>
+                  <option value="cheerful">Tươi sáng, có năng lượng</option>
+                  <option value="calm">Bình tĩnh, nhẹ nhàng</option>
+                  <option value="serious">Nghiêm túc, chắc giọng</option>
+                  <option value="story">Kể chuyện, có cảm xúc</option>
+                  <option value="news">Dẫn chương trình, chuyên nghiệp</option>
+                  <option value="soft">Mềm, nhẹ, dễ nghe</option>
+                </select>
+              </label>
               <label class="field">
                 <span>Câu phát thử</span>
                 <input name="previewText" id="previewText" type="text" value="Xin chào, đây là giọng đọc thử của VietDub AI.">
@@ -93,11 +106,11 @@
               <div class="control-row">
                 <label class="field">
                   <span>Âm lượng giọng đọc: <output id="ttsVolumeValue">1.15</output>x</span>
-                  <input name="ttsVolume" id="ttsVolume" type="range" min="0.6" max="1.8" step="0.05" value="1.15">
+                  <input name="ttsVolume" id="ttsVolume" type="range" min="0.6" max="2" step="0.05" value="1.15">
                 </label>
                 <label class="field">
                   <span>Tốc độ đọc: <output id="ttsSpeedValue">0.92</output>x</span>
-                  <input name="ttsSpeed" id="ttsSpeed" type="range" min="0.75" max="1.25" step="0.01" value="0.92">
+                  <input name="ttsSpeed" id="ttsSpeed" type="range" min="0.7" max="1.3" step="0.01" value="0.92">
                 </label>
               </div>
             </fieldset>
