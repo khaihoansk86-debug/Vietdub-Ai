@@ -26,6 +26,12 @@ const YTDLP_BIN = process.env.YTDLP_BIN || path.join(ROOT, 'node_modules', 'yt-d
 const TTS_CUE_GUARD_MS = 40;
 const TTS_SYNC_OFFSET_MS = 30;
 const MAX_TTS_TEMPO = 1.03;
+const OUTPUT_WIDTH = 1080;
+const OUTPUT_HEIGHT = 1920;
+const OUTPUT_FPS = 60;
+const OUTPUT_CRF = '18';
+const OUTPUT_PRESET = 'slow';
+const OUTPUT_AUDIO_BITRATE = '256k';
 
 await fs.mkdir(JOBS_DIR, { recursive: true });
 await fs.mkdir(PUBLIC_DIR, { recursive: true });
@@ -395,7 +401,7 @@ async function mergeVideos(job, inputs, output) {
 
 async function normalizeVideoForConcat(job, input, output, index) {
   const hasAudio = await hasAudioStream(input);
-  const scaleFilter = 'scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,format=yuv420p';
+  const scaleFilter = `scale=${OUTPUT_WIDTH}:${OUTPUT_HEIGHT}:force_original_aspect_ratio=decrease,pad=${OUTPUT_WIDTH}:${OUTPUT_HEIGHT}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=${OUTPUT_FPS},format=yuv420p`;
   const args = ['-y', '-i', input];
 
   if (hasAudio) {
@@ -404,10 +410,10 @@ async function normalizeVideoForConcat(job, input, output, index) {
       '-map', '0:a:0',
       '-vf', scaleFilter,
       '-c:v', 'libx264',
-      '-preset', 'veryfast',
-      '-crf', '22',
+      '-preset', OUTPUT_PRESET,
+      '-crf', OUTPUT_CRF,
       '-c:a', 'aac',
-      '-b:a', '160k',
+      '-b:a', OUTPUT_AUDIO_BITRATE,
       '-ar', '44100',
       '-ac', '2',
       '-movflags', '+faststart',
@@ -421,10 +427,12 @@ async function normalizeVideoForConcat(job, input, output, index) {
       '-map', '1:a:0',
       '-vf', scaleFilter,
       '-c:v', 'libx264',
-      '-preset', 'veryfast',
-      '-crf', '22',
+      '-preset', OUTPUT_PRESET,
+      '-crf', OUTPUT_CRF,
       '-c:a', 'aac',
-      '-b:a', '160k',
+      '-b:a', OUTPUT_AUDIO_BITRATE,
+      '-ar', '44100',
+      '-ac', '2',
       '-shortest',
       '-movflags', '+faststart',
       output
@@ -795,10 +803,12 @@ async function renderFinal(job, video, srt, cues, voiceFiles, output, subtitle, 
     '-map', videoLabel,
     '-map', '[aout]',
     '-c:v', 'libx264',
-    '-preset', 'veryfast',
-    '-crf', '23',
+    '-preset', OUTPUT_PRESET,
+    '-crf', OUTPUT_CRF,
+    '-pix_fmt', 'yuv420p',
     '-c:a', 'aac',
-    '-b:a', '192k',
+    '-b:a', OUTPUT_AUDIO_BITRATE,
+    '-movflags', '+faststart',
     '-shortest',
     output
   );
@@ -817,9 +827,11 @@ async function renderWatermarkedVideo(job, video, output, watermarkPath, waterma
     '-map', videoLabel,
     '-map', '0:a?',
     '-c:v', 'libx264',
-    '-preset', 'veryfast',
-    '-crf', '23',
-    '-c:a', 'copy',
+    '-preset', OUTPUT_PRESET,
+    '-crf', OUTPUT_CRF,
+    '-pix_fmt', 'yuv420p',
+    '-c:a', 'aac',
+    '-b:a', OUTPUT_AUDIO_BITRATE,
     '-movflags', '+faststart',
     output
   ], job);
