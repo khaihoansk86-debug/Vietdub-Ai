@@ -66,13 +66,41 @@
               <label><input type="radio" name="mode" value="raw"> <span>Raw</span></label>
             </fieldset>
 
-            <label class="field">
-              <span>Giọng lồng tiếng</span>
-              <select name="voice">
-                <option value="vi-VN-HoaiMyNeural" selected>Nữ tự nhiên</option>
-                <option value="vi-VN-NamMinhNeural">Nam tự nhiên</option>
-              </select>
-            </label>
+            <fieldset class="settings-group tts-settings">
+              <legend>Máy chủ TTS & giọng đọc</legend>
+              <div class="control-row">
+                <label class="field">
+                  <span>Máy chủ TTS</span>
+                  <select name="ttsProvider" id="ttsProvider">
+                    <option value="edge-neural" selected>Microsoft Edge Neural</option>
+                    <option value="google-translate">Google Translate TTS</option>
+                  </select>
+                </label>
+                <label class="field">
+                  <span>Giọng đọc văn bản</span>
+                  <select name="voice" id="voice">
+                    <option value="vi-VN-HoaiMyNeural" selected>vi-VN-HoaiMy - Nữ</option>
+                    <option value="vi-VN-NamMinhNeural">vi-VN-NamMinh - Nam</option>
+                  </select>
+                </label>
+              </div>
+              <label class="field">
+                <span>Câu phát thử</span>
+                <input name="previewText" id="previewText" type="text" value="Xin chào, đây là giọng đọc thử của VietDub AI.">
+              </label>
+              <button class="secondary" id="previewVoiceBtn" type="button">Phát giọng nói</button>
+              <audio id="ttsPreviewAudio" class="preview-audio" controls hidden></audio>
+              <div class="control-row">
+                <label class="field">
+                  <span>Âm lượng giọng đọc: <output id="ttsVolumeValue">1.15</output>x</span>
+                  <input name="ttsVolume" id="ttsVolume" type="range" min="0.6" max="1.8" step="0.05" value="1.15">
+                </label>
+                <label class="field">
+                  <span>Tốc độ đọc: <output id="ttsSpeedValue">0.92</output>x</span>
+                  <input name="ttsSpeed" id="ttsSpeed" type="range" min="0.75" max="1.25" step="0.01" value="0.92">
+                </label>
+              </div>
+            </fieldset>
           </section>
 
           <section class="form-section">

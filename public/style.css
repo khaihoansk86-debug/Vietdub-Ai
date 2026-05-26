@@ -155,6 +155,7 @@ legend {
 
 textarea,
 input[type="url"],
+input[type="text"],
 input[type="file"],
 input[type="color"],
 select {
@@ -183,6 +184,7 @@ textarea {
 
 textarea:focus,
 input[type="url"]:focus,
+input[type="text"]:focus,
 input[type="file"]:focus,
 input[type="color"]:focus,
 select:focus {
@@ -280,6 +282,7 @@ input[type="color"] {
 }
 
 .primary,
+.secondary,
 .clean-btn {
   border: 0;
   border-radius: 7px;
@@ -296,6 +299,7 @@ input[type="color"] {
 }
 
 .primary:hover,
+.secondary:hover,
 .clean-btn:hover {
   filter: brightness(0.96);
 }
@@ -312,6 +316,21 @@ input[type="color"] {
   color: var(--brand-dark);
   font-weight: 700;
   white-space: nowrap;
+}
+
+.secondary {
+  width: fit-content;
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1px solid var(--line-strong);
+  background: #fff;
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.preview-audio {
+  width: 100%;
+  margin-bottom: 14px;
 }
 
 .status {
@@ -502,6 +521,7 @@ input[type="color"] {
 
   textarea,
   input[type="url"],
+  input[type="text"],
   input[type="file"],
   input[type="color"],
   select {

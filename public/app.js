@@ -11,6 +11,44 @@ bindRangeValue('subtitleBgOpacity', 'subtitleBgOpacityValue');
 bindRangeValue('subtitleLineLength', 'subtitleLineLengthValue');
 bindRangeValue('watermarkWidthPercent', 'watermarkWidthValue');
 bindRangeValue('watermarkOpacity', 'watermarkOpacityValue');
+bindRangeValue('ttsVolume', 'ttsVolumeValue');
+bindRangeValue('ttsSpeed', 'ttsSpeedValue');
+
+const previewVoiceBtn = document.querySelector('#previewVoiceBtn');
+const ttsPreviewAudio = document.querySelector('#ttsPreviewAudio');
+
+previewVoiceBtn?.addEventListener('click', async () => {
+  previewVoiceBtn.disabled = true;
+  previewVoiceBtn.textContent = 'Đang tạo giọng...';
+  try {
+    const body = new URLSearchParams();
+    body.set('ttsProvider', document.querySelector('#ttsProvider')?.value || 'edge-neural');
+    body.set('voice', document.querySelector('#voice')?.value || 'vi-VN-HoaiMyNeural');
+    body.set('ttsVolume', document.querySelector('#ttsVolume')?.value || '1.15');
+    body.set('ttsSpeed', document.querySelector('#ttsSpeed')?.value || '0.92');
+    body.set('previewText', document.querySelector('#previewText')?.value || 'Xin chào, đây là giọng đọc thử của VietDub AI.');
+
+    const response = await fetch('/api/tts-preview', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || 'Không tạo được giọng đọc thử');
+    }
+    const blob = await response.blob();
+    if (ttsPreviewAudio.src) URL.revokeObjectURL(ttsPreviewAudio.src);
+    ttsPreviewAudio.src = URL.createObjectURL(blob);
+    ttsPreviewAudio.hidden = false;
+    await ttsPreviewAudio.play();
+  } catch (error) {
+    appendLog(error.message, true);
+  } finally {
+    previewVoiceBtn.disabled = false;
+    previewVoiceBtn.textContent = 'Phát giọng nói';
+  }
+});
 
 form.addEventListener('submit', async (event) => {
   event.preventDefault();

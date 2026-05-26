@@ -28,6 +28,8 @@ await fs.mkdir(PUBLIC_DIR, { recursive: true });
 const upload = multer({ dest: path.join(os.tmpdir(), 'vietdub_uploads') });
 const jobs = new Map();
 
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
 app.use(express.static(PUBLIC_DIR));
 app.use('/results', express.static(JOBS_DIR));
 
@@ -55,7 +57,7 @@ app.post('/api/jobs', upload.fields([
     linksText: String(req.body.links || ''),
     srtUrl: String(req.body.srtUrl || ''),
     mode: String(req.body.mode || 'dub'),
-    voice: String(req.body.voice || 'vi-VN-HoaiMyNeural'),
+    tts: parseTtsOptions(req.body),
     subtitle: parseSubtitleOptions(req.body),
     cleanup: parseCleanupOptions(req.body),
     watermark: parseWatermarkOptions(req.body),
@@ -91,6 +93,20 @@ app.get('/api/jobs/:id/events', (req, res) => {
   const timer = setInterval(send, 1000);
   send();
   req.on('close', () => clearInterval(timer));
+});
+
+app.post('/api/tts-preview', async (req, res) => {
+  const tts = parseTtsOptions(req.body);
+  const text = String(req.body.previewText || 'Xin chào, đây là giọng đọc thử của VietDub AI.').slice(0, 180);
+  const file = path.join(os.tmpdir(), `vietdub_tts_preview_${crypto.randomUUID()}.mp3`);
+  try {
+    await synthesizeTtsText(text, file, tts, null);
+    res.setHeader('Content-Type', 'audio/mpeg');
+    res.sendFile(file, () => fs.rm(file, { force: true }).catch(() => {}));
+  } catch (error) {
+    await fs.rm(file, { force: true }).catch(() => {});
+    res.status(500).json({ error: error.message || String(error) });
+  }
 });
 
 app.post('/api/cleanup', async (_req, res) => {
@@ -143,10 +159,24 @@ async function processJob(job, payload) {
   const cues = await normalizeAndParseSrt(srt, normalizedSrt, payload.subtitle.maxLineLength);
   log(job, `Đã chuẩn hóa ${cues.length} dòng phụ đề.`);
 
-  const voiceFiles = await createTtsFiles(job, cues, payload.voice);
+  const voiceFiles = await createTtsFiles(job, cues, payload.tts);
   const finalVideo = path.join(job.dir, 'VietDub_Final.mp4');
-  await renderFinal(job, merged, normalizedSrt, cues, voiceFiles, finalVideo, payload.subtitle, watermarkPath, payload.watermark);
+  await renderFinal(job, merged, normalizedSrt, cues, voiceFiles, finalVideo, payload.subtitle, watermarkPath, payload.watermark, payload.tts);
   finish(job, finalVideo, 'Hoàn tất tạo phụ đề và lồng tiếng.', payload.cleanup);
+}
+
+function parseTtsOptions(body) {
+  const provider = ['edge-neural', 'google-translate'].includes(body.ttsProvider) ? body.ttsProvider : 'edge-neural';
+  const voices = new Map([
+    ['vi-VN-HoaiMyNeural', 'vi-VN-HoaiMyNeural'],
+    ['vi-VN-NamMinhNeural', 'vi-VN-NamMinhNeural']
+  ]);
+  return {
+    provider,
+    voice: voices.get(String(body.voice || '')) || 'vi-VN-HoaiMyNeural',
+    speed: clampNumber(body.ttsSpeed, 0.75, 1.25, 0.92),
+    volume: clampNumber(body.ttsVolume, 0.6, 1.8, 1.15)
+  };
 }
 
 function parseSubtitleOptions(body) {
@@ -380,36 +410,48 @@ async function normalizeAndParseSrt(input, output, maxLineLength = 28) {
   return cues;
 }
 
-async function createTtsFiles(job, cues, voice) {
+async function createTtsFiles(job, cues, tts) {
   const files = [];
-  const selectedVoice = ['vi-VN-HoaiMyNeural', 'vi-VN-NamMinhNeural'].includes(voice)
-    ? voice
-    : 'vi-VN-HoaiMyNeural';
 
   for (const cue of cues) {
     const target = path.join(job.dir, `tts_${String(cue.index).padStart(4, '0')}.mp3`);
     const text = cue.text.slice(0, 180);
-    try {
-      await run('python', [
-        '-m', 'edge_tts',
-        '--voice', selectedVoice,
-        '--rate=-8%',
-        '--volume=+15%',
-        '--text', text,
-        '--write-media', target
-      ], job);
-    } catch (error) {
-      log(job, `Edge TTS lỗi ở câu ${cue.index}, chuyển sang Google TTS: ${error.message}`);
-      const url = `https://translate.google.com/translate_tts?ie=UTF-8&tl=vi&client=tw-ob&q=${encodeURIComponent(text)}`;
-      await downloadToFile(url, target, { 'User-Agent': 'Mozilla/5.0' });
-    }
+    await synthesizeTtsText(text, target, tts, job, cue.index);
     files.push(target);
     if (cue.index % 5 === 0 || cue.index === cues.length) log(job, `Đã tạo TTS ${cue.index}/${cues.length}.`);
   }
   return files;
 }
 
-async function renderFinal(job, video, srt, cues, voiceFiles, output, subtitle, watermarkPath, watermark) {
+async function synthesizeTtsText(text, target, tts, job, cueIndex = 0) {
+  if (tts.provider === 'google-translate') {
+    const url = `https://translate.google.com/translate_tts?ie=UTF-8&tl=vi&client=tw-ob&q=${encodeURIComponent(text)}`;
+    await downloadToFile(url, target, { 'User-Agent': 'Mozilla/5.0' });
+    return;
+  }
+
+  const ratePercent = Math.round((tts.speed - 1) * 100);
+  const volumePercent = Math.round((tts.volume - 1) * 100);
+  const rateArg = `--rate=${ratePercent >= 0 ? '+' : ''}${ratePercent}%`;
+  const volumeArg = `--volume=${volumePercent >= 0 ? '+' : ''}${volumePercent}%`;
+
+  try {
+    await run('python', [
+      '-m', 'edge_tts',
+      '--voice', tts.voice,
+      rateArg,
+      volumeArg,
+      '--text', text,
+      '--write-media', target
+    ], job);
+  } catch (error) {
+    if (job) log(job, `Edge TTS lỗi${cueIndex ? ` ở câu ${cueIndex}` : ''}, chuyển sang Google TTS: ${error.message}`);
+    const url = `https://translate.google.com/translate_tts?ie=UTF-8&tl=vi&client=tw-ob&q=${encodeURIComponent(text)}`;
+    await downloadToFile(url, target, { 'User-Agent': 'Mozilla/5.0' });
+  }
+}
+
+async function renderFinal(job, video, srt, cues, voiceFiles, output, subtitle, watermarkPath, watermark, tts) {
   log(job, 'Đang render video cuối cùng bằng ffmpeg.');
   const args = ['-y', '-i', video];
   for (const file of voiceFiles) args.push('-i', file);
@@ -440,7 +482,8 @@ async function renderFinal(job, video, srt, cues, voiceFiles, output, subtitle, 
   audioLabels.push('[a0]');
   cues.forEach((cue, i) => {
     const label = `a${i + 1}`;
-    filters.push(`[${i + 1}:a]loudnorm=I=-15:TP=-1.2:LRA=9,volume=1.28,adelay=${cue.start}|${cue.start}[${label}]`);
+    const ttsMixVolume = (1.1 * tts.volume).toFixed(2);
+    filters.push(`[${i + 1}:a]loudnorm=I=-15:TP=-1.2:LRA=9,volume=${ttsMixVolume},adelay=${cue.start}|${cue.start}[${label}]`);
     audioLabels.push(`[${label}]`);
   });
   filters.push(`${audioLabels.join('')}amix=inputs=${audioLabels.length}:duration=first:dropout_transition=0:normalize=0,loudnorm=I=-14:TP=-1.0:LRA=10,alimiter=limit=0.96[aout]`);
@@ -564,7 +607,7 @@ function run(command, args, job) {
     });
     child.stdout.on('data', (data) => {
       const text = data.toString().trim();
-      if (text) log(job, text.slice(-500));
+      if (text && job) log(job, text.slice(-500));
     });
     child.on('error', reject);
     child.on('close', (code) => {
