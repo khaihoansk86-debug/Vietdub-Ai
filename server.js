@@ -354,7 +354,7 @@ async function fileExists(file) {
   }
 }
 
-async function mergeVideos(job, inputs, output) {
+async function mergeVideosLegacy(job, inputs, output) {
   if (inputs.length === 1) {
     await fs.copyFile(inputs[0], output);
     log(job, 'Đã chuẩn bị video đầu vào.');
@@ -370,6 +370,69 @@ async function mergeVideos(job, inputs, output) {
     log(job, 'Ghép copy không thành công, chuyển sang encode lại.');
     await run(FFMPEG_BIN, ['-y', '-f', 'concat', '-safe', '0', '-i', list, '-vf', 'scale=1080:-2', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '23', '-c:a', 'aac', '-b:a', '128k', output], job);
   }
+}
+
+async function mergeVideos(job, inputs, output) {
+  if (inputs.length === 1) {
+    await fs.copyFile(inputs[0], output);
+    log(job, 'Đã chuẩn bị video đầu vào.');
+    return;
+  }
+
+  log(job, `Đang chuẩn hóa ${inputs.length} video trước khi ghép.`);
+  const normalized = [];
+  for (let index = 0; index < inputs.length; index += 1) {
+    const target = path.join(job.dir, `concat_ready_${String(index + 1).padStart(2, '0')}.mp4`);
+    await normalizeVideoForConcat(job, inputs[index], target, index + 1);
+    normalized.push(target);
+  }
+
+  const list = path.join(job.dir, 'concat.txt');
+  await fs.writeFile(list, normalized.map((file) => `file '${file.replaceAll("'", "'\\''")}'`).join('\n'));
+  log(job, `Đang ghép ${inputs.length} video.`);
+  await run(FFMPEG_BIN, ['-y', '-f', 'concat', '-safe', '0', '-i', list, '-c', 'copy', '-movflags', '+faststart', output], job);
+}
+
+async function normalizeVideoForConcat(job, input, output, index) {
+  const hasAudio = await hasAudioStream(input);
+  const scaleFilter = 'scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,format=yuv420p';
+  const args = ['-y', '-i', input];
+
+  if (hasAudio) {
+    args.push(
+      '-map', '0:v:0',
+      '-map', '0:a:0',
+      '-vf', scaleFilter,
+      '-c:v', 'libx264',
+      '-preset', 'veryfast',
+      '-crf', '22',
+      '-c:a', 'aac',
+      '-b:a', '160k',
+      '-ar', '44100',
+      '-ac', '2',
+      '-movflags', '+faststart',
+      output
+    );
+  } else {
+    args.push(
+      '-f', 'lavfi',
+      '-i', 'anullsrc=channel_layout=stereo:sample_rate=44100',
+      '-map', '0:v:0',
+      '-map', '1:a:0',
+      '-vf', scaleFilter,
+      '-c:v', 'libx264',
+      '-preset', 'veryfast',
+      '-crf', '22',
+      '-c:a', 'aac',
+      '-b:a', '160k',
+      '-shortest',
+      '-movflags', '+faststart',
+      output
+    );
+  }
+
+  log(job, `Đang chuẩn hóa video ${index}.`);
+  await run(FFMPEG_BIN, args, job);
 }
 
 async function createSrtWithGemini(job, video, srtPath) {
@@ -882,6 +945,11 @@ async function getMediaDurationMs(file) {
   const minutes = Number(match[2]);
   const seconds = Number(match[3]);
   return Math.round(((hours * 3600) + (minutes * 60) + seconds) * 1000);
+}
+
+async function hasAudioStream(file) {
+  const result = await runCapture(FFMPEG_BIN, ['-hide_banner', '-i', file]);
+  return /Stream\s+#\d+:\d+.*Audio:/i.test(result.stderr);
 }
 
 function parseLinks(text) {
