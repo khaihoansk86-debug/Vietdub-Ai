@@ -103,6 +103,18 @@ Nếu máy khác không truy cập được, hãy kiểm tra:
 - Tường lửa Windows đã cho phép cổng `3210`.
 - Các máy đang cùng một mạng LAN.
 
+Cho phép cổng `3210` qua Windows Firewall bằng PowerShell Administrator:
+
+```powershell
+New-NetFirewallRule -DisplayName "VietDub AI 3210" -Direction Inbound -Action Allow -Protocol TCP -LocalPort 3210
+```
+
+Nếu muốn xoá rule này:
+
+```powershell
+Remove-NetFirewallRule -DisplayName "VietDub AI 3210"
+```
+
 ## Tự chạy khi bật Windows
 
 Mở PowerShell bằng quyền Administrator tại thư mục project, sau đó chạy:
@@ -157,3 +169,14 @@ data/        Dữ liệu tạm, job, output và log runtime
 - Chế độ `Chỉ tải/gộp video` không cần API AI.
 - Chế độ `Tạo phụ đề + lồng tiếng` cần Gemini API và TTS API tương ứng.
 - Có thể dùng OpenAI TTS để giọng tự nhiên hơn, hoặc Edge Neural làm phương án dự phòng.
+
+## Gợi ý tạo release v1.0.0
+
+Sau khi test ổn định, có thể tạo release đầu tiên trên GitHub:
+
+```powershell
+git tag -a v1.0.0 -m "Phát hành VietDub AI v1.0.0"
+git push origin v1.0.0
+```
+
+Sau đó vào tab `Releases` trên GitHub, chọn tag `v1.0.0`, ghi chú các tính năng chính và bấm publish.

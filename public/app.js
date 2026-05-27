@@ -23,6 +23,11 @@ const ttsProvider = document.querySelector('#ttsProvider');
 const voiceSelect = document.querySelector('#voice');
 const ttsVolumeInput = document.querySelector('#ttsVolume');
 const ttsSpeedInput = document.querySelector('#ttsSpeed');
+const apiCheckBtn = document.querySelector('#apiCheckBtn');
+const apiCheckResult = document.querySelector('#apiCheckResult');
+const diskNotice = document.querySelector('#diskNotice');
+const refreshHistoryBtn = document.querySelector('#refreshHistoryBtn');
+const jobHistory = document.querySelector('#jobHistory');
 const apiFields = ['geminiApiKey', 'geminiModel', 'openaiApiKey', 'openaiTtsModel', 'rapidApiKey'];
 const rememberApiKeys = document.querySelector('#rememberApiKeys');
 
@@ -114,7 +119,20 @@ const i18n = {
     cleanupNote: 'File sẽ tự xoá sau {minutes} phút.',
     chooseFile: 'Chọn tệp',
     noFileSelected: 'Không có tệp nào được chọn',
-    filesSelected: 'Đã chọn {count} tệp'
+    filesSelected: 'Đã chọn {count} tệp',
+    apiCheckButton: 'Kiểm tra API',
+    apiChecking: 'Đang kiểm tra API...',
+    apiCheckOk: 'API sẵn sàng.',
+    apiCheckFail: 'Có API cần kiểm tra lại.',
+    diskOk: 'Dung lượng trống: {free}.',
+    diskWarning: 'Ổ đĩa còn {free}. Nên dọn thêm dung lượng trước khi render video dài.',
+    diskUnknown: 'Không đọc được dung lượng ổ đĩa.',
+    diskConfirm: 'Ổ đĩa còn ít dung lượng. Bạn vẫn muốn bắt đầu xử lý?',
+    historyTitle: 'Job gần nhất',
+    historyRefresh: 'Làm mới',
+    historyEmpty: 'Chưa có job nào.',
+    historyDownload: 'Tải kết quả',
+    historyNoResult: 'Chưa có file kết quả'
   },
   en: {
     brandSubtitle: 'Download, merge, subtitle, and AI dub videos.',
@@ -156,7 +174,20 @@ const i18n = {
     cleanupNote: 'File will be deleted automatically after {minutes} minutes.',
     chooseFile: 'Choose file',
     noFileSelected: 'No file selected',
-    filesSelected: '{count} files selected'
+    filesSelected: '{count} files selected',
+    apiCheckButton: 'Check APIs',
+    apiChecking: 'Checking APIs...',
+    apiCheckOk: 'APIs are ready.',
+    apiCheckFail: 'Some APIs need attention.',
+    diskOk: 'Free disk space: {free}.',
+    diskWarning: 'Free disk space is {free}. Consider cleaning disk space before rendering long videos.',
+    diskUnknown: 'Could not read disk space.',
+    diskConfirm: 'Disk space is low. Do you still want to start processing?',
+    historyTitle: 'Recent jobs',
+    historyRefresh: 'Refresh',
+    historyEmpty: 'No jobs yet.',
+    historyDownload: 'Download result',
+    historyNoResult: 'No result file yet'
   }
 };
 
@@ -287,9 +318,14 @@ function setLanguage(lang) {
   setText('.primary', t.startButton);
   setText('.status-head h2', t.statusTitle);
   setText('.status-head p', t.statusDesc);
+  setText('#apiCheckBtn', t.apiCheckButton);
+  setText('.history h3', t.historyTitle);
+  setText('#refreshHistoryBtn', t.historyRefresh);
   document.documentElement.lang = currentLang;
   translateOptions(t);
   updateFilePickers();
+  renderDiskNotice(window.latestDiskInfo);
+  loadHistory();
   if (typeof refreshVoices === 'function') refreshVoices();
   if (!state.dataset.status || state.dataset.status === 'ready') state.textContent = t.ready;
 }
@@ -380,6 +416,8 @@ ttsProvider?.addEventListener('change', refreshVoices);
 refreshVoices();
 setLanguage(currentLang);
 initFilePickers();
+loadDiskInfo();
+loadHistory();
 
 function syncPreviewPlayback() {
   if (!ttsPreviewAudio) return;
@@ -428,9 +466,38 @@ previewVoiceBtn?.addEventListener('click', async () => {
   }
 });
 
+apiCheckBtn?.addEventListener('click', async () => {
+  saveAiSettings();
+  apiCheckBtn.disabled = true;
+  if (apiCheckResult) apiCheckResult.textContent = i18n[currentLang].apiChecking;
+  try {
+    const response = await fetch('/api/api-check', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams(new FormData(form))
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'API check failed');
+    const items = [data.gemini, data.openai, data.rapidapi].filter(Boolean);
+    const ok = items.every((item) => item.ok);
+    const text = items.map((item) => item.message).join(' ');
+    if (apiCheckResult) apiCheckResult.textContent = `${ok ? i18n[currentLang].apiCheckOk : i18n[currentLang].apiCheckFail} ${text}`;
+    appendLog(text, !ok);
+  } catch (error) {
+    if (apiCheckResult) apiCheckResult.textContent = error.message;
+    appendLog(error.message, true);
+  } finally {
+    apiCheckBtn.disabled = false;
+  }
+});
+
+refreshHistoryBtn?.addEventListener('click', loadHistory);
+
 form.addEventListener('submit', async (event) => {
   event.preventDefault();
   saveAiSettings();
+  const diskInfo = await loadDiskInfo();
+  if (diskInfo?.warning && !window.confirm(i18n[currentLang].diskConfirm)) return;
   logs.innerHTML = '';
   result.classList.add('hidden');
   result.innerHTML = '';
@@ -462,6 +529,8 @@ cleanupBtn.addEventListener('click', async () => {
   result.classList.add('hidden');
   state.dataset.status = 'ready';
   state.textContent = i18n[currentLang].ready;
+  loadHistory();
+  loadDiskInfo();
 });
 
 function watchJob(id) {
@@ -480,12 +549,15 @@ function watchJob(id) {
       result.classList.remove('hidden');
       submitBtn.disabled = false;
       events.close();
+      loadHistory();
+      loadDiskInfo();
     }
 
     if (job.status === 'error') {
       appendLog(job.error, true);
       submitBtn.disabled = false;
       events.close();
+      loadHistory();
     }
   };
   events.onerror = () => {
@@ -511,6 +583,79 @@ function label(status) {
   if (status === 'done') return t.done;
   if (status === 'error') return t.error;
   return t.ready;
+}
+
+async function loadDiskInfo() {
+  try {
+    const response = await fetch('/api/system/disk');
+    const data = await response.json();
+    window.latestDiskInfo = data;
+    renderDiskNotice(data);
+    return data;
+  } catch (error) {
+    window.latestDiskInfo = { ok: false, error: error.message };
+    renderDiskNotice(window.latestDiskInfo);
+    return window.latestDiskInfo;
+  }
+}
+
+function renderDiskNotice(data) {
+  if (!diskNotice || !data) return;
+  diskNotice.classList.remove('hidden', 'warning');
+  if (!data.ok || data.freeBytes == null) {
+    diskNotice.textContent = i18n[currentLang].diskUnknown;
+    return;
+  }
+  const free = formatBytes(data.freeBytes);
+  diskNotice.textContent = (data.warning ? i18n[currentLang].diskWarning : i18n[currentLang].diskOk).replace('{free}', free);
+  if (data.warning) diskNotice.classList.add('warning');
+}
+
+async function loadHistory() {
+  if (!jobHistory) return;
+  try {
+    const response = await fetch('/api/jobs');
+    const data = await response.json();
+    renderHistory(data.jobs || []);
+  } catch {
+    renderHistory([]);
+  }
+}
+
+function renderHistory(items) {
+  if (!jobHistory) return;
+  jobHistory.innerHTML = '';
+  if (!items.length) {
+    const li = document.createElement('li');
+    li.textContent = i18n[currentLang].historyEmpty;
+    jobHistory.appendChild(li);
+    return;
+  }
+  for (const item of items) {
+    const li = document.createElement('li');
+    const title = document.createElement(item.result?.url ? 'a' : 'span');
+    title.textContent = item.result?.fileName || i18n[currentLang].historyNoResult;
+    if (item.result?.url) {
+      title.href = item.result.url;
+      title.download = item.result.fileName;
+    }
+    const meta = document.createElement('span');
+    meta.className = 'history-meta';
+    meta.textContent = `${label(item.status)} · ${new Date(item.createdAt).toLocaleString()}`;
+    li.append(title, meta);
+    jobHistory.appendChild(li);
+  }
+}
+
+function formatBytes(bytes) {
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  let value = Number(bytes) || 0;
+  let unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit += 1;
+  }
+  return `${value.toFixed(value >= 10 || unit === 0 ? 0 : 1)} ${units[unit]}`;
 }
 
 function bindRangeValue(inputId, outputId) {

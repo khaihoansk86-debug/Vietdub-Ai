@@ -120,6 +120,10 @@
                 <span>RapidAPI key tải Douyin/TikTok dự phòng</span>
                 <input name="rapidApiKey" id="rapidApiKey" class="api-input" type="password" placeholder="Dùng .env nếu để trống" autocomplete="off">
               </label>
+              <div class="inline-actions">
+                <button class="secondary" id="apiCheckBtn" type="button">Kiểm tra API</button>
+                <span id="apiCheckResult" class="helper-text"></span>
+              </div>
               <label class="check-row">
                 <input name="rememberApiKeys" id="rememberApiKeys" type="checkbox">
                 <span>Lưu API và model trên trình duyệt này</span>
@@ -294,6 +298,7 @@
                 </select>
               </label>
             </fieldset>
+            <div id="diskNotice" class="notice hidden"></div>
           </section>
 
           <div class="action-bar">
@@ -312,6 +317,13 @@
         </div>
         <div id="result" class="result hidden"></div>
         <ol id="logs" class="logs"></ol>
+        <div class="history">
+          <div class="history-head">
+            <h3>Job gần nhất</h3>
+            <button class="link-btn" id="refreshHistoryBtn" type="button">Làm mới</button>
+          </div>
+          <ul id="jobHistory" class="history-list"></ul>
+        </div>
       </aside>
     </main>
 

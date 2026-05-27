@@ -121,6 +121,18 @@ app.get('/api/jobs/:id', (req, res) => {
   res.json(publicJob(job));
 });
 
+app.get('/api/jobs', (_req, res) => {
+  const items = [...jobs.values()]
+    .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
+    .slice(0, 8)
+    .map((job) => {
+      const snapshot = publicJob(job);
+      snapshot.logs = snapshot.logs.slice(-3);
+      return snapshot;
+    });
+  res.json({ jobs: items });
+});
+
 app.get('/api/jobs/:id/events', (req, res) => {
   const job = jobs.get(req.params.id);
   if (!job) return res.status(404).end();
@@ -154,11 +166,26 @@ app.post('/api/tts-preview', async (req, res) => {
   }
 });
 
+app.post('/api/api-check', async (req, res) => {
+  const ai = parseAiOptions(req.body);
+  const tts = parseTtsOptions(req.body);
+  const result = {
+    gemini: await checkGeminiApi(ai),
+    openai: await checkOpenAiApi(tts),
+    rapidapi: checkRapidApi(ai)
+  };
+  res.json(result);
+});
+
 app.post('/api/cleanup', async (_req, res) => {
   await fs.rm(JOBS_DIR, { recursive: true, force: true });
   await fs.mkdir(JOBS_DIR, { recursive: true });
   jobs.clear();
   res.json({ ok: true });
+});
+
+app.get('/api/system/disk', async (_req, res) => {
+  res.json(await getDiskInfo());
 });
 
 app.get('/health', (_req, res) => res.json({ ok: true }));
@@ -249,6 +276,46 @@ function cleanSecret(value) {
 function cleanModel(value, fallback) {
   const text = String(value || '').trim();
   return /^[A-Za-z0-9._:-]+$/.test(text) ? text : fallback;
+}
+
+async function checkGeminiApi(ai) {
+  if (!ai.geminiApiKey) return { ok: false, message: 'Thiếu Gemini API key.' };
+  const model = ai.geminiModel || GEMINI_MODEL;
+  try {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(ai.geminiApiKey)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: 'Reply with OK only.' }] }],
+        generationConfig: { maxOutputTokens: 4, temperature: 0 }
+      })
+    });
+    if (!response.ok) return { ok: false, message: `Gemini lỗi ${response.status}.` };
+    return { ok: true, message: `Gemini OK (${model}).` };
+  } catch (error) {
+    return { ok: false, message: `Gemini lỗi kết nối: ${error.message || String(error)}` };
+  }
+}
+
+async function checkOpenAiApi(tts) {
+  if (tts.provider !== 'openai-tts') return { ok: true, message: 'Đang dùng Edge Neural, không cần OpenAI.' };
+  if (!tts.openaiApiKey) return { ok: false, message: 'Thiếu OpenAI API key.' };
+  const model = tts.openaiModel || OPENAI_TTS_MODEL;
+  try {
+    const response = await fetch(`https://api.openai.com/v1/models/${encodeURIComponent(model)}`, {
+      headers: { Authorization: `Bearer ${tts.openaiApiKey}` }
+    });
+    if (!response.ok) return { ok: false, message: `OpenAI lỗi ${response.status}.` };
+    return { ok: true, message: `OpenAI OK (${model}).` };
+  } catch (error) {
+    return { ok: false, message: `OpenAI lỗi kết nối: ${error.message || String(error)}` };
+  }
+}
+
+function checkRapidApi(ai) {
+  return ai.rapidApiKey
+    ? { ok: true, message: 'RapidAPI đã có key. Sẽ dùng khi cần tải Douyin/TikTok dự phòng.' }
+    : { ok: true, message: 'RapidAPI chưa có key. YouTube/upload local vẫn dùng bình thường.' };
 }
 
 function parseSubtitleOptions(body) {
@@ -1099,4 +1166,31 @@ function publicJob(job) {
     error: job.error,
     createdAt: job.createdAt
   };
+}
+
+async function getDiskInfo() {
+  try {
+    const statfs = await fs.statfs(ROOT);
+    const freeBytes = Number(statfs.bavail) * Number(statfs.bsize);
+    const totalBytes = Number(statfs.blocks) * Number(statfs.bsize);
+    const usedPercent = totalBytes > 0 ? Math.round((1 - freeBytes / totalBytes) * 100) : null;
+    return {
+      ok: true,
+      path: ROOT,
+      freeBytes,
+      totalBytes,
+      usedPercent,
+      warning: freeBytes < 10 * 1024 * 1024 * 1024
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      path: ROOT,
+      freeBytes: null,
+      totalBytes: null,
+      usedPercent: null,
+      warning: false,
+      error: error.message || String(error)
+    };
+  }
 }
