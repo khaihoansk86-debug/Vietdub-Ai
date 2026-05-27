@@ -3,7 +3,10 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>VietDub AI Local</title>
+    <title>🤖VietDub AI</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700;800&display=swap&subset=vietnamese" rel="stylesheet">
     <link rel="stylesheet" href="/style.css">
   </head>
   <body>
@@ -17,7 +20,14 @@
               <p>Tải video, ghép clip, tạo phụ đề và lồng tiếng AI.</p>
             </div>
           </div>
-          <button id="cleanupBtn" class="clean-btn" title="Xoá tất cả file job cũ">Dọn file cũ</button>
+          <div class="top-actions">
+            <select id="languageSelect" class="language-select" aria-label="Language">
+              <option value="vi">VI</option>
+              <option value="en">EN</option>
+            </select>
+            <button id="themeToggle" class="theme-btn" type="button" aria-pressed="false" aria-label="Doi giao dien sang toi" title="Doi giao dien sang/toi"></button>
+            <button id="cleanupBtn" class="clean-btn" title="Xoá tất cả file job cũ">Dọn file cũ</button>
+          </div>
         </header>
 
         <form id="jobForm" class="panel">
@@ -37,11 +47,19 @@
             <div class="grid">
               <label class="field">
                 <span>File video</span>
-                <input name="videos" type="file" accept="video/*,.mp4,.mov,.mkv,.webm" multiple>
+                <div class="file-picker">
+                  <input name="videos" type="file" accept="video/*,.mp4,.mov,.mkv,.webm" multiple>
+                  <span class="file-button">Chọn tệp</span>
+                  <span class="file-name">Không có tệp nào được chọn</span>
+                </div>
               </label>
               <label class="field">
                 <span>File SRT có sẵn</span>
-                <input name="srtFile" type="file" accept=".srt,text/*">
+                <div class="file-picker">
+                  <input name="srtFile" type="file" accept=".srt,text/*">
+                  <span class="file-button">Chọn tệp</span>
+                  <span class="file-name">Không có tệp nào được chọn</span>
+                </div>
               </label>
             </div>
 
@@ -65,6 +83,47 @@
               <label><input type="radio" name="mode" value="download"> <span>Chỉ tải/gộp video</span></label>
               <label><input type="radio" name="mode" value="raw"> <span>Raw</span></label>
             </fieldset>
+
+            <details class="settings-group api-settings" id="apiSettings">
+              <summary>API & mô hình AI</summary>
+              <div class="control-row">
+                <label class="field">
+                  <span>Gemini API key tạo phụ đề</span>
+                  <input name="geminiApiKey" id="geminiApiKey" class="api-input" type="password" placeholder="Dùng .env nếu để trống" autocomplete="off">
+                </label>
+                <label class="field">
+                  <span>Mô hình Gemini</span>
+                  <select name="geminiModel" id="geminiModel">
+                    <option value="gemini-2.5-pro" selected>Gemini 2.5 Pro - chính xác nhất</option>
+                    <option value="gemini-2.5-flash">Gemini 2.5 Flash - nhanh</option>
+                    <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+                    <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+                  </select>
+                </label>
+              </div>
+              <div class="control-row">
+                <label class="field">
+                  <span>OpenAI API key lồng tiếng</span>
+                  <input name="openaiApiKey" id="openaiApiKey" class="api-input" type="password" placeholder="Dùng .env nếu để trống" autocomplete="off">
+                </label>
+                <label class="field">
+                  <span>Mô hình OpenAI TTS</span>
+                  <select name="openaiTtsModel" id="openaiTtsModel">
+                    <option value="gpt-4o-mini-tts" selected>gpt-4o-mini-tts - tự nhiên</option>
+                    <option value="tts-1-hd">tts-1-hd - chất lượng cao</option>
+                    <option value="tts-1">tts-1 - nhanh</option>
+                  </select>
+                </label>
+              </div>
+              <label class="field">
+                <span>RapidAPI key tải Douyin/TikTok dự phòng</span>
+                <input name="rapidApiKey" id="rapidApiKey" class="api-input" type="password" placeholder="Dùng .env nếu để trống" autocomplete="off">
+              </label>
+              <label class="check-row">
+                <input name="rememberApiKeys" id="rememberApiKeys" type="checkbox">
+                <span>Lưu API và model trên trình duyệt này</span>
+              </label>
+            </details>
 
             <fieldset class="settings-group tts-settings">
               <legend>Máy chủ TTS & giọng đọc</legend>
@@ -179,7 +238,11 @@
               </label>
               <label class="field">
                 <span>Chọn ảnh watermark</span>
-                <input name="watermarkFile" type="file" accept="image/png,image/jpeg,image/webp,image/gif">
+                <div class="file-picker">
+                  <input name="watermarkFile" type="file" accept="image/png,image/jpeg,image/webp,image/gif">
+                  <span class="file-button">Chọn tệp</span>
+                  <span class="file-name">Không có tệp nào được chọn</span>
+                </div>
               </label>
               <div class="control-row">
                 <label class="field">

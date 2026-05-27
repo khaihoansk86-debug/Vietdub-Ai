@@ -101,6 +101,7 @@ app.post('/api/jobs', upload.fields([
     linksText: String(req.body.links || ''),
     srtUrl: String(req.body.srtUrl || ''),
     mode: String(req.body.mode || 'dub'),
+    ai: parseAiOptions(req.body),
     tts: parseTtsOptions(req.body),
     subtitle: parseSubtitleOptions(req.body),
     cleanup: parseCleanupOptions(req.body),
@@ -196,7 +197,7 @@ async function processJob(job, payload) {
     await downloadToFile(payload.srtUrl, srt);
     log(job, 'Đã tải SRT từ URL.');
   } else {
-    await createSrtWithGemini(job, merged, srt);
+    await createSrtWithGemini(job, merged, srt, payload.ai);
   }
 
   const normalizedSrt = path.join(job.dir, 'subtitle_normalized.srt');
@@ -224,9 +225,30 @@ function parseTtsOptions(body) {
     provider,
     voice,
     style,
+    openaiApiKey: cleanSecret(body.openaiApiKey) || OPENAI_API_KEY,
+    openaiModel: cleanModel(body.openaiTtsModel, OPENAI_TTS_MODEL),
     speed: clampNumber(body.ttsSpeed, 0.7, 1.3, 0.9),
     volume: clampNumber(body.ttsVolume, 0.6, 2, 1.05)
   };
+}
+
+function parseAiOptions(body) {
+  return {
+    geminiApiKey: cleanSecret(body.geminiApiKey) || GEMINI_API_KEY,
+    geminiModel: cleanModel(body.geminiModel, GEMINI_MODEL),
+    rapidApiKey: cleanSecret(body.rapidApiKey) || RAPIDAPI_KEY
+  };
+}
+
+function cleanSecret(value) {
+  const text = String(value || '').trim();
+  if (!text || text.includes('your_') || text.includes('...')) return '';
+  return text;
+}
+
+function cleanModel(value, fallback) {
+  const text = String(value || '').trim();
+  return /^[A-Za-z0-9._:-]+$/.test(text) ? text : fallback;
 }
 
 function parseSubtitleOptions(body) {
@@ -303,7 +325,7 @@ async function prepareInputs(job, payload) {
     const target = path.join(job.dir, `input_${inputNumber}.mp4`);
     if (url.includes('douyin.com')) {
       log(job, `Đang tải Douyin qua RapidAPI: ${url}`);
-      const mediaUrl = await resolveRapidApi(url);
+      const mediaUrl = await resolveRapidApi(url, payload.ai);
       await downloadToFile(mediaUrl, target);
     } else {
       log(job, `Đang tải bằng yt-dlp: ${url}`);
@@ -427,8 +449,10 @@ async function normalizeVideoForConcat(job, input, output, index) {
   await run(FFMPEG_BIN, args, job);
 }
 
-async function createSrtWithGemini(job, video, srtPath) {
-  if (!GEMINI_API_KEY) throw new Error('Thiếu GEMINI_API_KEY trong file .env');
+async function createSrtWithGemini(job, video, srtPath, ai = {}) {
+  const geminiApiKey = ai.geminiApiKey || GEMINI_API_KEY;
+  const geminiModel = ai.geminiModel || GEMINI_MODEL;
+  if (!geminiApiKey) throw new Error('Thieu GEMINI_API_KEY trong giao dien hoac file .env');
   const audio = path.join(job.dir, 'audio_for_transcription.wav');
   log(job, 'Đang trích xuất audio để tạo phụ đề.');
   await run(FFMPEG_BIN, [
@@ -487,7 +511,7 @@ Noi dung tieng Viet.
 Noi dung tiep theo.
 
 Chi tra ve SRT thuan, khong markdown, khong code fence va khong ghi chu.`;
-  const response = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`, {
+  const response = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${geminiApiKey}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -675,15 +699,17 @@ async function synthesizeEdgeTts(text, target, tts, job) {
 }
 
 async function synthesizeOpenAiTts(text, target, tts) {
-  if (!OPENAI_API_KEY) throw new Error('Thiếu OPENAI_API_KEY trong file .env');
+  const openaiApiKey = tts.openaiApiKey || OPENAI_API_KEY;
+  const openaiModel = tts.openaiModel || OPENAI_TTS_MODEL;
+  if (!openaiApiKey) throw new Error('Thieu OPENAI_API_KEY trong giao dien hoac file .env');
   const response = await fetchWithRetry('https://api.openai.com/v1/audio/speech', {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${OPENAI_API_KEY}`,
+      Authorization: `Bearer ${openaiApiKey}`,
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      model: OPENAI_TTS_MODEL,
+      model: openaiModel,
       voice: OPENAI_VOICES.has(tts.voice) ? tts.voice : 'coral',
       input: text,
       response_format: 'mp3',
@@ -813,14 +839,15 @@ function watermarkOverlayPosition(position, margin) {
   return `main_w-overlay_w-${margin}:${margin}`;
 }
 
-async function resolveRapidApi(url) {
-  if (!RAPIDAPI_KEY) throw new Error('Thiếu RAPIDAPI_KEY trong file .env');
+async function resolveRapidApi(url, ai = {}) {
+  const rapidApiKey = ai.rapidApiKey || RAPIDAPI_KEY;
+  if (!rapidApiKey) throw new Error('Thieu RAPIDAPI_KEY trong giao dien hoac file .env');
   const response = await fetch('https://auto-download-all-in-one.p.rapidapi.com/v1/social/autolink', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'x-rapidapi-host': 'auto-download-all-in-one.p.rapidapi.com',
-      'x-rapidapi-key': RAPIDAPI_KEY
+      'x-rapidapi-key': rapidApiKey
     },
     body: JSON.stringify({ url })
   });

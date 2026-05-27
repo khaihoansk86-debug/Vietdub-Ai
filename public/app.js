@@ -3,7 +3,10 @@ const logs = document.querySelector('#logs');
 const state = document.querySelector('#state');
 const result = document.querySelector('#result');
 const cleanupBtn = document.querySelector('#cleanupBtn');
+const themeToggle = document.querySelector('#themeToggle');
+const languageSelect = document.querySelector('#languageSelect');
 const submitBtn = form.querySelector('button[type="submit"]');
+const rangeLabelState = {};
 
 bindRangeValue('subtitleSize', 'subtitleSizeValue');
 bindRangeValue('subtitleBottomMargin', 'subtitleBottomValue');
@@ -20,6 +23,284 @@ const ttsProvider = document.querySelector('#ttsProvider');
 const voiceSelect = document.querySelector('#voice');
 const ttsVolumeInput = document.querySelector('#ttsVolume');
 const ttsSpeedInput = document.querySelector('#ttsSpeed');
+const apiFields = ['geminiApiKey', 'geminiModel', 'openaiApiKey', 'openaiTtsModel', 'rapidApiKey'];
+const rememberApiKeys = document.querySelector('#rememberApiKeys');
+
+const savedTheme = localStorage.getItem('vietdub-theme');
+setTheme(savedTheme || 'dark');
+restoreAiSettings();
+let currentLang = localStorage.getItem('vietdub-lang') || 'vi';
+
+themeToggle?.addEventListener('click', () => {
+  const nextTheme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+  setTheme(nextTheme);
+});
+
+function setTheme(theme) {
+  const normalized = theme === 'dark' ? 'dark' : 'light';
+  document.documentElement.dataset.theme = normalized;
+  localStorage.setItem('vietdub-theme', normalized);
+  if (themeToggle) themeToggle.setAttribute('aria-pressed', normalized === 'dark' ? 'true' : 'false');
+}
+
+function restoreAiSettings() {
+  if (!rememberApiKeys) return;
+  const saved = JSON.parse(localStorage.getItem('vietdub-ai-settings') || '{}');
+  rememberApiKeys.checked = saved.remember === true;
+  if (!rememberApiKeys.checked) return;
+  for (const id of apiFields) {
+    const input = document.querySelector(`#${id}`);
+    if (input && saved[id]) input.value = saved[id];
+  }
+}
+
+function saveAiSettings() {
+  if (!rememberApiKeys) return;
+  if (!rememberApiKeys.checked) {
+    localStorage.removeItem('vietdub-ai-settings');
+    return;
+  }
+  const saved = { remember: true };
+  for (const id of apiFields) {
+    const input = document.querySelector(`#${id}`);
+    if (input) saved[id] = input.value;
+  }
+  localStorage.setItem('vietdub-ai-settings', JSON.stringify(saved));
+}
+
+rememberApiKeys?.addEventListener('change', saveAiSettings);
+for (const id of apiFields) document.querySelector(`#${id}`)?.addEventListener('input', saveAiSettings);
+
+languageSelect?.addEventListener('change', () => setLanguage(languageSelect.value));
+
+const i18n = {
+  vi: {
+    brandSubtitle: 'Tải video, ghép clip, tạo phụ đề và lồng tiếng AI.',
+    cleanup: 'Dọn file cũ',
+    sourceTitle: 'Nguồn đầu vào',
+    sourceDesc: 'Nhập link hoặc tải file video/SRT trực tiếp từ máy.',
+    linksLabel: 'Link video hoặc link SRT',
+    linksPlaceholder: 'Dán một hoặc nhiều link video. Có thể dán kèm URL .srt',
+    videoFile: 'File video',
+    srtFile: 'File SRT có sẵn',
+    srtUrl: 'URL SRT riêng',
+    setupTitle: 'Thiết lập xử lý',
+    setupDesc: 'Chọn cách xuất video và giọng lồng tiếng.',
+    modeLegend: 'Chế độ xử lý',
+    modeDub: 'Tạo phụ đề + lồng tiếng',
+    modeDownload: 'Chỉ tải/gộp video',
+    apiSummary: 'API & mô hình AI',
+    geminiKey: 'Gemini API key tạo phụ đề',
+    envPlaceholder: 'Dùng .env nếu để trống',
+    geminiModel: 'Mô hình Gemini',
+    openaiKey: 'OpenAI API key lồng tiếng',
+    openaiModel: 'Mô hình OpenAI TTS',
+    rapidKey: 'RapidAPI key tải Douyin/TikTok dự phòng',
+    rememberApi: 'Lưu API và model trên trình duyệt này',
+    ttsLegend: 'Máy chủ TTS & giọng đọc',
+    statusTitle: 'Tiến trình',
+    statusDesc: 'Theo dõi log xử lý theo thời gian thực.',
+    ready: 'Sẵn sàng',
+    queued: 'Đang chờ',
+    running: 'Đang xử lý',
+    done: 'Hoàn tất',
+    error: 'Lỗi',
+    creatingVoice: 'Đang tạo giọng...',
+    previewVoiceError: 'Không tạo được giọng đọc thử',
+    createJobError: 'Không tạo được job',
+    cleanupConfirm: 'Xoá tất cả file job cũ trong data/jobs? Các link tải cũ sẽ không dùng được nữa.',
+    resultDone: 'Hoàn tất.',
+    resultDownload: 'Tải',
+    cleanupNote: 'File sẽ tự xoá sau {minutes} phút.',
+    chooseFile: 'Chọn tệp',
+    noFileSelected: 'Không có tệp nào được chọn',
+    filesSelected: 'Đã chọn {count} tệp'
+  },
+  en: {
+    brandSubtitle: 'Download, merge, subtitle, and AI dub videos.',
+    cleanup: 'Clean old files',
+    sourceTitle: 'Input source',
+    sourceDesc: 'Paste links or upload video/SRT files from this computer.',
+    linksLabel: 'Video link or SRT link',
+    linksPlaceholder: 'Paste one or more video links. You can include a .srt URL',
+    videoFile: 'Video file',
+    srtFile: 'Existing SRT file',
+    srtUrl: 'Separate SRT URL',
+    setupTitle: 'Processing setup',
+    setupDesc: 'Choose output mode and dubbing voice.',
+    modeLegend: 'Processing mode',
+    modeDub: 'Subtitle + AI dubbing',
+    modeDownload: 'Download/merge only',
+    apiSummary: 'AI APIs & models',
+    geminiKey: 'Gemini API key for subtitles',
+    envPlaceholder: 'Use .env when empty',
+    geminiModel: 'Gemini model',
+    openaiKey: 'OpenAI API key for dubbing',
+    openaiModel: 'OpenAI TTS model',
+    rapidKey: 'RapidAPI key for Douyin/TikTok fallback',
+    rememberApi: 'Save APIs and models in this browser',
+    ttsLegend: 'TTS server & voice',
+    statusTitle: 'Progress',
+    statusDesc: 'Watch processing logs in real time.',
+    ready: 'Ready',
+    queued: 'Queued',
+    running: 'Running',
+    done: 'Done',
+    error: 'Error',
+    creatingVoice: 'Creating voice...',
+    previewVoiceError: 'Could not create voice preview',
+    createJobError: 'Could not create job',
+    cleanupConfirm: 'Delete all old job files in data/jobs? Old download links will stop working.',
+    resultDone: 'Done.',
+    resultDownload: 'Download',
+    cleanupNote: 'File will be deleted automatically after {minutes} minutes.',
+    chooseFile: 'Choose file',
+    noFileSelected: 'No file selected',
+    filesSelected: '{count} files selected'
+  }
+};
+
+const extraI18n = {
+  vi: {
+    apiSummary: 'API & mô hình AI',
+    ttsProvider: 'Máy chủ TTS',
+    voice: 'Giọng đọc văn bản',
+    style: 'Tone giọng',
+    previewText: 'Câu phát thử',
+    previewButton: 'Phát giọng nói',
+    voiceVolume: 'Âm lượng giọng đọc',
+    voiceSpeed: 'Tốc độ đọc',
+    displayTitle: 'Hiển thị',
+    displayDesc: 'Tinh chỉnh phụ đề và watermark khi render video.',
+    subtitleLegend: 'Tùy chỉnh phụ đề',
+    subtitleFont: 'Font chữ phụ đề',
+    subtitleSize: 'Kích thước sub',
+    subtitleBottom: 'Khoảng cách đáy',
+    subtitleBg: 'Nền phụ đề',
+    subtitleColor: 'Màu nền',
+    subtitleOpacity: 'Độ đậm nền',
+    subtitleLine: 'Độ dài mỗi dòng',
+    watermarkLegend: 'Chèn hình ảnh watermark',
+    watermarkEnabled: 'Bật watermark',
+    watermarkFile: 'Chọn ảnh watermark',
+    watermarkPosition: 'Vị trí hiển thị',
+    watermarkSize: 'Kích thước watermark',
+    watermarkOpacity: 'Độ rõ watermark',
+    fileTitle: 'Quản lý file',
+    fileDesc: 'Tự dọn dữ liệu tạm để không làm nặng máy.',
+    cleanupLegend: 'Dọn file sau khi xử lý',
+    autoCleanup: 'Tự xoá thư mục job sau khi hoàn tất',
+    cleanupDelay: 'Giữ file để tải trong',
+    startButton: 'Bắt đầu xử lý'
+  },
+  en: {
+    ttsProvider: 'TTS server',
+    voice: 'Text voice',
+    style: 'Voice tone',
+    previewText: 'Preview sentence',
+    previewButton: 'Play voice',
+    voiceVolume: 'Voice volume',
+    voiceSpeed: 'Reading speed',
+    displayTitle: 'Display',
+    displayDesc: 'Adjust subtitles and watermark when rendering.',
+    subtitleLegend: 'Subtitle settings',
+    subtitleFont: 'Subtitle font',
+    subtitleSize: 'Subtitle size',
+    subtitleBottom: 'Bottom margin',
+    subtitleBg: 'Subtitle background',
+    subtitleColor: 'Background color',
+    subtitleOpacity: 'Background opacity',
+    subtitleLine: 'Line length',
+    watermarkLegend: 'Image watermark',
+    watermarkEnabled: 'Enable watermark',
+    watermarkFile: 'Watermark image',
+    watermarkPosition: 'Position',
+    watermarkSize: 'Watermark size',
+    watermarkOpacity: 'Watermark opacity',
+    fileTitle: 'File management',
+    fileDesc: 'Automatically clean temporary data to save disk space.',
+    cleanupLegend: 'Clean files after processing',
+    autoCleanup: 'Delete job folder automatically after completion',
+    cleanupDelay: 'Keep download file for',
+    startButton: 'Start processing'
+  }
+};
+
+function setLanguage(lang) {
+  currentLang = lang === 'en' ? 'en' : 'vi';
+  localStorage.setItem('vietdub-lang', currentLang);
+  if (languageSelect) languageSelect.value = currentLang;
+  const t = { ...i18n[currentLang], ...extraI18n[currentLang] };
+  setText('.brand p', t.brandSubtitle);
+  setText('#cleanupBtn', t.cleanup);
+  setText('.form-section:nth-of-type(1) h2', t.sourceTitle);
+  setText('.form-section:nth-of-type(1) .section-head p', t.sourceDesc);
+  setText('textarea[name="links"]', t.linksPlaceholder, 'placeholder');
+  setText('label.field:nth-of-type(1) > span', t.linksLabel);
+  setText('input[name="videos"]', t.videoFile, 'previous');
+  setText('input[name="srtFile"]', t.srtFile, 'previous');
+  setText('input[name="srtUrl"]', t.srtUrl, 'previous');
+  setText('.form-section:nth-of-type(2) h2', t.setupTitle);
+  setText('.form-section:nth-of-type(2) .section-head p', t.setupDesc);
+  setText('.segmented legend', t.modeLegend);
+  setText('.segmented label:nth-of-type(1) span', t.modeDub);
+  setText('.segmented label:nth-of-type(2) span', t.modeDownload);
+  setText('#apiSettings summary', t.apiSummary);
+  setText('#geminiApiKey', t.geminiKey, 'previous');
+  setText('#geminiApiKey', t.envPlaceholder, 'placeholder');
+  setText('#geminiModel', t.geminiModel, 'previous');
+  setText('#openaiApiKey', t.openaiKey, 'previous');
+  setText('#openaiApiKey', t.envPlaceholder, 'placeholder');
+  setText('#openaiTtsModel', t.openaiModel, 'previous');
+  setText('#rapidApiKey', t.rapidKey, 'previous');
+  setText('#rapidApiKey', t.envPlaceholder, 'placeholder');
+  setText('#rememberApiKeys + span', t.rememberApi);
+  setText('.tts-settings legend', t.ttsLegend);
+  setText('.form-section:nth-of-type(3) fieldset:nth-of-type(1) legend', t.subtitleLegend);
+  setText('.form-section:nth-of-type(3) fieldset:nth-of-type(2) legend', t.watermarkLegend);
+  setText('.form-section:nth-of-type(4) fieldset legend', t.cleanupLegend);
+  setText('#ttsProvider', t.ttsProvider, 'previous');
+  setText('#voice', t.voice, 'previous');
+  setText('#ttsStyle', t.style, 'previous');
+  setText('#previewText', t.previewText, 'previous');
+  setText('#previewVoiceBtn', t.previewButton);
+  setRangeLabel('ttsVolume', t.voiceVolume, 'x');
+  setRangeLabel('ttsSpeed', t.voiceSpeed, 'x');
+  setText('.form-section:nth-of-type(3) h2', t.displayTitle);
+  setText('.form-section:nth-of-type(3) .section-head p', t.displayDesc);
+  setText('select[name="subtitleFont"]', t.subtitleFont, 'previous');
+  setRangeLabel('subtitleSize', t.subtitleSize, '');
+  setRangeLabel('subtitleBottomMargin', t.subtitleBottom, '');
+  setText('#subtitleBackground', t.subtitleBg, 'previous');
+  setText('input[name="subtitleBgColor"]', t.subtitleColor, 'previous');
+  setRangeLabel('subtitleBgOpacity', t.subtitleOpacity, '%');
+  setRangeLabel('subtitleLineLength', t.subtitleLine, '');
+  setText('input[name="watermarkEnabled"] + span', t.watermarkEnabled);
+  setText('input[name="watermarkFile"]', t.watermarkFile, 'previous');
+  setText('select[name="watermarkPosition"]', t.watermarkPosition, 'previous');
+  setRangeLabel('watermarkWidthPercent', t.watermarkSize, '%');
+  setRangeLabel('watermarkOpacity', t.watermarkOpacity, '%');
+  setText('.form-section:nth-of-type(4) h2', t.fileTitle);
+  setText('.form-section:nth-of-type(4) .section-head p', t.fileDesc);
+  setText('input[name="autoCleanup"] + span', t.autoCleanup);
+  setText('select[name="cleanupDelayMinutes"]', t.cleanupDelay, 'previous');
+  setText('.primary', t.startButton);
+  setText('.status-head h2', t.statusTitle);
+  setText('.status-head p', t.statusDesc);
+  document.documentElement.lang = currentLang;
+  translateOptions(t);
+  updateFilePickers();
+  if (typeof refreshVoices === 'function') refreshVoices();
+  if (!state.dataset.status || state.dataset.status === 'ready') state.textContent = t.ready;
+}
+
+function setText(selector, value, mode = 'text') {
+  const el = document.querySelector(selector);
+  if (!el) return;
+  if (mode === 'placeholder') el.placeholder = value;
+  else if (mode === 'previous') el.closest('label')?.querySelector('span') && (el.closest('label').querySelector('span').textContent = value);
+  else el.textContent = value;
+}
 
 const voiceCatalog = {
   'edge-neural': [
@@ -43,6 +324,43 @@ const voiceCatalog = {
   ]
 };
 
+const voiceLabels = {
+  vi: {
+    'vi-VN-HoaiMyNeural': 'Hoài My - Nữ Việt tự nhiên',
+    'vi-VN-NamMinhNeural': 'Nam Minh - Nam Việt rõ chữ',
+    nova: 'Nova - Nữ trẻ',
+    coral: 'Coral - Tự nhiên, sáng',
+    alloy: 'Alloy - Trung tính',
+    ash: 'Ash - Nam nhẹ',
+    ballad: 'Ballad - Kể chuyện',
+    echo: 'Echo - Nam rõ',
+    fable: 'Fable - Cảm xúc',
+    onyx: 'Onyx - Nam trầm',
+    sage: 'Sage - Bình tĩnh',
+    shimmer: 'Shimmer - Nữ mềm',
+    verse: 'Verse - Năng lượng',
+    marin: 'Marin - Tự nhiên',
+    cedar: 'Cedar - Ấm'
+  },
+  en: {
+    'vi-VN-HoaiMyNeural': 'Hoai My - Vietnamese female',
+    'vi-VN-NamMinhNeural': 'Nam Minh - Vietnamese male',
+    nova: 'Nova - young female',
+    coral: 'Coral - bright natural',
+    alloy: 'Alloy - neutral',
+    ash: 'Ash - soft male',
+    ballad: 'Ballad - storytelling',
+    echo: 'Echo - clear male',
+    fable: 'Fable - expressive',
+    onyx: 'Onyx - deep male',
+    sage: 'Sage - calm',
+    shimmer: 'Shimmer - soft female',
+    verse: 'Verse - energetic',
+    marin: 'Marin - natural',
+    cedar: 'Cedar - warm'
+  }
+};
+
 function refreshVoices() {
   if (!ttsProvider || !voiceSelect) return;
   const current = voiceSelect.value;
@@ -52,7 +370,7 @@ function refreshVoices() {
   for (const [value, label] of voices) {
     const option = document.createElement('option');
     option.value = value;
-    option.textContent = label;
+    option.textContent = voiceLabels[currentLang]?.[value] || label;
     voiceSelect.appendChild(option);
   }
   voiceSelect.value = voices.some(([value]) => value === current) ? current : voices[0][0];
@@ -60,6 +378,8 @@ function refreshVoices() {
 
 ttsProvider?.addEventListener('change', refreshVoices);
 refreshVoices();
+setLanguage(currentLang);
+initFilePickers();
 
 function syncPreviewPlayback() {
   if (!ttsPreviewAudio) return;
@@ -73,7 +393,7 @@ syncPreviewPlayback();
 
 previewVoiceBtn?.addEventListener('click', async () => {
   previewVoiceBtn.disabled = true;
-  previewVoiceBtn.textContent = 'Đang tạo giọng...';
+  previewVoiceBtn.textContent = i18n[currentLang].creatingVoice;
   try {
     const body = new URLSearchParams();
     body.set('ttsProvider', document.querySelector('#ttsProvider')?.value || 'edge-neural');
@@ -81,6 +401,8 @@ previewVoiceBtn?.addEventListener('click', async () => {
     body.set('ttsStyle', document.querySelector('#ttsStyle')?.value || 'natural');
     body.set('ttsVolume', document.querySelector('#ttsVolume')?.value || '1.05');
     body.set('ttsSpeed', document.querySelector('#ttsSpeed')?.value || '0.9');
+    body.set('openaiApiKey', document.querySelector('#openaiApiKey')?.value || '');
+    body.set('openaiTtsModel', document.querySelector('#openaiTtsModel')?.value || 'gpt-4o-mini-tts');
     body.set('previewText', document.querySelector('#previewText')?.value || 'Xin chào, đây là giọng đọc thử của VietDub AI.');
 
     const response = await fetch('/api/tts-preview', {
@@ -90,7 +412,7 @@ previewVoiceBtn?.addEventListener('click', async () => {
     });
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
-      throw new Error(error.error || 'Không tạo được giọng đọc thử');
+      throw new Error(error.error || i18n[currentLang].previewVoiceError);
     }
     const blob = await response.blob();
     if (ttsPreviewAudio.src) URL.revokeObjectURL(ttsPreviewAudio.src);
@@ -102,16 +424,18 @@ previewVoiceBtn?.addEventListener('click', async () => {
     appendLog(error.message, true);
   } finally {
     previewVoiceBtn.disabled = false;
-    previewVoiceBtn.textContent = 'Phát giọng nói';
+    previewVoiceBtn.textContent = extraI18n[currentLang].previewButton;
   }
 });
 
 form.addEventListener('submit', async (event) => {
   event.preventDefault();
+  saveAiSettings();
   logs.innerHTML = '';
   result.classList.add('hidden');
   result.innerHTML = '';
-  state.textContent = 'Đang gửi';
+  state.dataset.status = 'running';
+  state.textContent = i18n[currentLang].running;
   submitBtn.disabled = true;
 
   try {
@@ -120,36 +444,39 @@ form.addEventListener('submit', async (event) => {
       body: new FormData(form)
     });
     const data = await response.json();
-    if (!response.ok) throw new Error(data.error || 'Không tạo được job');
+    if (!response.ok) throw new Error(data.error || i18n[currentLang].createJobError);
     watchJob(data.id);
   } catch (error) {
-    state.textContent = 'Lỗi';
+    state.dataset.status = 'error';
+    state.textContent = i18n[currentLang].error;
     appendLog(error.message, true);
     submitBtn.disabled = false;
   }
 });
 
 cleanupBtn.addEventListener('click', async () => {
-  const ok = window.confirm('Xoá tất cả file job cũ trong data/jobs? Các link tải cũ sẽ không dùng được nữa.');
+  const ok = window.confirm(i18n[currentLang].cleanupConfirm);
   if (!ok) return;
   await fetch('/api/cleanup', { method: 'POST' });
   logs.innerHTML = '';
   result.classList.add('hidden');
-  state.textContent = 'Đã dọn dữ liệu tạm';
+  state.dataset.status = 'ready';
+  state.textContent = i18n[currentLang].ready;
 });
 
 function watchJob(id) {
   const events = new EventSource(`/api/jobs/${id}/events`);
   events.onmessage = (event) => {
     const job = JSON.parse(event.data);
+    state.dataset.status = job.status;
     state.textContent = label(job.status);
     for (const item of job.logs || []) appendLog(item.message);
 
     if (job.status === 'done') {
       const cleanupNote = job.result.autoCleanup
-        ? `<br><small>File sẽ tự xoá sau ${job.result.cleanupDelayMinutes} phút.</small>`
+        ? `<br><small>${i18n[currentLang].cleanupNote.replace('{minutes}', job.result.cleanupDelayMinutes)}</small>`
         : '';
-      result.innerHTML = `<strong>Hoàn tất.</strong><br><a href="${job.result.url}" download="${job.result.fileName}">Tải ${job.result.fileName}</a>${cleanupNote}`;
+      result.innerHTML = `<strong>${i18n[currentLang].resultDone}</strong><br><a href="${job.result.url}" download="${job.result.fileName}">${i18n[currentLang].resultDownload} ${job.result.fileName}</a>${cleanupNote}`;
       result.classList.remove('hidden');
       submitBtn.disabled = false;
       events.close();
@@ -178,20 +505,106 @@ function appendLog(message, error = false) {
 }
 
 function label(status) {
-  if (status === 'queued') return 'Đang chờ';
-  if (status === 'running') return 'Đang xử lý';
-  if (status === 'done') return 'Hoàn tất';
-  if (status === 'error') return 'Lỗi';
-  return 'Sẵn sàng';
+  const t = i18n[currentLang];
+  if (status === 'queued') return t.queued;
+  if (status === 'running') return t.running;
+  if (status === 'done') return t.done;
+  if (status === 'error') return t.error;
+  return t.ready;
 }
 
 function bindRangeValue(inputId, outputId) {
   const input = document.querySelector(`#${inputId}`);
-  const output = document.querySelector(`#${outputId}`);
-  if (!input || !output) return;
-  const sync = () => {
-    output.value = input.value;
-  };
-  input.addEventListener('input', sync);
-  sync();
+  if (!input) return;
+  input.dataset.outputId = outputId;
+  input.addEventListener('input', () => syncRangeLabel(input));
+  syncRangeLabel(input);
+}
+
+function setRangeLabel(inputId, label, suffix = '') {
+  rangeLabelState[inputId] = { label, suffix };
+  const input = document.querySelector(`#${inputId}`);
+  if (input) syncRangeLabel(input);
+}
+
+function syncRangeLabel(input) {
+  const state = rangeLabelState[input.id];
+  const span = input.closest('label')?.querySelector('span');
+  if (state && span) {
+    span.textContent = `${state.label}: ${input.value}${state.suffix}`;
+    return;
+  }
+  const output = document.querySelector(`#${input.dataset.outputId}`);
+  if (output) output.value = input.value;
+}
+
+function initFilePickers() {
+  document.querySelectorAll('.file-picker input[type="file"]').forEach((input) => {
+    input.addEventListener('change', () => updateFilePicker(input));
+    updateFilePicker(input);
+  });
+}
+
+function updateFilePickers() {
+  document.querySelectorAll('.file-picker input[type="file"]').forEach(updateFilePicker);
+}
+
+function updateFilePicker(input) {
+  const picker = input.closest('.file-picker');
+  if (!picker) return;
+  const t = i18n[currentLang];
+  const button = picker.querySelector('.file-button');
+  const name = picker.querySelector('.file-name');
+  if (button) button.textContent = t.chooseFile;
+  if (!name) return;
+  if (!input.files || input.files.length === 0) {
+    name.textContent = t.noFileSelected;
+  } else if (input.files.length === 1) {
+    name.textContent = input.files[0].name;
+  } else {
+    name.textContent = t.filesSelected.replace('{count}', input.files.length);
+  }
+}
+
+function translateOptions(t) {
+  setOptions('#geminiModel', currentLang === 'en' ? {
+    'gemini-2.5-pro': 'Gemini 2.5 Pro - most accurate',
+    'gemini-2.5-flash': 'Gemini 2.5 Flash - fast',
+    'gemini-1.5-pro': 'Gemini 1.5 Pro',
+    'gemini-1.5-flash': 'Gemini 1.5 Flash'
+  } : {
+    'gemini-2.5-pro': 'Gemini 2.5 Pro - chính xác nhất',
+    'gemini-2.5-flash': 'Gemini 2.5 Flash - nhanh',
+    'gemini-1.5-pro': 'Gemini 1.5 Pro',
+    'gemini-1.5-flash': 'Gemini 1.5 Flash'
+  });
+  setOptions('#openaiTtsModel', currentLang === 'en' ? {
+    'gpt-4o-mini-tts': 'gpt-4o-mini-tts - natural',
+    'tts-1-hd': 'tts-1-hd - high quality',
+    'tts-1': 'tts-1 - fast'
+  } : {
+    'gpt-4o-mini-tts': 'gpt-4o-mini-tts - tự nhiên',
+    'tts-1-hd': 'tts-1-hd - chất lượng cao',
+    'tts-1': 'tts-1 - nhanh'
+  });
+  setOptions('#ttsProvider', {
+    'openai-tts': currentLang === 'en' ? 'OpenAI TTS - most natural' : 'OpenAI TTS - tự nhiên nhất',
+    'edge-neural': currentLang === 'en' ? 'Microsoft Edge Neural - fallback' : 'Microsoft Edge Neural - dự phòng'
+  });
+  setOptions('#ttsStyle', currentLang === 'en' ? {
+    natural: 'Natural, clear', friendly: 'Friendly, warm', cheerful: 'Bright, energetic', calm: 'Calm, gentle', serious: 'Serious, firm', story: 'Storytelling, expressive', news: 'Presenter, professional', soft: 'Soft, easy to hear'
+  } : {
+    natural: 'Tự nhiên, rõ chữ', friendly: 'Thân thiện, gần gũi', cheerful: 'Tươi sáng, có năng lượng', calm: 'Bình tĩnh, nhẹ nhàng', serious: 'Nghiêm túc, chắc giọng', story: 'Kể chuyện, có cảm xúc', news: 'Dẫn chương trình, chuyên nghiệp', soft: 'Mềm, nhẹ, dễ nghe'
+  });
+  setOptions('#subtitleBackground', currentLang === 'en' ? { none: 'No background', box: 'Box background' } : { none: 'Không nền', box: 'Nền hộp' });
+  setOptions('select[name="watermarkPosition"]', currentLang === 'en' ? { 'top-right': 'Top right', 'top-left': 'Top left', 'bottom-right': 'Bottom right', 'bottom-left': 'Bottom left', center: 'Center' } : { 'top-right': 'Góc trên phải', 'top-left': 'Góc trên trái', 'bottom-right': 'Góc dưới phải', 'bottom-left': 'Góc dưới trái', center: 'Giữa video' });
+  setOptions('select[name="cleanupDelayMinutes"]', currentLang === 'en' ? { 5: '5 minutes', 15: '15 minutes', 30: '30 minutes', 60: '1 hour', 180: '3 hours', 1440: '1 day' } : { 5: '5 phút', 15: '15 phút', 30: '30 phút', 60: '1 giờ', 180: '3 giờ', 1440: '1 ngày' });
+}
+
+function setOptions(selector, labels) {
+  const select = document.querySelector(selector);
+  if (!select) return;
+  for (const option of select.options) {
+    if (labels[option.value]) option.textContent = labels[option.value];
+  }
 }
