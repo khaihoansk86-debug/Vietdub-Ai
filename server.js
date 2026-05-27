@@ -361,23 +361,6 @@ async function fileExists(file) {
   }
 }
 
-async function mergeVideosLegacy(job, inputs, output) {
-  if (inputs.length === 1) {
-    await fs.copyFile(inputs[0], output);
-    log(job, 'Đã chuẩn bị video đầu vào.');
-    return;
-  }
-
-  const list = path.join(job.dir, 'concat.txt');
-  await fs.writeFile(list, inputs.map((file) => `file '${file.replaceAll("'", "'\\''")}'`).join('\n'));
-  log(job, `Đang ghép ${inputs.length} video.`);
-  try {
-    await run(FFMPEG_BIN, ['-y', '-f', 'concat', '-safe', '0', '-i', list, '-c', 'copy', output], job);
-  } catch {
-    log(job, 'Ghép copy không thành công, chuyển sang encode lại.');
-    await run(FFMPEG_BIN, ['-y', '-f', 'concat', '-safe', '0', '-i', list, '-vf', 'scale=1080:-2', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '23', '-c:a', 'aac', '-b:a', '128k', output], job);
-  }
-}
 
 async function mergeVideos(job, inputs, output) {
   if (inputs.length === 1) {
@@ -532,29 +515,6 @@ Chi tra ve SRT thuan, khong markdown, khong code fence va khong ghi chu.`;
   await fs.writeFile(srtPath, srt, 'utf8');
 }
 
-async function normalizeAndParseSrtLegacy(input, output, maxLineLength = 28) {
-  let srt = await fs.readFile(input, 'utf8');
-  srt = srt.replace(/^\uFEFF/, '').replace(/\r/g, '').trim();
-  const blocks = srt.split(/\n{2,}/);
-  const cues = [];
-  let normalized = '';
-  for (const block of blocks) {
-    const lines = block.split('\n').map((line) => line.trim()).filter(Boolean);
-    const timeIndex = lines.findIndex((line) => line.includes('-->'));
-    if (timeIndex < 0) continue;
-    const [rawStart, rawEnd] = lines[timeIndex].split('-->').map((part) => part.trim());
-    const start = parseSrtTime(rawStart);
-    const end = parseSrtTime(rawEnd);
-    if (!start || !end || end.ms <= start.ms) continue;
-    const text = lines.slice(timeIndex + 1).join(' ').replace(/<[^>]+>/g, '').trim();
-    if (!text) continue;
-    cues.push({ index: cues.length + 1, start: start.ms, end: end.ms, text });
-    normalized += `${cues.length}\n${start.srt} --> ${end.srt}\n${wrapSubtitleText(text, maxLineLength)}\n\n`;
-  }
-  if (!cues.length) throw new Error('SRT không có dòng phụ đề hợp lệ.');
-  await fs.writeFile(output, normalized, 'utf8');
-  return cues;
-}
 
 async function normalizeAndParseSrt(input, output, maxLineLength = 28) {
   let srt = await fs.readFile(input, 'utf8');
@@ -628,33 +588,6 @@ async function createTtsFiles(job, cues, tts) {
   return files;
 }
 
-async function synthesizeTtsTextLegacy(text, target, tts, job, cueIndex = 0) {
-  if (tts.provider === 'google-translate') {
-    const url = `https://translate.google.com/translate_tts?ie=UTF-8&tl=vi&client=tw-ob&q=${encodeURIComponent(text)}`;
-    await downloadToFile(url, target, { 'User-Agent': 'Mozilla/5.0' });
-    return;
-  }
-
-  const ratePercent = Math.round((tts.speed - 1) * 100);
-  const volumePercent = Math.round((tts.volume - 1) * 100);
-  const rateArg = `--rate=${ratePercent >= 0 ? '+' : ''}${ratePercent}%`;
-  const volumeArg = `--volume=${volumePercent >= 0 ? '+' : ''}${volumePercent}%`;
-
-  try {
-    await run('python', [
-      '-m', 'edge_tts',
-      '--voice', tts.voice,
-      rateArg,
-      volumeArg,
-      '--text', text,
-      '--write-media', target
-    ], job);
-  } catch (error) {
-    if (job) log(job, `Edge TTS lỗi${cueIndex ? ` ở câu ${cueIndex}` : ''}, chuyển sang Google TTS: ${error.message}`);
-    const url = `https://translate.google.com/translate_tts?ie=UTF-8&tl=vi&client=tw-ob&q=${encodeURIComponent(text)}`;
-    await downloadToFile(url, target, { 'User-Agent': 'Mozilla/5.0' });
-  }
-}
 
 async function synthesizeTtsText(text, target, tts, job, cueIndex = 0) {
   try {
