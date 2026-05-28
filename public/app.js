@@ -29,8 +29,25 @@ const apiCheckResult = document.querySelector('#apiCheckResult');
 const diskNotice = document.querySelector('#diskNotice');
 const refreshHistoryBtn = document.querySelector('#refreshHistoryBtn');
 const jobHistory = document.querySelector('#jobHistory');
+const viewTabs = document.querySelectorAll('.tab-btn');
+const presetButtons = document.querySelectorAll('.preset-btn');
+const mixPreviewBtn = document.querySelector('#mixPreviewBtn');
+const mixPreviewAudio = document.querySelector('#mixPreviewAudio');
+const mixPreviewResult = document.querySelector('#mixPreviewResult');
+const customPresetName = document.querySelector('#customPresetName');
+const customPresetSelect = document.querySelector('#customPresetSelect');
+const savePresetBtn = document.querySelector('#savePresetBtn');
+const loadPresetBtn = document.querySelector('#loadPresetBtn');
+const deletePresetBtn = document.querySelector('#deletePresetBtn');
+const jobQueue = document.querySelector('#jobQueue');
+const queueState = document.querySelector('#queueState');
+const updateCheckBtn = document.querySelector('#updateCheckBtn');
+const updateStatus = document.querySelector('#updateStatus');
+const presetStatus = document.querySelector('#presetStatus');
 const apiFields = ['geminiApiKey', 'geminiModel', 'openaiApiKey', 'openaiTtsModel', 'rapidApiKey'];
 const rememberApiKeys = document.querySelector('#rememberApiKeys');
+let queuedJobs = [];
+let queueRunning = false;
 
 const savedTheme = localStorage.getItem('vietdub-theme');
 setTheme(savedTheme || 'dark');
@@ -133,7 +150,36 @@ const i18n = {
     historyRefresh: 'Làm mới',
     historyEmpty: 'Chưa có job nào.',
     historyDownload: 'Tải kết quả',
-    historyNoResult: 'Chưa có file kết quả'
+    historyNoResult: 'Chưa có file kết quả',
+    queueTitle: 'Hàng đợi',
+    queueCount: '{count} job',
+    updateTitle: 'Cập nhật GitHub',
+    updateCheck: 'Kiểm tra',
+    updateIdle: 'Chưa kiểm tra.',
+    updateChecking: 'Đang kiểm tra...',
+    updateLatest: 'Đang là bản mới nhất.',
+    updateAvailable: 'Có bản mới trên GitHub.',
+    updateFailed: 'Không kiểm tra được cập nhật.',
+    mixPreviewButton: 'Nghe thử mix âm thanh',
+    mixPreviewing: 'Đang tạo bản nghe thử...',
+    mixPreviewReady: 'Đã tạo bản nghe thử.',
+    savePreset: 'Lưu preset',
+    loadPreset: 'Áp dụng',
+    deletePreset: 'Xoá',
+    processTab: 'Xử lý',
+    settingsTab: 'Cài đặt',
+    quickPresetTitle: 'Preset nhanh',
+    quickPresetDesc: 'Chọn nhanh cấu hình phù hợp trước khi render.',
+    presetNone: 'Không',
+    presetShorts: 'TikTok/Reels',
+    presetClearVoice: 'Lồng tiếng rõ giọng',
+    presetKeepMusic: 'Giữ nhạc nền',
+    presetSubtitleFocus: 'Phụ đề nổi bật',
+    customPresetLegend: 'Preset cá nhân',
+    customPresetName: 'Tên preset',
+    customPresetNamePlaceholder: 'Ví dụ: Khải Hoàn Shorts',
+    customPresetSaved: 'Preset đã lưu',
+    presetApplied: 'Đã áp dụng preset: {name}'
   },
   en: {
     brandSubtitle: 'Download, merge, subtitle, and AI dub videos.',
@@ -188,7 +234,36 @@ const i18n = {
     historyRefresh: 'Refresh',
     historyEmpty: 'No jobs yet.',
     historyDownload: 'Download result',
-    historyNoResult: 'No result file yet'
+    historyNoResult: 'No result file yet',
+    queueTitle: 'Queue',
+    queueCount: '{count} jobs',
+    updateTitle: 'GitHub updates',
+    updateCheck: 'Check',
+    updateIdle: 'Not checked yet.',
+    updateChecking: 'Checking...',
+    updateLatest: 'You are on the latest version.',
+    updateAvailable: 'A new version is available on GitHub.',
+    updateFailed: 'Could not check for updates.',
+    mixPreviewButton: 'Preview audio mix',
+    mixPreviewing: 'Creating audio preview...',
+    mixPreviewReady: 'Audio preview is ready.',
+    savePreset: 'Save preset',
+    loadPreset: 'Apply',
+    deletePreset: 'Delete',
+    processTab: 'Process',
+    settingsTab: 'Settings',
+    quickPresetTitle: 'Quick presets',
+    quickPresetDesc: 'Apply a render-ready configuration quickly.',
+    presetNone: 'None',
+    presetShorts: 'TikTok/Reels',
+    presetClearVoice: 'Clear dubbing voice',
+    presetKeepMusic: 'Keep background music',
+    presetSubtitleFocus: 'Subtitle focus',
+    customPresetLegend: 'Personal presets',
+    customPresetName: 'Preset name',
+    customPresetNamePlaceholder: 'Example: Khai Hoan Shorts',
+    customPresetSaved: 'Saved presets',
+    presetApplied: 'Applied preset: {name}'
   }
 };
 
@@ -267,15 +342,15 @@ function setLanguage(lang) {
   const t = { ...i18n[currentLang], ...extraI18n[currentLang] };
   setText('.brand p', t.brandSubtitle);
   setText('#cleanupBtn', t.cleanup);
-  setText('.form-section:nth-of-type(1) h2', t.sourceTitle);
-  setText('.form-section:nth-of-type(1) .section-head p', t.sourceDesc);
+  setText('.source-section h2', t.sourceTitle);
+  setText('.source-section .section-head p', t.sourceDesc);
   setText('textarea[name="links"]', t.linksPlaceholder, 'placeholder');
   setText('label.field:nth-of-type(1) > span', t.linksLabel);
   setText('input[name="videos"]', t.videoFile, 'previous');
   setText('input[name="srtFile"]', t.srtFile, 'previous');
   setText('input[name="srtUrl"]', t.srtUrl, 'previous');
-  setText('.form-section:nth-of-type(2) h2', t.setupTitle);
-  setText('.form-section:nth-of-type(2) .section-head p', t.setupDesc);
+  setText('.setup-section h2', t.setupTitle);
+  setText('.setup-section .section-head p', t.setupDesc);
   setText('.segmented legend', t.modeLegend);
   setText('.segmented label:nth-of-type(1) span', t.modeDub);
   setText('.segmented label:nth-of-type(2) span', t.modeDownload);
@@ -290,19 +365,20 @@ function setLanguage(lang) {
   setText('#rapidApiKey', t.envPlaceholder, 'placeholder');
   setText('#rememberApiKeys + span', t.rememberApi);
   setText('.tts-settings legend', t.ttsLegend);
-  setText('.form-section:nth-of-type(3) fieldset:nth-of-type(1) legend', t.subtitleLegend);
-  setText('.form-section:nth-of-type(3) fieldset:nth-of-type(2) legend', t.watermarkLegend);
-  setText('.form-section:nth-of-type(4) fieldset legend', t.cleanupLegend);
+  setText('.display-section fieldset:nth-of-type(1) legend', t.subtitleLegend);
+  setText('.display-section fieldset:nth-of-type(2) legend', t.watermarkLegend);
+  setText('.file-section fieldset legend', t.cleanupLegend);
   setText('#ttsProvider', t.ttsProvider, 'previous');
   setText('#voice', t.voice, 'previous');
   setText('#ttsStyle', t.style, 'previous');
   setText('#previewText', t.previewText, 'previous');
   setText('#previewVoiceBtn', t.previewButton);
+  setText('#mixPreviewBtn', t.mixPreviewButton);
   setRangeLabel('ttsVolume', t.voiceVolume, 'x');
   setRangeLabel('originalVolume', t.originalVolume, '%');
   setRangeLabel('ttsSpeed', t.voiceSpeed, 'x');
-  setText('.form-section:nth-of-type(3) h2', t.displayTitle);
-  setText('.form-section:nth-of-type(3) .section-head p', t.displayDesc);
+  setText('.display-section h2', t.displayTitle);
+  setText('.display-section .section-head p', t.displayDesc);
   setText('select[name="subtitleFont"]', t.subtitleFont, 'previous');
   setRangeLabel('subtitleSize', t.subtitleSize, '');
   setRangeLabel('subtitleBottomMargin', t.subtitleBottom, '');
@@ -315,19 +391,43 @@ function setLanguage(lang) {
   setText('select[name="watermarkPosition"]', t.watermarkPosition, 'previous');
   setRangeLabel('watermarkWidthPercent', t.watermarkSize, '%');
   setRangeLabel('watermarkOpacity', t.watermarkOpacity, '%');
-  setText('.form-section:nth-of-type(4) h2', t.fileTitle);
-  setText('.form-section:nth-of-type(4) .section-head p', t.fileDesc);
+  setText('.file-section h2', t.fileTitle);
+  setText('.file-section .section-head p', t.fileDesc);
   setText('input[name="autoCleanup"] + span', t.autoCleanup);
   setText('select[name="cleanupDelayMinutes"]', t.cleanupDelay, 'previous');
   setText('.primary', t.startButton);
   setText('.status-head h2', t.statusTitle);
   setText('.status-head p', t.statusDesc);
   setText('#apiCheckBtn', t.apiCheckButton);
-  setText('.history h3', t.historyTitle);
+  setText('.recent-box h3', t.historyTitle);
   setText('#refreshHistoryBtn', t.historyRefresh);
+  setText('.queue h3', t.queueTitle);
+  setText('#updateCheckBtn', t.updateCheck);
+  setText('#savePresetBtn', t.savePreset);
+  setText('#loadPresetBtn', t.loadPreset);
+  setText('#deletePresetBtn', t.deletePreset);
+  setText('.tab-btn[data-view="process"]', t.processTab);
+  setText('.tab-btn[data-view="settings"]', t.settingsTab);
+  setText('.quick-presets h2', t.quickPresetTitle);
+  setText('.quick-presets .section-head p', t.quickPresetDesc);
+  setText('.preset-btn[data-preset="none"]', t.presetNone);
+  setText('.preset-btn[data-preset="shorts"]', t.presetShorts);
+  setText('.preset-btn[data-preset="clearVoice"]', t.presetClearVoice);
+  setText('.preset-btn[data-preset="keepMusic"]', t.presetKeepMusic);
+  setText('.preset-btn[data-preset="subtitleFocus"]', t.presetSubtitleFocus);
+  if (presetStatus?.dataset.presetName) {
+    presetStatus.textContent = t.presetApplied.replace('{name}', presetStatus.dataset.presetName);
+  }
+  setText('.custom-preset-box legend', t.customPresetLegend);
+  setText('#customPresetName', t.customPresetName, 'previous');
+  setText('#customPresetName', t.customPresetNamePlaceholder, 'placeholder');
+  setText('#customPresetSelect', t.customPresetSaved, 'previous');
+  setText('.update-box h3', t.updateTitle);
+  if (updateStatus && !updateStatus.dataset.checked) updateStatus.textContent = t.updateIdle;
   document.documentElement.lang = currentLang;
   translateOptions(t);
   updateFilePickers();
+  renderQueue();
   renderDiskNotice(window.latestDiskInfo);
   loadHistory();
   if (typeof refreshVoices === 'function') refreshVoices();
@@ -420,6 +520,9 @@ ttsProvider?.addEventListener('change', refreshVoices);
 refreshVoices();
 setLanguage(currentLang);
 initFilePickers();
+initViews();
+initPresetStore();
+setActivePreset('none');
 loadDiskInfo();
 loadHistory();
 
@@ -497,6 +600,12 @@ apiCheckBtn?.addEventListener('click', async () => {
 });
 
 refreshHistoryBtn?.addEventListener('click', loadHistory);
+updateCheckBtn?.addEventListener('click', checkUpdates);
+presetButtons.forEach((button) => button.addEventListener('click', () => applyQuickPreset(button.dataset.preset)));
+savePresetBtn?.addEventListener('click', saveCustomPreset);
+loadPresetBtn?.addEventListener('click', loadSelectedPreset);
+deletePresetBtn?.addEventListener('click', deleteSelectedPreset);
+mixPreviewBtn?.addEventListener('click', previewAudioMix);
 
 form.addEventListener('submit', async (event) => {
   event.preventDefault();
@@ -511,13 +620,20 @@ form.addEventListener('submit', async (event) => {
   submitBtn.disabled = true;
 
   try {
-    const response = await fetch('/api/jobs', {
-      method: 'POST',
-      body: new FormData(form)
-    });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || i18n[currentLang].createJobError);
-    watchJob(data.id);
+    const queueItems = buildQueueItems();
+    if (queueItems.length > 1) {
+      queuedJobs = queueItems.map((item, index) => ({ ...item, status: 'queued', index: index + 1 }));
+      renderQueue();
+      await runQueue();
+    } else {
+      const response = await fetch('/api/jobs', {
+        method: 'POST',
+        body: new FormData(form)
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || i18n[currentLang].createJobError);
+      await watchJob(data.id);
+    }
   } catch (error) {
     state.dataset.status = 'error';
     state.textContent = i18n[currentLang].error;
@@ -539,6 +655,7 @@ cleanupBtn.addEventListener('click', async () => {
 });
 
 function watchJob(id) {
+  return new Promise((resolve, reject) => {
   const events = new EventSource(`/api/jobs/${id}/events`);
   events.onmessage = (event) => {
     const job = JSON.parse(event.data);
@@ -552,24 +669,248 @@ function watchJob(id) {
         : '';
       result.innerHTML = `<strong>${i18n[currentLang].resultDone}</strong><br><a href="${job.result.url}" download="${job.result.fileName}">${i18n[currentLang].resultDownload} ${job.result.fileName}</a>${cleanupNote}`;
       result.classList.remove('hidden');
-      submitBtn.disabled = false;
+      if (!queueRunning) submitBtn.disabled = false;
       events.close();
       loadHistory();
       loadDiskInfo();
+      resolve(job);
     }
 
     if (job.status === 'error') {
       appendLog(job.error, true);
-      submitBtn.disabled = false;
+      if (!queueRunning) submitBtn.disabled = false;
       events.close();
       loadHistory();
+      reject(new Error(job.error || i18n[currentLang].error));
     }
   };
   events.onerror = () => {
     appendLog('Mất kết nối log tiến trình.', true);
-    submitBtn.disabled = false;
+    if (!queueRunning) submitBtn.disabled = false;
     events.close();
+    reject(new Error('Mất kết nối log tiến trình.'));
   };
+  });
+}
+
+function buildQueueItems() {
+  const linksInput = form.querySelector('textarea[name="links"]');
+  const videoInput = form.querySelector('input[name="videos"]');
+  const links = (linksInput?.value || '').split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  if (links.length <= 1 || (videoInput?.files?.length || 0) > 0) return [];
+  return links.map((link) => ({ link }));
+}
+
+async function runQueue() {
+  if (queueRunning) return;
+  queueRunning = true;
+  try {
+    for (const item of queuedJobs) {
+      item.status = 'running';
+      renderQueue();
+      const body = new FormData(form);
+      body.set('links', item.link);
+      try {
+        const response = await fetch('/api/jobs', { method: 'POST', body });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || i18n[currentLang].createJobError);
+        item.jobId = data.id;
+        await watchJob(data.id);
+        item.status = 'done';
+        renderQueue();
+      } catch (error) {
+        item.status = 'error';
+        renderQueue();
+        throw error;
+      }
+    }
+  } finally {
+    queueRunning = false;
+    submitBtn.disabled = false;
+    renderQueue();
+  }
+}
+
+function renderQueue() {
+  if (!jobQueue || !queueState) return;
+  queueState.textContent = i18n[currentLang].queueCount.replace('{count}', queuedJobs.length);
+  jobQueue.innerHTML = '';
+  for (const item of queuedJobs) {
+    const li = document.createElement('li');
+    li.textContent = `${item.index}. ${label(item.status)} - ${item.link}`;
+    jobQueue.appendChild(li);
+  }
+}
+
+function initViews() {
+  viewTabs.forEach((button) => button.addEventListener('click', () => setView(button.dataset.view || 'process')));
+  setView(localStorage.getItem('vietdub-view') || 'process');
+}
+
+function setView(view) {
+  const normalized = view === 'settings' ? 'settings' : 'process';
+  localStorage.setItem('vietdub-view', normalized);
+  viewTabs.forEach((button) => button.classList.toggle('active', button.dataset.view === normalized));
+  const processBlocks = ['.quick-presets', '.source-section', '.setup-section .section-head', '.segmented'];
+  const settingsBlocks = ['#apiSettings', '.tts-settings', '.display-section', '.file-section'];
+  processBlocks.forEach((selector) => document.querySelector(selector)?.classList.toggle('hidden', normalized !== 'process'));
+  settingsBlocks.forEach((selector) => document.querySelector(selector)?.classList.toggle('hidden', normalized !== 'settings'));
+}
+
+function applyQuickPreset(name) {
+  if (name === 'none') {
+    setActivePreset('none');
+    if (presetStatus) {
+      presetStatus.dataset.presetName = '';
+      presetStatus.textContent = '';
+    }
+    localStorage.removeItem('vietdub-active-preset');
+    return;
+  }
+  const labels = {
+    shorts: 'TikTok/Reels',
+    clearVoice: i18n[currentLang].presetClearVoice,
+    keepMusic: i18n[currentLang].presetKeepMusic,
+    subtitleFocus: i18n[currentLang].presetSubtitleFocus
+  };
+  const presets = {
+    shorts: { subtitleSize: 12, subtitleBottomMargin: 34, subtitleBackground: 'none', ttsVolume: 1.15, originalVolume: 35, watermarkWidthPercent: 12 },
+    clearVoice: { subtitleSize: 12, subtitleBottomMargin: 36, ttsVolume: 1.25, originalVolume: 25, ttsSpeed: 0.92 },
+    keepMusic: { subtitleSize: 11, subtitleBottomMargin: 34, ttsVolume: 1.05, originalVolume: 75, ttsSpeed: 0.95 },
+    subtitleFocus: { subtitleSize: 14, subtitleBottomMargin: 42, subtitleBackground: 'box', subtitleBgOpacity: 70, originalVolume: 45 }
+  };
+  applyConfig(presets[name] || {});
+  setActivePreset(name);
+  if (presetStatus) {
+    const labelText = labels[name] || name;
+    presetStatus.dataset.presetName = labelText;
+    presetStatus.textContent = i18n[currentLang].presetApplied.replace('{name}', labelText);
+  }
+  localStorage.setItem('vietdub-active-preset', name || '');
+}
+
+function setActivePreset(name) {
+  presetButtons.forEach((button) => button.classList.toggle('active', button.dataset.preset === name));
+}
+
+function readConfig() {
+  const names = ['subtitleSize', 'subtitleBottomMargin', 'subtitleBackground', 'subtitleBgOpacity', 'subtitleLineLength', 'subtitleFont', 'watermarkPosition', 'watermarkWidthPercent', 'watermarkOpacity', 'ttsProvider', 'voice', 'ttsStyle', 'ttsVolume', 'ttsSpeed', 'originalVolume', 'cleanupDelayMinutes'];
+  const config = {};
+  for (const name of names) {
+    const el = form.elements[name];
+    if (el) config[name] = el.value;
+  }
+  return config;
+}
+
+function applyConfig(config) {
+  for (const [name, value] of Object.entries(config)) {
+    const el = form.elements[name];
+    if (!el) continue;
+    el.value = value;
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+  refreshVoices();
+}
+
+function getStoredPresets() {
+  return JSON.parse(localStorage.getItem('vietdub-custom-presets') || '{}');
+}
+
+function setStoredPresets(presets) {
+  localStorage.setItem('vietdub-custom-presets', JSON.stringify(presets));
+}
+
+function initPresetStore() {
+  renderCustomPresetSelect();
+}
+
+function renderCustomPresetSelect() {
+  if (!customPresetSelect) return;
+  const presets = getStoredPresets();
+  customPresetSelect.innerHTML = '';
+  for (const name of Object.keys(presets)) {
+    const option = document.createElement('option');
+    option.value = name;
+    option.textContent = name;
+    customPresetSelect.appendChild(option);
+  }
+}
+
+function saveCustomPreset() {
+  const name = (customPresetName?.value || '').trim() || `Preset ${new Date().toLocaleString()}`;
+  const presets = getStoredPresets();
+  presets[name] = readConfig();
+  setStoredPresets(presets);
+  renderCustomPresetSelect();
+  if (customPresetSelect) customPresetSelect.value = name;
+}
+
+function loadSelectedPreset() {
+  const presets = getStoredPresets();
+  const selected = customPresetSelect?.value;
+  if (selected && presets[selected]) applyConfig(presets[selected]);
+}
+
+function deleteSelectedPreset() {
+  const presets = getStoredPresets();
+  const selected = customPresetSelect?.value;
+  if (!selected) return;
+  delete presets[selected];
+  setStoredPresets(presets);
+  renderCustomPresetSelect();
+}
+
+async function previewAudioMix() {
+  if (!mixPreviewBtn) return;
+  mixPreviewBtn.disabled = true;
+  if (mixPreviewResult) mixPreviewResult.textContent = i18n[currentLang].mixPreviewing;
+  try {
+    const body = new FormData();
+    const video = form.querySelector('input[name="videos"]')?.files?.[0];
+    if (video) body.set('previewVideo', video);
+    for (const name of ['ttsProvider', 'voice', 'ttsStyle', 'ttsVolume', 'ttsSpeed', 'originalVolume', 'openaiApiKey', 'openaiTtsModel', 'previewText']) {
+      const el = document.querySelector(`[name="${name}"]`);
+      if (el) body.set(name, el.value);
+    }
+    const response = await fetch('/api/audio-mix-preview', { method: 'POST', body });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || 'Không tạo được bản nghe thử.');
+    }
+    const blob = await response.blob();
+    if (mixPreviewAudio.src) URL.revokeObjectURL(mixPreviewAudio.src);
+    mixPreviewAudio.src = URL.createObjectURL(blob);
+    mixPreviewAudio.hidden = false;
+    if (mixPreviewResult) mixPreviewResult.textContent = i18n[currentLang].mixPreviewReady;
+    await mixPreviewAudio.play();
+  } catch (error) {
+    if (mixPreviewResult) mixPreviewResult.textContent = error.message;
+    appendLog(error.message, true);
+  } finally {
+    mixPreviewBtn.disabled = false;
+  }
+}
+
+async function checkUpdates() {
+  if (!updateStatus) return;
+  updateStatus.dataset.checked = '1';
+  updateStatus.textContent = i18n[currentLang].updateChecking;
+  try {
+    const response = await fetch('/api/system/update');
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      throw new Error('Server đang chạy bản cũ, hãy khởi động lại VietDub AI rồi kiểm tra lại.');
+    }
+    const data = await response.json();
+    if (!response.ok || !data.ok) throw new Error(data.message || 'Update check failed');
+    updateStatus.textContent = data.hasUpdate
+      ? `${i18n[currentLang].updateAvailable} ${data.latestCommit?.slice(0, 7) || ''}`
+      : `${i18n[currentLang].updateLatest} ${data.localCommit?.slice(0, 7) || ''}`;
+  } catch (error) {
+    updateStatus.textContent = `${i18n[currentLang].updateFailed} ${error.message}`;
+  }
 }
 
 function appendLog(message, error = false) {

@@ -166,6 +166,63 @@ app.post('/api/tts-preview', async (req, res) => {
   }
 });
 
+app.post('/api/audio-mix-preview', upload.single('previewVideo'), async (req, res) => {
+  const tts = parseTtsOptions(req.body);
+  const text = String(req.body.previewText || 'Xin chao, day la giong doc thu cua VietDub AI.').slice(0, 180);
+  const id = crypto.randomUUID();
+  const voiceFile = path.join(os.tmpdir(), `vietdub_mix_voice_${id}.mp3`);
+  const originalFile = path.join(os.tmpdir(), `vietdub_mix_original_${id}.wav`);
+  const mixedFile = path.join(os.tmpdir(), `vietdub_mix_preview_${id}.mp3`);
+  try {
+    await synthesizeTtsText(text, voiceFile, tts, null);
+    if (req.file?.path) {
+      await run(FFMPEG_BIN, [
+        '-y',
+        '-t', '8',
+        '-i', req.file.path,
+        '-vn',
+        '-af', `volume=${tts.originalVolume.toFixed(2)}`,
+        '-ar', '44100',
+        '-ac', '2',
+        originalFile
+      ], null);
+      await run(FFMPEG_BIN, [
+        '-y',
+        '-i', originalFile,
+        '-i', voiceFile,
+        '-filter_complex', `[1:a]volume=${tts.volume.toFixed(2)}[v];[0:a][v]amix=inputs=2:duration=longest:dropout_transition=0:normalize=0,loudnorm=I=-15:TP=-1.0:LRA=11[aout]`,
+        '-map', '[aout]',
+        '-t', '10',
+        '-c:a', 'libmp3lame',
+        '-q:a', '4',
+        mixedFile
+      ], null);
+    } else {
+      await run(FFMPEG_BIN, [
+        '-y',
+        '-i', voiceFile,
+        '-af', `volume=${tts.volume.toFixed(2)},loudnorm=I=-15:TP=-1.0:LRA=11`,
+        '-c:a', 'libmp3lame',
+        '-q:a', '4',
+        mixedFile
+      ], null);
+    }
+    res.setHeader('Content-Type', 'audio/mpeg');
+    res.sendFile(mixedFile, () => {
+      fs.rm(voiceFile, { force: true }).catch(() => {});
+      fs.rm(originalFile, { force: true }).catch(() => {});
+      fs.rm(mixedFile, { force: true }).catch(() => {});
+      if (req.file?.path) fs.rm(req.file.path, { force: true }).catch(() => {});
+    });
+  } catch (error) {
+    await fs.rm(voiceFile, { force: true }).catch(() => {});
+    await fs.rm(originalFile, { force: true }).catch(() => {});
+    await fs.rm(mixedFile, { force: true }).catch(() => {});
+    if (req.file?.path) await fs.rm(req.file.path, { force: true }).catch(() => {});
+    res.status(500).json({ error: error.message || String(error) });
+  }
+});
+
 app.post('/api/api-check', async (req, res) => {
   const ai = parseAiOptions(req.body);
   const tts = parseTtsOptions(req.body);
@@ -186,6 +243,10 @@ app.post('/api/cleanup', async (_req, res) => {
 
 app.get('/api/system/disk', async (_req, res) => {
   res.json(await getDiskInfo());
+});
+
+app.get('/api/system/update', async (_req, res) => {
+  res.json(await checkForUpdate());
 });
 
 app.get('/health', (_req, res) => res.json({ ok: true }));
@@ -1194,5 +1255,36 @@ async function getDiskInfo() {
       warning: false,
       error: error.message || String(error)
     };
+  }
+}
+
+async function checkForUpdate() {
+  const repo = 'khaihoansk86-debug/Vietdub-Ai';
+  let localCommit = '';
+  try {
+    const local = await runCapture('git', ['rev-parse', 'HEAD']);
+    localCommit = local.stdout.trim();
+  } catch {
+    localCommit = '';
+  }
+
+  try {
+    const response = await fetch(`https://api.github.com/repos/${repo}/commits/main`, {
+      headers: { 'User-Agent': 'VietDub-AI' }
+    });
+    if (!response.ok) {
+      return { ok: false, localCommit, latestCommit: '', hasUpdate: false, message: `GitHub HTTP ${response.status}` };
+    }
+    const data = await response.json();
+    const latestCommit = String(data.sha || '');
+    return {
+      ok: true,
+      localCommit,
+      latestCommit,
+      hasUpdate: Boolean(localCommit && latestCommit && localCommit !== latestCommit),
+      message: latestCommit ? `Latest: ${latestCommit.slice(0, 7)}` : 'No commit found'
+    };
+  } catch (error) {
+    return { ok: false, localCommit, latestCommit: '', hasUpdate: false, message: error.message || String(error) };
   }
 }

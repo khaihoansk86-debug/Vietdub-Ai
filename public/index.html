@@ -7,7 +7,7 @@
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ctext y='50' font-size='48'%3E%F0%9F%A4%96%3C/text%3E%3C/svg%3E">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700;800&display=swap&subset=vietnamese" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap&subset=vietnamese" rel="stylesheet">
     <link rel="stylesheet" href="/style.css">
   </head>
   <body>
@@ -31,8 +31,30 @@
           </div>
         </header>
 
+        <nav class="view-tabs" aria-label="VietDub AI views">
+          <button class="tab-btn active" type="button" data-view="process">Xử lý</button>
+          <button class="tab-btn" type="button" data-view="settings">Cài đặt</button>
+        </nav>
+
         <form id="jobForm" class="panel">
-          <section class="form-section">
+          <section class="form-section quick-presets">
+            <div class="section-head">
+              <div>
+                <h2>Preset nhanh</h2>
+                <p>Chọn nhanh cấu hình phù hợp trước khi render.</p>
+              </div>
+            </div>
+            <div class="preset-row">
+              <button class="preset-btn active" type="button" data-preset="none">Không</button>
+              <button class="preset-btn" type="button" data-preset="shorts">TikTok/Reels</button>
+              <button class="preset-btn" type="button" data-preset="clearVoice">Lồng tiếng rõ giọng</button>
+              <button class="preset-btn" type="button" data-preset="keepMusic">Giữ nhạc nền</button>
+              <button class="preset-btn" type="button" data-preset="subtitleFocus">Phụ đề nổi bật</button>
+            </div>
+            <p id="presetStatus" class="helper-text"></p>
+          </section>
+
+          <section class="form-section source-section">
             <div class="section-head">
               <div>
                 <h2>Nguồn đầu vào</h2>
@@ -70,7 +92,7 @@
             </label>
           </section>
 
-          <section class="form-section">
+          <section class="form-section setup-section">
             <div class="section-head">
               <div>
                 <h2>Thiết lập xử lý</h2>
@@ -182,10 +204,15 @@
                 <span>Âm lượng video gốc: <output id="originalVolumeValue">52</output>%</span>
                 <input name="originalVolume" id="originalVolume" type="range" min="0" max="150" step="5" value="52">
               </label>
+              <div class="inline-actions">
+                <button class="secondary" id="mixPreviewBtn" type="button">Nghe thử mix âm thanh</button>
+                <span id="mixPreviewResult" class="helper-text"></span>
+              </div>
+              <audio id="mixPreviewAudio" class="preview-audio" controls hidden></audio>
             </fieldset>
           </section>
 
-          <section class="form-section">
+          <section class="form-section display-section">
             <div class="section-head">
               <div>
                 <h2>Hiển thị</h2>
@@ -277,7 +304,7 @@
             </fieldset>
           </section>
 
-          <section class="form-section">
+          <section class="form-section file-section">
             <div class="section-head">
               <div>
                 <h2>Quản lý file</h2>
@@ -304,6 +331,23 @@
               </label>
             </fieldset>
             <div id="diskNotice" class="notice hidden"></div>
+
+            <fieldset class="settings-group compact custom-preset-box">
+              <legend>Preset cá nhân</legend>
+              <label class="field">
+                <span>Tên preset</span>
+                <input id="customPresetName" type="text" placeholder="Ví dụ: Khải Hoàn Shorts">
+              </label>
+              <div class="inline-actions">
+                <button class="secondary" id="savePresetBtn" type="button">Lưu preset</button>
+                <button class="secondary" id="loadPresetBtn" type="button">Áp dụng</button>
+                <button class="secondary" id="deletePresetBtn" type="button">Xoá</button>
+              </div>
+              <label class="field">
+                <span>Preset đã lưu</span>
+                <select id="customPresetSelect"></select>
+              </label>
+            </fieldset>
           </section>
 
           <div class="action-bar">
@@ -322,12 +366,26 @@
         </div>
         <div id="result" class="result hidden"></div>
         <ol id="logs" class="logs"></ol>
-        <div class="history">
+        <div class="queue">
+          <div class="history-head">
+            <h3>Hàng đợi</h3>
+            <span id="queueState" class="history-meta">0 job</span>
+          </div>
+          <ul id="jobQueue" class="history-list"></ul>
+        </div>
+        <div class="history recent-box">
           <div class="history-head">
             <h3>Job gần nhất</h3>
             <button class="link-btn" id="refreshHistoryBtn" type="button">Làm mới</button>
           </div>
           <ul id="jobHistory" class="history-list"></ul>
+        </div>
+        <div class="history update-box">
+          <div class="history-head">
+            <h3>Cập nhật</h3>
+            <button class="link-btn" id="updateCheckBtn" type="button">Kiểm tra</button>
+          </div>
+          <div id="updateStatus" class="history-meta">Chưa kiểm tra.</div>
         </div>
       </aside>
     </main>
