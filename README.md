@@ -56,7 +56,7 @@ Mở file `.env` và điền API key của bạn:
 
 ```text
 GEMINI_API_KEY=your_gemini_api_key_here
-GEMINI_MODEL=gemini-2.5-pro
+GEMINI_MODEL=gemini-3.5-flash
 RAPIDAPI_KEY=your_rapidapi_key_here
 OPENAI_API_KEY=your_openai_api_key_here
 OPENAI_TTS_MODEL=gpt-4o-mini-tts

@@ -19,7 +19,7 @@ const PUBLIC_DIR = path.join(ROOT, 'public');
 
 const RAPIDAPI_KEY = process.env.RAPIDAPI_KEY || '';
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-pro';
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.5-flash';
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '';
 const OPENAI_TTS_MODEL = process.env.OPENAI_TTS_MODEL || 'gpt-4o-mini-tts';
 const FFMPEG_BIN = process.env.FFMPEG_BIN || ffmpegStatic || 'ffmpeg';
