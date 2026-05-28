@@ -241,6 +241,7 @@ function parseTtsOptions(body) {
   const provider = ['edge-neural', 'openai-tts'].includes(body.ttsProvider) ? body.ttsProvider : 'edge-neural';
   const requestedVoice = String(body.voice || '');
   const style = TTS_STYLES.has(String(body.ttsStyle || '')) ? String(body.ttsStyle) : 'natural';
+  const originalVolumeRaw = clampNumber(body.originalVolume, 0, 150, 52);
   let voice;
   if (provider === 'openai-tts') {
     voice = OPENAI_VOICES.has(requestedVoice) ? requestedVoice : 'nova';
@@ -255,7 +256,8 @@ function parseTtsOptions(body) {
     openaiApiKey: cleanSecret(body.openaiApiKey) || OPENAI_API_KEY,
     openaiModel: cleanModel(body.openaiTtsModel, OPENAI_TTS_MODEL),
     speed: clampNumber(body.ttsSpeed, 0.7, 1.3, 0.9),
-    volume: clampNumber(body.ttsVolume, 0.6, 2, 1.05)
+    volume: clampNumber(body.ttsVolume, 0.6, 2, 1.05),
+    originalVolume: originalVolumeRaw > 1.5 ? originalVolumeRaw / 100 : originalVolumeRaw
   };
 }
 
@@ -836,7 +838,7 @@ async function renderFinal(job, video, srt, cues, voiceFiles, output, subtitle, 
   const filters = [`[0:v]subtitles='${escapedSrt}':charenc=UTF-8:force_style='${subtitleStyle}'[subv]`];
   const videoLabel = addWatermarkFilter(filters, '[subv]', watermarkInputIndex, watermark);
   const audioLabels = [];
-  filters.push('[0:a]volume=0.52[a0]');
+  filters.push(`[0:a]volume=${tts.originalVolume.toFixed(2)}[a0]`);
   audioLabels.push('[a0]');
   cues.forEach((cue, i) => {
     const label = `a${i + 1}`;

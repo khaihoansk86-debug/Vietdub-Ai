@@ -16,6 +16,7 @@ bindRangeValue('watermarkWidthPercent', 'watermarkWidthValue');
 bindRangeValue('watermarkOpacity', 'watermarkOpacityValue');
 bindRangeValue('ttsVolume', 'ttsVolumeValue');
 bindRangeValue('ttsSpeed', 'ttsSpeedValue');
+bindRangeValue('originalVolume', 'originalVolumeValue');
 
 const previewVoiceBtn = document.querySelector('#previewVoiceBtn');
 const ttsPreviewAudio = document.querySelector('#ttsPreviewAudio');
@@ -200,6 +201,7 @@ const extraI18n = {
     previewText: 'Câu phát thử',
     previewButton: 'Phát giọng nói',
     voiceVolume: 'Âm lượng giọng đọc',
+    originalVolume: 'Âm lượng video gốc',
     voiceSpeed: 'Tốc độ đọc',
     displayTitle: 'Hiển thị',
     displayDesc: 'Tinh chỉnh phụ đề và watermark khi render video.',
@@ -231,6 +233,7 @@ const extraI18n = {
     previewText: 'Preview sentence',
     previewButton: 'Play voice',
     voiceVolume: 'Voice volume',
+    originalVolume: 'Original video volume',
     voiceSpeed: 'Reading speed',
     displayTitle: 'Display',
     displayDesc: 'Adjust subtitles and watermark when rendering.',
@@ -296,6 +299,7 @@ function setLanguage(lang) {
   setText('#previewText', t.previewText, 'previous');
   setText('#previewVoiceBtn', t.previewButton);
   setRangeLabel('ttsVolume', t.voiceVolume, 'x');
+  setRangeLabel('originalVolume', t.originalVolume, '%');
   setRangeLabel('ttsSpeed', t.voiceSpeed, 'x');
   setText('.form-section:nth-of-type(3) h2', t.displayTitle);
   setText('.form-section:nth-of-type(3) .section-head p', t.displayDesc);
@@ -439,6 +443,7 @@ previewVoiceBtn?.addEventListener('click', async () => {
     body.set('ttsStyle', document.querySelector('#ttsStyle')?.value || 'natural');
     body.set('ttsVolume', document.querySelector('#ttsVolume')?.value || '1.05');
     body.set('ttsSpeed', document.querySelector('#ttsSpeed')?.value || '0.9');
+    body.set('originalVolume', String(Number(document.querySelector('#originalVolume')?.value || 52) / 100));
     body.set('openaiApiKey', document.querySelector('#openaiApiKey')?.value || '');
     body.set('openaiTtsModel', document.querySelector('#openaiTtsModel')?.value || 'gpt-4o-mini-tts');
     body.set('previewText', document.querySelector('#previewText')?.value || 'Xin chào, đây là giọng đọc thử của VietDub AI.');
