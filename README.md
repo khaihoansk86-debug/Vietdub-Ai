@@ -115,6 +115,35 @@ Nếu muốn xoá rule này:
 Remove-NetFirewallRule -DisplayName "VietDub AI 3210"
 ```
 
+## Chạy dạng app Windows
+
+Project có thêm bản desktop bằng Electron. Cách này tự mở cửa sổ `VietDub AI` như một phần mềm Windows, bên trong vẫn chạy server local nội bộ để giữ nguyên toàn bộ chức năng.
+
+Chạy thử app desktop khi đang phát triển:
+
+```powershell
+npm run desktop
+```
+
+Tạo bộ cài Windows:
+
+```powershell
+npm run build:win
+```
+
+Sau khi build xong, bộ cài nằm trong thư mục:
+
+```text
+dist/VietDub-AI-Setup-1.0.0.exe
+```
+
+Ghi chú:
+
+- App desktop tự chọn cổng trống bắt đầu từ `3210`, nên hạn chế bị trùng với server web đang chạy.
+- Dữ liệu xử lý của app desktop được lưu trong thư mục dữ liệu người dùng của Windows, không lưu vào thư mục cài đặt.
+- API key vẫn là của từng máy. Người dùng có thể nhập trực tiếp trong giao diện hoặc tạo file `.env` khi chạy bản source.
+- Muốn chia sẻ cho máy khác, chỉ cần gửi file cài trong `dist`.
+
 ## Tự chạy khi bật Windows
 
 Mở PowerShell bằng quyền Administrator tại thư mục project, sau đó chạy:

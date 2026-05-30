@@ -12,18 +12,18 @@ import ffmpegStatic from 'ffmpeg-static';
 const app = express();
 const PORT = Number(process.env.PORT || 3210);
 const HOST = process.env.HOST || '0.0.0.0';
-const ROOT = path.resolve('.');
-const DATA_DIR = path.join(ROOT, 'data');
+const ROOT = process.env.VIETDUB_ROOT || path.resolve('.');
+const DATA_DIR = process.env.VIETDUB_DATA_DIR || path.join(ROOT, 'data');
 const JOBS_DIR = path.join(DATA_DIR, 'jobs');
-const PUBLIC_DIR = path.join(ROOT, 'public');
+const PUBLIC_DIR = process.env.VIETDUB_PUBLIC_DIR || path.join(ROOT, 'public');
 
 const RAPIDAPI_KEY = process.env.RAPIDAPI_KEY || '';
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.5-flash';
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '';
 const OPENAI_TTS_MODEL = process.env.OPENAI_TTS_MODEL || 'gpt-4o-mini-tts';
-const FFMPEG_BIN = process.env.FFMPEG_BIN || ffmpegStatic || 'ffmpeg';
-const YTDLP_BIN = process.env.YTDLP_BIN || path.join(ROOT, 'node_modules', 'yt-dlp-exec', 'bin', process.platform === 'win32' ? 'yt-dlp.exe' : 'yt-dlp');
+const FFMPEG_BIN = process.env.FFMPEG_BIN || unpackAsarPath(ffmpegStatic) || 'ffmpeg';
+const YTDLP_BIN = process.env.YTDLP_BIN || unpackAsarPath(path.join(ROOT, 'node_modules', 'yt-dlp-exec', 'bin', process.platform === 'win32' ? 'yt-dlp.exe' : 'yt-dlp'));
 const TTS_CUE_GUARD_MS = 40;
 const TTS_SYNC_OFFSET_MS = 30;
 const MAX_TTS_TEMPO = 1.03;
@@ -34,8 +34,12 @@ const OUTPUT_CRF = '18';
 const OUTPUT_PRESET = 'slow';
 const OUTPUT_AUDIO_BITRATE = '256k';
 
+function unpackAsarPath(filePath) {
+  if (!filePath) return filePath;
+  return process.versions.electron ? filePath.replace('app.asar', 'app.asar.unpacked') : filePath;
+}
+
 await fs.mkdir(JOBS_DIR, { recursive: true });
-await fs.mkdir(PUBLIC_DIR, { recursive: true });
 
 const upload = multer({ dest: path.join(os.tmpdir(), 'vietdub_uploads') });
 const jobs = new Map();
