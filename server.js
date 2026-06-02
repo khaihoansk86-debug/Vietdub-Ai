@@ -8,6 +8,7 @@ import os from 'os';
 import crypto from 'crypto';
 import { spawn } from 'child_process';
 import ffmpegStatic from 'ffmpeg-static';
+import WebSocket from 'ws';
 
 const app = express();
 const PORT = Number(process.env.PORT || 3210);
@@ -26,7 +27,7 @@ const FFMPEG_BIN = process.env.FFMPEG_BIN || unpackAsarPath(ffmpegStatic) || 'ff
 const YTDLP_BIN = process.env.YTDLP_BIN || unpackAsarPath(path.join(ROOT, 'node_modules', 'yt-dlp-exec', 'bin', process.platform === 'win32' ? 'yt-dlp.exe' : 'yt-dlp'));
 const TTS_CUE_GUARD_MS = 40;
 const TTS_SYNC_OFFSET_MS = 30;
-const MAX_TTS_TEMPO = 1.03;
+const MAX_TTS_TEMPO = 1.30;
 const OUTPUT_WIDTH = 1080;
 const OUTPUT_HEIGHT = 1920;
 const OUTPUT_FPS = 60;
@@ -110,6 +111,7 @@ app.post('/api/jobs', upload.fields([
     subtitle: parseSubtitleOptions(req.body),
     cleanup: parseCleanupOptions(req.body),
     watermark: parseWatermarkOptions(req.body),
+    aspectRatio: String(req.body.aspectRatio || '9:16'),
     videos: req.files?.videos || [],
     srtFile: req.files?.srtFile?.[0] || null,
     watermarkFile: req.files?.watermarkFile?.[0] || null
@@ -267,7 +269,7 @@ async function processJob(job, payload) {
   if (!videoInputs.length) throw new Error('Chưa có video hoặc link video.');
 
   const merged = path.join(job.dir, 'merged_input.mp4');
-  await mergeVideos(job, videoInputs, merged);
+  await mergeVideos(job, videoInputs, merged, payload.aspectRatio);
   const watermarkPath = await prepareWatermark(job, payload.watermarkFile, payload.watermark);
 
   if (payload.mode === 'download' || payload.mode === 'raw') {
@@ -518,18 +520,45 @@ async function fileExists(file) {
 }
 
 
-async function mergeVideos(job, inputs, output) {
-  if (inputs.length === 1) {
+async function getVideoResolution(file) {
+  const result = await runCapture(FFMPEG_BIN, ['-hide_banner', '-i', file]);
+  const match = result.stderr.match(/Stream\s+#\d+:\d+.*Video:.*?\s+(\d+)x(\d+)/i);
+  if (match) {
+    return { width: Number(match[1]), height: Number(match[2]) };
+  }
+  return { width: 1080, height: 1920 };
+}
+
+async function mergeVideos(job, inputs, output, aspectRatio = '9:16') {
+  let targetWidth = 1080;
+  let targetHeight = 1920;
+
+  if (aspectRatio === '16:9') {
+    targetWidth = 1920;
+    targetHeight = 1080;
+  } else if (aspectRatio === '1:1') {
+    targetWidth = 1080;
+    targetHeight = 1080;
+  } else if (aspectRatio === 'original') {
+    const res = await getVideoResolution(inputs[0]);
+    targetWidth = res.width;
+    targetHeight = res.height;
+  }
+
+  const firstVideoRes = await getVideoResolution(inputs[0]);
+  const needNormalize = inputs.length > 1 || firstVideoRes.width !== targetWidth || firstVideoRes.height !== targetHeight;
+
+  if (!needNormalize) {
     await fs.copyFile(inputs[0], output);
     log(job, 'Đã chuẩn bị video đầu vào.');
     return;
   }
 
-  log(job, `Đang chuẩn hóa ${inputs.length} video trước khi ghép.`);
+  log(job, `Đang chuẩn hóa ${inputs.length} video trước khi ghép về kích thước ${targetWidth}x${targetHeight}.`);
   const normalized = [];
   for (let index = 0; index < inputs.length; index += 1) {
     const target = path.join(job.dir, `concat_ready_${String(index + 1).padStart(2, '0')}.mp4`);
-    await normalizeVideoForConcat(job, inputs[index], target, index + 1);
+    await normalizeVideoForConcat(job, inputs[index], target, index + 1, targetWidth, targetHeight);
     normalized.push(target);
   }
 
@@ -539,9 +568,9 @@ async function mergeVideos(job, inputs, output) {
   await run(FFMPEG_BIN, ['-y', '-f', 'concat', '-safe', '0', '-i', list, '-c', 'copy', '-movflags', '+faststart', output], job);
 }
 
-async function normalizeVideoForConcat(job, input, output, index) {
+async function normalizeVideoForConcat(job, input, output, index, targetWidth, targetHeight) {
   const hasAudio = await hasAudioStream(input);
-  const scaleFilter = `scale=${OUTPUT_WIDTH}:${OUTPUT_HEIGHT}:force_original_aspect_ratio=decrease,pad=${OUTPUT_WIDTH}:${OUTPUT_HEIGHT}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=${OUTPUT_FPS},format=yuv420p`;
+  const scaleFilter = `scale=${targetWidth}:${targetHeight}:force_original_aspect_ratio=decrease,pad=${targetWidth}:${targetHeight}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=${OUTPUT_FPS},format=yuv420p`;
   const args = ['-y', '-i', input];
 
   if (hasAudio) {
@@ -817,19 +846,81 @@ function buildAtempoFilter(tempo) {
   return filters.join(',');
 }
 
-async function synthesizeEdgeTts(text, target, tts, job) {
-  const ratePercent = Math.round((tts.speed - 1) * 100);
-  const volumePercent = Math.round((tts.volume - 1) * 100);
-  const rateArg = `--rate=${ratePercent >= 0 ? '+' : ''}${ratePercent}%`;
-  const volumeArg = `--volume=${volumePercent >= 0 ? '+' : ''}${volumePercent}%`;
-  await run('python', [
-    '-m', 'edge_tts',
-    '--voice', EDGE_VOICES.get(tts.voice) || 'vi-VN-HoaiMyNeural',
-    rateArg,
-    volumeArg,
-    '--text', text,
-    '--write-media', target
-  ], job);
+function synthesizeEdgeTts(text, target, tts, job) {
+  return new Promise((resolve, reject) => {
+    const ratePercent = Math.round((tts.speed - 1) * 100);
+    const volumePercent = Math.round((tts.volume - 1) * 100);
+    const rateStr = `${ratePercent >= 0 ? '+' : ''}${ratePercent}%`;
+    const volumeStr = `${volumePercent >= 0 ? '+' : ''}${volumePercent}%`;
+    const voice = EDGE_VOICES.get(tts.voice) || 'vi-VN-HoaiMyNeural';
+
+    const url = 'wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1?TrustedClientToken=6A5AA1D4EAFF4E9FB37E23D68491D6F4';
+    const ws = new WebSocket(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edge/120.0.0.0',
+        'Origin': 'chrome-extension://jdiccldimpdaibmpdkjnbmckianbfold'
+      }
+    });
+
+    const audioChunks = [];
+    const requestId = crypto.randomUUID().replace(/-/g, '');
+
+    ws.on('open', () => {
+      const configMsg = `Content-Type:application/json; charset=utf-8\r\nPath:speech.config\r\n\r\n` +
+        JSON.stringify({
+          context: {
+            system: {
+              name: "SpeechSDK",
+              version: "1.30.0",
+              build: "JavaScript",
+              lang: "JavaScript"
+            }
+          }
+        });
+      ws.send(configMsg);
+
+      const ssmlMsg = `X-RequestId:${requestId}\r\nContent-Type:application/ssml+xml\r\nPath:ssml\r\n\r\n` +
+        `<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='vi-VN'>` +
+        `<voice name='${voice}'><pitch value='+0Hz'/><rate value='${rateStr}'/><volume value='${volumeStr}'/>` +
+        `${xmlEscape(text)}</voice></speak>`;
+      ws.send(ssmlMsg);
+    });
+
+    ws.on('message', (data, isBinary) => {
+      if (isBinary) {
+        if (data.length < 2) return;
+        const headerLen = data.readUInt16BE(0);
+        const audioChunk = data.subarray(2 + headerLen);
+        if (audioChunk.length > 0) {
+          audioChunks.push(audioChunk);
+        }
+      } else {
+        const textMsg = data.toString();
+        if (textMsg.includes('Path:turn.end')) {
+          ws.close();
+        }
+      }
+    });
+
+    ws.on('close', async () => {
+      if (audioChunks.length === 0) {
+        reject(new Error('Edge TTS WebSocket closed without receiving any audio data.'));
+        return;
+      }
+      try {
+        const finalBuffer = Buffer.concat(audioChunks);
+        await fs.writeFile(target, finalBuffer);
+        resolve();
+      } catch (err) {
+        reject(err);
+      }
+    });
+
+    ws.on('error', (err) => {
+      ws.close();
+      reject(err);
+    });
+  });
 }
 
 async function synthesizeOpenAiTts(text, target, tts) {

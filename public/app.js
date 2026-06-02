@@ -299,7 +299,12 @@ const extraI18n = {
     cleanupLegend: 'Dọn file sau khi xử lý',
     autoCleanup: 'Tự xoá thư mục job sau khi hoàn tất',
     cleanupDelay: 'Giữ file để tải trong',
-    startButton: 'Bắt đầu xử lý'
+    startButton: 'Bắt đầu xử lý',
+    aspectLegend: 'Tỷ lệ khung hình',
+    aspectVertical: 'Dọc (9:16)',
+    aspectHorizontal: 'Ngang (16:9)',
+    aspectSquare: 'Vuông (1:1)',
+    aspectOriginal: 'Giữ nguyên'
   },
   en: {
     ttsProvider: 'TTS server',
@@ -331,7 +336,12 @@ const extraI18n = {
     cleanupLegend: 'Clean files after processing',
     autoCleanup: 'Delete job folder automatically after completion',
     cleanupDelay: 'Keep download file for',
-    startButton: 'Start processing'
+    startButton: 'Start processing',
+    aspectLegend: 'Aspect ratio',
+    aspectVertical: 'Vertical (9:16)',
+    aspectHorizontal: 'Horizontal (16:9)',
+    aspectSquare: 'Square (1:1)',
+    aspectOriginal: 'Keep original'
   }
 };
 
@@ -354,6 +364,11 @@ function setLanguage(lang) {
   setText('.segmented legend', t.modeLegend);
   setText('.segmented label:nth-of-type(1) span', t.modeDub);
   setText('.segmented label:nth-of-type(2) span', t.modeDownload);
+  setText('.aspect-ratio-segmented legend', t.aspectLegend);
+  setText('.aspect-ratio-segmented label:nth-of-type(1) span', t.aspectVertical);
+  setText('.aspect-ratio-segmented label:nth-of-type(2) span', t.aspectHorizontal);
+  setText('.aspect-ratio-segmented label:nth-of-type(3) span', t.aspectSquare);
+  setText('.aspect-ratio-segmented label:nth-of-type(4) span', t.aspectOriginal);
   setText('#apiSettings summary', t.apiSummary);
   setText('#geminiApiKey', t.geminiKey, 'previous');
   setText('#geminiApiKey', t.envPlaceholder, 'placeholder');
@@ -794,7 +809,7 @@ function setActivePreset(name) {
 }
 
 function readConfig() {
-  const names = ['subtitleSize', 'subtitleBottomMargin', 'subtitleBackground', 'subtitleBgOpacity', 'subtitleLineLength', 'subtitleFont', 'watermarkPosition', 'watermarkWidthPercent', 'watermarkOpacity', 'ttsProvider', 'voice', 'ttsStyle', 'ttsVolume', 'ttsSpeed', 'originalVolume', 'cleanupDelayMinutes'];
+  const names = ['subtitleSize', 'subtitleBottomMargin', 'subtitleBackground', 'subtitleBgOpacity', 'subtitleLineLength', 'subtitleFont', 'watermarkPosition', 'watermarkWidthPercent', 'watermarkOpacity', 'ttsProvider', 'voice', 'ttsStyle', 'ttsVolume', 'ttsSpeed', 'originalVolume', 'cleanupDelayMinutes', 'aspectRatio', 'mode'];
   const config = {};
   for (const name of names) {
     const el = form.elements[name];
