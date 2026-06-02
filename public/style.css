@@ -901,6 +901,8 @@ html[data-theme="dark"] .theme-btn::before {
   line-height: 1.5;
   font-weight: 500;
   animation: slideIn 0.25s ease;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 @keyframes slideIn {
