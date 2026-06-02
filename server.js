@@ -846,6 +846,14 @@ function buildAtempoFilter(tempo) {
   return filters.join(',');
 }
 
+function generateSecMSGec() {
+  const trustedClientToken = "6A5AA1D4EAFF4E9FB37E23D68491D6F4";
+  const timestamp = Math.floor(Date.now() / 1000) + 11644473600;
+  const roundedTimestamp = (timestamp - (timestamp % 300)) * 10000000;
+  const strToHash = `${roundedTimestamp}${trustedClientToken}`;
+  return crypto.createHash('sha256').update(strToHash, 'ascii').digest('hex').toUpperCase();
+}
+
 function synthesizeEdgeTts(text, target, tts, job) {
   return new Promise((resolve, reject) => {
     const ratePercent = Math.round((tts.speed - 1) * 100);
@@ -854,11 +862,25 @@ function synthesizeEdgeTts(text, target, tts, job) {
     const volumeStr = `${volumePercent >= 0 ? '+' : ''}${volumePercent}%`;
     const voice = EDGE_VOICES.get(tts.voice) || 'vi-VN-HoaiMyNeural';
 
-    const url = 'wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1?TrustedClientToken=6A5AA1D4EAFF4E9FB37E23D68491D6F4';
+    const CHROMIUM_FULL_VERSION = "143.0.3650.75";
+    const CHROMIUM_MAJOR_VERSION = CHROMIUM_FULL_VERSION.split(".")[0];
+    const SEC_MS_GEC_VERSION = `1-${CHROMIUM_FULL_VERSION}`;
+
+    const gec = generateSecMSGec();
+    const connectionId = crypto.randomUUID().replace(/-/g, '');
+    const muid = crypto.randomBytes(16).toString('hex').toUpperCase();
+
+    const url = `wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1?TrustedClientToken=6A5AA1D4EAFF4E9FB37E23D68491D6F4&ConnectionId=${connectionId}&Sec-MS-GEC=${gec}&Sec-MS-GEC-Version=${SEC_MS_GEC_VERSION}`;
+
     const ws = new WebSocket(url, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edge/120.0.0.0',
-        'Origin': 'chrome-extension://jdiccldimpdaibmpdkjnbmckianbfold'
+        "User-Agent": `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${CHROMIUM_MAJOR_VERSION}.0.0.0 Safari/537.36 Edg/${CHROMIUM_MAJOR_VERSION}.0.0.0`,
+        "Accept-Encoding": "gzip, deflate, br, zstd",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Pragma": "no-cache",
+        "Cache-Control": "no-cache",
+        "Origin": "chrome-extension://jdiccldimpdaibmpdkjnbmckianbfold",
+        "Cookie": `muid=${muid};`
       }
     });
 
@@ -869,11 +891,14 @@ function synthesizeEdgeTts(text, target, tts, job) {
       const configMsg = `Content-Type:application/json; charset=utf-8\r\nPath:speech.config\r\n\r\n` +
         JSON.stringify({
           context: {
-            system: {
-              name: "SpeechSDK",
-              version: "1.30.0",
-              build: "JavaScript",
-              lang: "JavaScript"
+            synthesis: {
+              audio: {
+                metadataoptions: {
+                  sentenceBoundaryEnabled: "false",
+                  wordBoundaryEnabled: "false"
+                },
+                outputFormat: "audio-24khz-48kbitrate-mono-mp3"
+              }
             }
           }
         });
@@ -902,9 +927,9 @@ function synthesizeEdgeTts(text, target, tts, job) {
       }
     });
 
-    ws.on('close', async () => {
+    ws.on('close', async (code, reason) => {
       if (audioChunks.length === 0) {
-        reject(new Error('Edge TTS WebSocket closed without receiving any audio data.'));
+        reject(new Error(`Edge TTS WebSocket closed without receiving any audio data. Code: ${code}, Reason: ${reason.toString()}`));
         return;
       }
       try {
