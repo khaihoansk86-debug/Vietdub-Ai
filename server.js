@@ -881,8 +881,8 @@ function synthesizeEdgeTts(text, target, tts, job) {
 
       const ssmlMsg = `X-RequestId:${requestId}\r\nContent-Type:application/ssml+xml\r\nPath:ssml\r\n\r\n` +
         `<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='vi-VN'>` +
-        `<voice name='${voice}'><pitch value='+0Hz'/><rate value='${rateStr}'/><volume value='${volumeStr}'/>` +
-        `${xmlEscape(text)}</voice></speak>`;
+        `<voice name='${voice}'><prosody pitch='+0Hz' rate='${rateStr}' volume='${volumeStr}'>` +
+        `${xmlEscape(text)}</prosody></voice></speak>`;
       ws.send(ssmlMsg);
     });
 
