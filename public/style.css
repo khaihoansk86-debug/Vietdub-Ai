@@ -694,17 +694,23 @@ html[data-theme="dark"] .settings-group > summary {
 
 .primary {
   width: 100%;
-  min-height: 52px;
+  min-height: 54px;
   background: var(--brand-gradient);
   color: #ffffff !important;
   border: 0;
   border-radius: 12px;
+  font-family: inherit;
   font-size: 15px;
   font-weight: 800;
-  letter-spacing: 0.5px;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
   cursor: pointer;
   transition: var(--transition);
   box-shadow: 0 10px 25px -6px var(--brand-glow);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 
 .primary:hover {
