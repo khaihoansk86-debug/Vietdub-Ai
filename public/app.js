@@ -723,6 +723,9 @@ async function runQueue() {
     for (const item of queuedJobs) {
       item.status = 'running';
       renderQueue();
+      appendLog(`=========================================`);
+      appendLog(`[${item.index}/${queuedJobs.length}] Bắt đầu xử lý: ${item.link}`);
+
       const body = new FormData(form);
       body.set('links', item.link);
       try {
@@ -736,7 +739,7 @@ async function runQueue() {
       } catch (error) {
         item.status = 'error';
         renderQueue();
-        throw error;
+        appendLog(`❌ Lỗi xử lý [${item.link}]: ${error.message || error}`, true);
       }
     }
   } finally {
