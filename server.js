@@ -44,6 +44,28 @@ await fs.mkdir(JOBS_DIR, { recursive: true });
 
 const upload = multer({ dest: path.join(os.tmpdir(), 'vietdub_uploads') });
 const jobs = new Map();
+const pendingQueue = [];
+let activeJobCount = 0;
+const MAX_CONCURRENT_JOBS = 1;
+
+function enqueueJob(job, payload) {
+  pendingQueue.push({ job, payload });
+  triggerNextJob();
+}
+
+function triggerNextJob() {
+  if (activeJobCount >= MAX_CONCURRENT_JOBS) return;
+  const next = pendingQueue.shift();
+  if (!next) return;
+
+  activeJobCount++;
+  processJob(next.job, next.payload)
+    .catch((error) => fail(next.job, error))
+    .finally(() => {
+      activeJobCount--;
+      triggerNextJob();
+    });
+}
 
 const EDGE_VOICES = new Map([
   ['vi-VN-HoaiMyNeural', 'vi-VN-HoaiMyNeural'],
@@ -118,7 +140,7 @@ app.post('/api/jobs', upload.fields([
   };
 
   res.json({ id });
-  processJob(job, payload).catch((error) => fail(job, error));
+  enqueueJob(job, payload);
 });
 
 app.get('/api/jobs/:id', (req, res) => {
@@ -253,6 +275,34 @@ app.get('/api/system/disk', async (_req, res) => {
 
 app.get('/api/system/update', async (_req, res) => {
   res.json(await checkForUpdate());
+});
+
+app.post('/api/system/ytdlp-update', async (req, res) => {
+  try {
+    const result = await runCapture(YTDLP_BIN, ['-U']);
+    res.json({
+      success: result.code === 0,
+      code: result.code,
+      stdout: result.stdout,
+      stderr: result.stderr
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.post('/api/system/git-pull', async (req, res) => {
+  try {
+    const result = await runCapture('git', ['pull']);
+    res.json({
+      success: result.code === 0,
+      code: result.code,
+      stdout: result.stdout,
+      stderr: result.stderr
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
 });
 
 app.get('/health', (_req, res) => res.json({ ok: true }));

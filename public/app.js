@@ -44,6 +44,9 @@ const queueState = document.querySelector('#queueState');
 const updateCheckBtn = document.querySelector('#updateCheckBtn');
 const updateStatus = document.querySelector('#updateStatus');
 const presetStatus = document.querySelector('#presetStatus');
+const gitPullBtn = document.querySelector('#gitPullBtn');
+const updateYtdlpBtn = document.querySelector('#updateYtdlpBtn');
+const ytdlpUpdateStatus = document.querySelector('#ytdlpUpdateStatus');
 const apiFields = ['geminiApiKey', 'geminiModel', 'openaiApiKey', 'openaiTtsModel', 'rapidApiKey'];
 const rememberApiKeys = document.querySelector('#rememberApiKeys');
 let queuedJobs = [];
@@ -153,7 +156,16 @@ const i18n = {
     historyNoResult: 'Chưa có file kết quả',
     queueTitle: 'Hàng đợi',
     queueCount: '{count} job',
-    updateTitle: 'Cập nhật GitHub',
+    appUpdateTitle: 'Cập nhật ứng dụng',
+    engineUpdateTitle: 'Engine tải video',
+    ytdlpUpdateBtn: 'Cập nhật yt-dlp',
+    ytdlpUpdating: 'Đang cập nhật engine...',
+    ytdlpUpdated: 'yt-dlp đã được cập nhật!',
+    ytdlpUpdateFailed: 'Cập nhật engine lỗi: ',
+    gitPullBtn: 'Cập nhật ngay',
+    gitPulling: 'Đang tải bản cập nhật...',
+    gitPullSuccess: 'Cập nhật thành công! Vui lòng khởi động lại app.',
+    gitPullFailed: 'Cập nhật lỗi: ',
     updateCheck: 'Kiểm tra',
     updateIdle: 'Chưa kiểm tra.',
     updateChecking: 'Đang kiểm tra...',
@@ -237,7 +249,16 @@ const i18n = {
     historyNoResult: 'No result file yet',
     queueTitle: 'Queue',
     queueCount: '{count} jobs',
-    updateTitle: 'GitHub updates',
+    appUpdateTitle: 'App update',
+    engineUpdateTitle: 'Download engine',
+    ytdlpUpdateBtn: 'Update yt-dlp',
+    ytdlpUpdating: 'Updating engine...',
+    ytdlpUpdated: 'yt-dlp has been updated!',
+    ytdlpUpdateFailed: 'Engine update failed: ',
+    gitPullBtn: 'Update now',
+    gitPulling: 'Downloading update...',
+    gitPullSuccess: 'Update successful! Please restart the app.',
+    gitPullFailed: 'Update failed: ',
     updateCheck: 'Check',
     updateIdle: 'Not checked yet.',
     updateChecking: 'Checking...',
@@ -418,6 +439,8 @@ function setLanguage(lang) {
   setText('#refreshHistoryBtn', t.historyRefresh);
   setText('.queue h3', t.queueTitle);
   setText('#updateCheckBtn', t.updateCheck);
+  setText('#gitPullBtn', t.gitPullBtn);
+  setText('#updateYtdlpBtn', t.ytdlpUpdateBtn);
   setText('#savePresetBtn', t.savePreset);
   setText('#loadPresetBtn', t.loadPreset);
   setText('#deletePresetBtn', t.deletePreset);
@@ -437,8 +460,10 @@ function setLanguage(lang) {
   setText('#customPresetName', t.customPresetName, 'previous');
   setText('#customPresetName', t.customPresetNamePlaceholder, 'placeholder');
   setText('#customPresetSelect', t.customPresetSaved, 'previous');
-  setText('.update-box h3', t.updateTitle);
+  setText('.app-update-title', t.appUpdateTitle);
+  setText('.engine-update-title', t.engineUpdateTitle);
   if (updateStatus && !updateStatus.dataset.checked) updateStatus.textContent = t.updateIdle;
+  if (ytdlpUpdateStatus && !ytdlpUpdateStatus.dataset.checked) ytdlpUpdateStatus.textContent = t.updateIdle;
   document.documentElement.lang = currentLang;
   translateOptions(t);
   updateFilePickers();
@@ -616,6 +641,8 @@ apiCheckBtn?.addEventListener('click', async () => {
 
 refreshHistoryBtn?.addEventListener('click', loadHistory);
 updateCheckBtn?.addEventListener('click', checkUpdates);
+gitPullBtn?.addEventListener('click', doGitPull);
+updateYtdlpBtn?.addEventListener('click', updateYtdlp);
 presetButtons.forEach((button) => button.addEventListener('click', () => applyQuickPreset(button.dataset.preset)));
 savePresetBtn?.addEventListener('click', saveCustomPreset);
 loadPresetBtn?.addEventListener('click', loadSelectedPreset);
@@ -915,6 +942,7 @@ async function checkUpdates() {
   if (!updateStatus) return;
   updateStatus.dataset.checked = '1';
   updateStatus.textContent = i18n[currentLang].updateChecking;
+  if (gitPullBtn) gitPullBtn.style.display = 'none';
   try {
     const response = await fetch('/api/system/update');
     const contentType = response.headers.get('content-type') || '';
@@ -923,11 +951,53 @@ async function checkUpdates() {
     }
     const data = await response.json();
     if (!response.ok || !data.ok) throw new Error(data.message || 'Update check failed');
-    updateStatus.textContent = data.hasUpdate
-      ? `${i18n[currentLang].updateAvailable} ${data.latestCommit?.slice(0, 7) || ''}`
-      : `${i18n[currentLang].updateLatest} ${data.localCommit?.slice(0, 7) || ''}`;
+    
+    if (data.hasUpdate) {
+      updateStatus.textContent = `${i18n[currentLang].updateAvailable} ${data.latestCommit?.slice(0, 7) || ''}`;
+      if (gitPullBtn) gitPullBtn.style.display = 'inline-block';
+    } else {
+      updateStatus.textContent = `${i18n[currentLang].updateLatest} ${data.localCommit?.slice(0, 7) || ''}`;
+    }
   } catch (error) {
     updateStatus.textContent = `${i18n[currentLang].updateFailed} ${error.message}`;
+  }
+}
+
+async function doGitPull() {
+  if (!gitPullBtn || !updateStatus) return;
+  gitPullBtn.disabled = true;
+  updateStatus.textContent = i18n[currentLang].gitPulling;
+  try {
+    const response = await fetch('/api/system/git-pull', { method: 'POST' });
+    const data = await response.json();
+    if (!response.ok || !data.success) {
+      throw new Error(data.error || (data.stderr ? data.stderr : 'Pull failed'));
+    }
+    updateStatus.textContent = i18n[currentLang].gitPullSuccess;
+    gitPullBtn.style.display = 'none';
+  } catch (error) {
+    updateStatus.textContent = `${i18n[currentLang].gitPullFailed} ${error.message}`;
+  } finally {
+    gitPullBtn.disabled = false;
+  }
+}
+
+async function updateYtdlp() {
+  if (!updateYtdlpBtn || !ytdlpUpdateStatus) return;
+  updateYtdlpBtn.disabled = true;
+  ytdlpUpdateStatus.dataset.checked = '1';
+  ytdlpUpdateStatus.textContent = i18n[currentLang].ytdlpUpdating;
+  try {
+    const response = await fetch('/api/system/ytdlp-update', { method: 'POST' });
+    const data = await response.json();
+    if (!response.ok || !data.success) {
+      throw new Error(data.error || (data.stderr ? data.stderr : 'Update failed'));
+    }
+    ytdlpUpdateStatus.textContent = i18n[currentLang].ytdlpUpdated;
+  } catch (error) {
+    ytdlpUpdateStatus.textContent = `${i18n[currentLang].ytdlpUpdateFailed} ${error.message}`;
+  } finally {
+    updateYtdlpBtn.disabled = false;
   }
 }
 

@@ -390,10 +390,19 @@
         </div>
         <div class="history update-box">
           <div class="history-head">
-            <h3>Cập nhật</h3>
-            <button class="link-btn" id="updateCheckBtn" type="button">Kiểm tra</button>
+            <h3 class="app-update-title">Cập nhật ứng dụng</h3>
+            <div class="update-actions" style="display: flex; gap: 8px;">
+              <button class="link-btn" id="updateCheckBtn" type="button">Kiểm tra</button>
+              <button class="link-btn" id="gitPullBtn" type="button" style="display: none; color: var(--brand);">Cập nhật ngay</button>
+            </div>
           </div>
           <div id="updateStatus" class="history-meta">Chưa kiểm tra.</div>
+
+          <div class="history-head" style="margin-top: 14px; border-top: 1px dashed var(--line); padding-top: 14px;">
+            <h3 class="engine-update-title">Engine tải video</h3>
+            <button class="link-btn" id="updateYtdlpBtn" type="button">Cập nhật yt-dlp</button>
+          </div>
+          <div id="ytdlpUpdateStatus" class="history-meta">Chưa kiểm tra.</div>
         </div>
       </aside>
     </main>

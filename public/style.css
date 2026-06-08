@@ -885,6 +885,7 @@ html[data-theme="dark"] .theme-btn::before {
   text-transform: uppercase;
   letter-spacing: 0.5px;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .logs {
