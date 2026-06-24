@@ -28,6 +28,16 @@ const YTDLP_BIN = process.env.YTDLP_BIN || unpackAsarPath(path.join(ROOT, 'node_
 const TTS_CUE_GUARD_MS = 40;
 const TTS_SYNC_OFFSET_MS = 30;
 const MAX_TTS_TEMPO = 1.30;
+
+let dialog = null;
+if (process.versions.electron) {
+  try {
+    const electronModule = await import('electron');
+    dialog = electronModule.dialog || electronModule.default?.dialog;
+  } catch (err) {
+    console.error('Không thể load Electron dialog:', err);
+  }
+}
 const OUTPUT_WIDTH = 1080;
 const OUTPUT_HEIGHT = 1920;
 const OUTPUT_FPS = 60;
@@ -134,6 +144,7 @@ app.post('/api/jobs', upload.fields([
     cleanup: parseCleanupOptions(req.body),
     watermark: parseWatermarkOptions(req.body),
     aspectRatio: String(req.body.aspectRatio || '9:16'),
+    outputDir: String(req.body.outputDir || ''),
     videos: req.files?.videos || [],
     srtFile: req.files?.srtFile?.[0] || null,
     watermarkFile: req.files?.watermarkFile?.[0] || null
@@ -305,6 +316,24 @@ app.post('/api/system/git-pull', async (req, res) => {
   }
 });
 
+app.post('/api/system/select-folder', async (req, res) => {
+  try {
+    if (!dialog) {
+      return res.status(400).json({ success: false, error: 'Hộp thoại chọn thư mục chỉ khả dụng trên ứng dụng Desktop (Electron).' });
+    }
+    const result = await dialog.showOpenDialog({
+      properties: ['openDirectory', 'createDirectory'],
+      title: 'Chọn thư mục lưu video'
+    });
+    if (result.canceled || result.filePaths.length === 0) {
+      return res.json({ success: true, canceled: true });
+    }
+    res.json({ success: true, canceled: false, path: result.filePaths[0] });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 app.get('/health', (_req, res) => res.json({ ok: true }));
 
 app.listen(PORT, HOST, () => {
@@ -329,6 +358,7 @@ async function processJob(job, payload) {
     } else {
       await fs.copyFile(merged, out);
     }
+    await copyToOutputDir(job, payload, out);
     finish(job, out, 'Hoàn tất tải/gộp video.', payload.cleanup);
     return;
   }
@@ -351,6 +381,7 @@ async function processJob(job, payload) {
   const voiceFiles = await createTtsFiles(job, cues, payload.tts);
   const finalVideo = path.join(job.dir, 'VietDub_Final.mp4');
   await renderFinal(job, merged, normalizedSrt, cues, voiceFiles, finalVideo, payload.subtitle, watermarkPath, payload.watermark, payload.tts);
+  await copyToOutputDir(job, payload, finalVideo);
   finish(job, finalVideo, 'Hoàn tất tạo phụ đề và lồng tiếng.', payload.cleanup);
 }
 
@@ -1456,5 +1487,90 @@ async function checkForUpdate() {
     };
   } catch (error) {
     return { ok: false, localCommit, latestCommit: '', hasUpdate: false, message: error.message || String(error) };
+  }
+}
+
+function extractIdFromUrl(url) {
+  if (!url) return '';
+  try {
+    const u = new URL(url);
+    if (u.hostname.includes('youtube.com') || u.hostname.includes('youtu.be')) {
+      const v = u.searchParams.get('v');
+      if (v) return v;
+      const parts = u.pathname.split('/');
+      return parts[parts.length - 1];
+    }
+    const pathParts = u.pathname.split('/').filter(Boolean);
+    for (let i = pathParts.length - 1; i >= 0; i--) {
+      const part = pathParts[i];
+      if (/^\d+$/.test(part) || part.length > 5) {
+        return part;
+      }
+    }
+  } catch {
+    // Ignore URL parse error
+  }
+  return '';
+}
+
+async function generateUniqueFilename(targetDir, payload, job) {
+  let baseName = 'vietdub_video';
+
+  if (payload.videos && payload.videos.length > 0) {
+    const orig = payload.videos[0].originalname;
+    const ext = path.extname(orig);
+    baseName = path.basename(orig, ext);
+  } else {
+    const links = parseLinks(payload.linksText);
+    if (links.length > 0) {
+      const firstUrl = links[0];
+      try {
+        const u = new URL(firstUrl);
+        const domain = u.hostname.replace('www.', '').split('.')[0];
+        const id = extractIdFromUrl(firstUrl);
+        if (id) {
+          baseName = `${domain}_${id}`;
+        } else {
+          baseName = `${domain}_video`;
+        }
+      } catch {
+        baseName = 'vietdub_link';
+      }
+    }
+  }
+
+  baseName = baseName.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 80);
+
+  const ext = '.mp4';
+  let finalName = `${baseName}${ext}`;
+  let counter = 1;
+
+  while (true) {
+    const testPath = path.join(targetDir, finalName);
+    if (!(await fileExists(testPath))) {
+      break;
+    }
+    finalName = `${baseName}_${counter++}${ext}`;
+  }
+
+  return finalName;
+}
+
+async function copyToOutputDir(job, payload, sourceFile) {
+  if (!payload.outputDir) return;
+  const targetDir = String(payload.outputDir).trim();
+  if (!targetDir) return;
+
+  try {
+    await fs.mkdir(targetDir, { recursive: true });
+    const finalName = await generateUniqueFilename(targetDir, payload, job);
+    const destPath = path.join(targetDir, finalName);
+
+    log(job, `Đang sao chép kết quả sang thư mục lưu trữ: ${destPath}`);
+    await fs.copyFile(sourceFile, destPath);
+    log(job, `Đã lưu video thành công vào: ${destPath}`);
+    job.savedTo = destPath;
+  } catch (error) {
+    log(job, `Lỗi khi lưu video sang thư mục lưu trữ: ${error.message}`);
   }
 }

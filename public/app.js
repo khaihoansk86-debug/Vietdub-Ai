@@ -47,6 +47,8 @@ const presetStatus = document.querySelector('#presetStatus');
 const gitPullBtn = document.querySelector('#gitPullBtn');
 const updateYtdlpBtn = document.querySelector('#updateYtdlpBtn');
 const ytdlpUpdateStatus = document.querySelector('#ytdlpUpdateStatus');
+const outputDirInput = document.querySelector('#outputDir');
+const selectOutputDirBtn = document.querySelector('#selectOutputDirBtn');
 const apiFields = ['geminiApiKey', 'geminiModel', 'openaiApiKey', 'openaiTtsModel', 'rapidApiKey'];
 const rememberApiKeys = document.querySelector('#rememberApiKeys');
 let queuedJobs = [];
@@ -55,6 +57,7 @@ let queueRunning = false;
 const savedTheme = localStorage.getItem('vietdub-theme');
 setTheme(savedTheme || 'dark');
 restoreAiSettings();
+restoreOutputDir();
 let currentLang = localStorage.getItem('vietdub-lang') || 'vi';
 
 themeToggle?.addEventListener('click', () => {
@@ -96,6 +99,20 @@ function saveAiSettings() {
 
 rememberApiKeys?.addEventListener('change', saveAiSettings);
 for (const id of apiFields) document.querySelector(`#${id}`)?.addEventListener('input', saveAiSettings);
+
+function restoreOutputDir() {
+  if (outputDirInput) {
+    outputDirInput.value = localStorage.getItem('vietdub-output-dir') || '';
+  }
+}
+
+function saveOutputDir() {
+  if (outputDirInput) {
+    localStorage.setItem('vietdub-output-dir', outputDirInput.value.trim());
+  }
+}
+
+outputDirInput?.addEventListener('input', saveOutputDir);
 
 languageSelect?.addEventListener('change', () => setLanguage(languageSelect.value));
 
@@ -156,6 +173,10 @@ const i18n = {
     historyNoResult: 'Chưa có file kết quả',
     queueTitle: 'Hàng đợi',
     queueCount: '{count} job',
+    outputDirLegend: 'Thư mục lưu video đầu ra',
+    outputDirLabel: 'Đường dẫn lưu video',
+    outputDirPlaceholder: 'Để trống để lưu tại thư mục tạm của app',
+    selectFolderBtn: 'Chọn',
     appUpdateTitle: 'Cập nhật ứng dụng',
     engineUpdateTitle: 'Engine tải video',
     ytdlpUpdateBtn: 'Cập nhật yt-dlp',
@@ -249,6 +270,10 @@ const i18n = {
     historyNoResult: 'No result file yet',
     queueTitle: 'Queue',
     queueCount: '{count} jobs',
+    outputDirLegend: 'Output video directory',
+    outputDirLabel: 'Output video path',
+    outputDirPlaceholder: 'Leave empty to save in temporary app folder',
+    selectFolderBtn: 'Choose',
     appUpdateTitle: 'App update',
     engineUpdateTitle: 'Download engine',
     ytdlpUpdateBtn: 'Update yt-dlp',
@@ -462,6 +487,10 @@ function setLanguage(lang) {
   setText('#customPresetSelect', t.customPresetSaved, 'previous');
   setText('.app-update-title', t.appUpdateTitle);
   setText('.engine-update-title', t.engineUpdateTitle);
+  setText('.output-directory-box legend', t.outputDirLegend);
+  setText('#outputDir', t.outputDirLabel, 'previous');
+  setText('#outputDir', t.outputDirPlaceholder, 'placeholder');
+  setText('#selectOutputDirBtn', t.selectFolderBtn);
   if (updateStatus && !updateStatus.dataset.checked) updateStatus.textContent = t.updateIdle;
   if (ytdlpUpdateStatus && !ytdlpUpdateStatus.dataset.checked) ytdlpUpdateStatus.textContent = t.updateIdle;
   document.documentElement.lang = currentLang;
@@ -643,6 +672,23 @@ refreshHistoryBtn?.addEventListener('click', loadHistory);
 updateCheckBtn?.addEventListener('click', checkUpdates);
 gitPullBtn?.addEventListener('click', doGitPull);
 updateYtdlpBtn?.addEventListener('click', updateYtdlp);
+selectOutputDirBtn?.addEventListener('click', async () => {
+  try {
+    selectOutputDirBtn.disabled = true;
+    const response = await fetch('/api/system/select-folder', { method: 'POST' });
+    const data = await response.json();
+    if (data.success && !data.canceled && data.path) {
+      outputDirInput.value = data.path;
+      saveOutputDir();
+    } else if (!data.success) {
+      alert(data.error || 'Không chọn được thư mục.');
+    }
+  } catch (error) {
+    alert('Lỗi kết nối server: ' + error.message);
+  } finally {
+    selectOutputDirBtn.disabled = false;
+  }
+});
 presetButtons.forEach((button) => button.addEventListener('click', () => applyQuickPreset(button.dataset.preset)));
 savePresetBtn?.addEventListener('click', saveCustomPreset);
 loadPresetBtn?.addEventListener('click', loadSelectedPreset);
@@ -652,6 +698,7 @@ mixPreviewBtn?.addEventListener('click', previewAudioMix);
 form.addEventListener('submit', async (event) => {
   event.preventDefault();
   saveAiSettings();
+  saveOutputDir();
   const diskInfo = await loadDiskInfo();
   if (diskInfo?.warning && !window.confirm(i18n[currentLang].diskConfirm)) return;
   logs.innerHTML = '';

@@ -338,6 +338,18 @@
                 </select>
               </label>
             </fieldset>
+
+            <fieldset class="settings-group compact output-directory-box">
+              <legend>Thư mục lưu video đầu ra</legend>
+              <div style="display: flex; gap: 12px; align-items: flex-end; margin-top: 8px;">
+                <label class="field" style="flex: 1; margin-bottom: 0;">
+                  <span>Đường dẫn lưu video</span>
+                  <input name="outputDir" id="outputDir" type="text" placeholder="Để trống để lưu tại thư mục tạm của app">
+                </label>
+                <button class="secondary" id="selectOutputDirBtn" type="button" style="height: 42px; flex-shrink: 0; padding: 0 20px;">Chọn</button>
+              </div>
+            </fieldset>
+
             <div id="diskNotice" class="notice hidden"></div>
 
             <fieldset class="settings-group compact custom-preset-box">
