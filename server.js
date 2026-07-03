@@ -1727,6 +1727,22 @@ async function startKokoroBackend() {
   const serverApiContent = getKokoroServerApiContent();
   await fs.writeFile(serverScript, serverApiContent, 'utf-8');
 
+  // Tự động sao chép các file giọng đọc npy từ app sang thư mục Kokoro
+  const srcVoicepacks = path.join(ROOT, 'public', 'voicepacks');
+  const destVoicepacks = path.join(kokoroDir, 'voicepacks');
+  try {
+    await fs.mkdir(destVoicepacks, { recursive: true });
+    const files = await fs.readdir(srcVoicepacks);
+    for (const file of files) {
+      if (file.endsWith('.npy')) {
+        await fs.copyFile(path.join(srcVoicepacks, file), path.join(destVoicepacks, file));
+      }
+    }
+    console.log('Đồng bộ file giọng đọc NumPy thành công.');
+  } catch (copyErr) {
+    console.error('Lỗi đồng bộ file giọng đọc:', copyErr.message);
+  }
+
   let hasVenv = false;
   try {
     await fs.access(venvPython);
@@ -1735,13 +1751,13 @@ async function startKokoroBackend() {
     hasVenv = false;
   }
 
-  // Kiểm tra xem các thư viện đã được cài đặt hoàn thiện trong venv chưa
+  // Kiểm tra xem các thư viện đã được cài đặt hoàn thiện trong venv chưa (Không check torch)
   let venvIsReady = false;
   if (hasVenv) {
     console.log('Đang kiểm tra tính toàn vẹn của thư viện Kokoro trong venv...');
     try {
       venvIsReady = await new Promise((resolve) => {
-        const checkProcess = spawn(venvPython, ['-c', 'import torch, kokoro_vietnamese, fastapi, uvicorn, soundfile, onnxruntime']);
+        const checkProcess = spawn(venvPython, ['-c', 'import kokoro_vietnamese, fastapi, uvicorn, soundfile, onnxruntime, vig2p, huggingface_hub, numpy, scipy']);
         checkProcess.on('close', (code) => {
           resolve(code === 0);
         });
@@ -1762,7 +1778,7 @@ async function startKokoroBackend() {
     
     try {
       if (hasVenv && !venvIsReady) {
-        kokoroInstallLog += 'Phát hiện thư viện PyTorch bị lỗi DLL. Đang tiến hành xóa môi trường ảo venv cũ để cài lại bản CPU-only sạch sẽ...\n';
+        kokoroInstallLog += 'Phát hiện môi trường cũ bị lỗi. Đang tiến hành xóa môi trường ảo venv cũ để cài lại bản vá sạch sẽ...\n';
         try {
           cleanupKokoro(); // Tắt tiến trình python ngầm trước khi xóa
           const venvDir = path.join(kokoroDir, 'venv');
@@ -1772,7 +1788,7 @@ async function startKokoroBackend() {
         } catch (rmErr) {
           console.error('Không thể xóa thư mục venv:', rmErr.message);
           kokoroInstallLog += `[LỖI] Không thể tự động dọn dẹp thư mục venv cũ: ${rmErr.message}.\n`;
-          kokoroInstallLog += `Vui lòng:\n1. Tắt app VietDub AI.\n2. Xóa thủ công thư mục venv tại: ${path.join(kokoroDir, 'venv')}\n3. Mở lại app để cài bản CPU-only.\n`;
+          kokoroInstallLog += `Vui lòng:\n1. Tắt app VietDub AI.\n2. Xóa thủ công thư mục venv tại: ${path.join(kokoroDir, 'venv')}\n3. Mở lại app.\n`;
           throw rmErr;
         }
       }
@@ -1808,28 +1824,8 @@ async function startKokoroBackend() {
       });
       await new Promise((resolve) => pipProcess.on('close', resolve));
 
-      kokoroInstallLog += 'Đang cài đặt phiên bản PyTorch CPU-only (Tối ưu hóa dung lượng nhẹ và sửa lỗi DLL)... (Tải khoảng 150MB)\n';
-      const installTorchCpuProcess = spawn(venvPython, ['-m', 'pip', 'install', 'torch', '--index-url', 'https://download.pytorch.org/whl/cpu'], {
-        cwd: kokoroDir,
-        stdio: 'pipe'
-      });
-      
-      installTorchCpuProcess.stdout.on('data', (data) => {
-        kokoroInstallLog += data.toString();
-      });
-      installTorchCpuProcess.stderr.on('data', (data) => {
-        kokoroInstallLog += data.toString();
-      });
-
-      const torchExitCode = await new Promise((resolve) => {
-        installTorchCpuProcess.on('close', resolve);
-      });
-      if (torchExitCode !== 0) {
-        throw new Error(`Cài đặt PyTorch CPU-only thất bại với mã thoát ${torchExitCode}`);
-      }
-
-      kokoroInstallLog += 'Đang tiến hành cài đặt/sửa chữa thư viện Kokoro và các dependency khác (fastapi, uvicorn, soundfile, onnxruntime)...\n';
-      const installDepsProcess = spawn(venvPython, ['-m', 'pip', 'install', '-e', '.', 'fastapi', 'uvicorn', 'soundfile', 'onnxruntime'], {
+      kokoroInstallLog += 'Đang cài đặt các thư viện bổ trợ gọn nhẹ chạy ONNX Runtime (fastapi, uvicorn, soundfile, onnxruntime, vig2p, huggingface_hub, numpy, scipy)...\n';
+      const installDepsProcess = spawn(venvPython, ['-m', 'pip', 'install', 'fastapi', 'uvicorn', 'soundfile', 'onnxruntime', 'vig2p', 'huggingface_hub', 'numpy', 'scipy'], {
         cwd: kokoroDir,
         stdio: 'pipe'
       });
@@ -1841,15 +1837,35 @@ async function startKokoroBackend() {
         kokoroInstallLog += data.toString();
       });
       
-      const installExitCode = await new Promise((resolve) => {
+      const depsExitCode = await new Promise((resolve) => {
         installDepsProcess.on('close', resolve);
+      });
+      if (depsExitCode !== 0) {
+        throw new Error(`Cài đặt các thư viện bổ trợ thất bại với mã thoát ${depsExitCode}`);
+      }
+
+      kokoroInstallLog += 'Đang liên kết mã nguồn lồng tiếng Kokoro (chế độ độc lập không PyTorch)...\n';
+      const installKokoroProcess = spawn(venvPython, ['-m', 'pip', 'install', '--no-deps', '-e', '.'], {
+        cwd: kokoroDir,
+        stdio: 'pipe'
+      });
+      
+      installKokoroProcess.stdout.on('data', (data) => {
+        kokoroInstallLog += data.toString();
+      });
+      installKokoroProcess.stderr.on('data', (data) => {
+        kokoroInstallLog += data.toString();
+      });
+      
+      const installExitCode = await new Promise((resolve) => {
+        installKokoroProcess.on('close', resolve);
       });
       
       if (installExitCode !== 0) {
-        throw new Error(`Cài đặt thư viện thất bại với mã thoát ${installExitCode}`);
+        throw new Error(`Liên kết thư viện Kokoro thất bại với mã thoát ${installExitCode}`);
       }
       
-      kokoroInstallLog += 'Cài đặt thư viện thành công! Đang khởi chạy API server...\n';
+      kokoroInstallLog += 'Cài đặt môi trường lồng tiếng siêu nhẹ thành công! Đang khởi chạy API server...\n';
       kokoroStatus = 'starting';
       launchKokoroServer(venvPython, serverScript);
     } catch (err) {
@@ -1943,36 +1959,96 @@ process.on('SIGTERM', () => {
 function getKokoroServerApiContent() {
   return `import os
 import sys
-# Sửa lỗi trùng lặp thư viện OpenMP và tắt CUDA để tránh lỗi khởi tạo DLL c10.dll của PyTorch
-os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
-os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 import io
-import torch
-import uvicorn
+import json
+import numpy as np
+import onnxruntime as ort
 import soundfile as sf
+import uvicorn
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
 
-try:
-    from kokoro_vietnamese import KokoroVietnamese
-except ImportError:
-    sys.path.append(os.path.dirname(__file__))
-    from kokoro_vietnamese import KokoroVietnamese
+# Import các hàm phụ trợ từ package kokoro_vietnamese
+from kokoro_vietnamese import split_text, merge_audio_chunks, normalize_audio, phonemize
+from kokoro_vietnamese.core import _download_or_resolve, DEFAULT_HF_REPO_ID, DEFAULT_ONNX_FILE, DEFAULT_CONFIG_FILE, DEFAULT_VOICE
 
-app = FastAPI(title="Kokoro Vietnamese TTS API")
+class KokoroVietnameseONNXNoTorch:
+    def __init__(self, repo_id=DEFAULT_HF_REPO_ID, voice=DEFAULT_VOICE, onnx_path=None, voicepack_dir=None, config_path=None):
+        self.onnx_path = _download_or_resolve(repo_id, DEFAULT_ONNX_FILE, onnx_path)
+        self.config_path = _download_or_resolve(repo_id, DEFAULT_CONFIG_FILE, config_path)
+        
+        # Load config
+        with open(self.config_path, 'r', encoding='utf-8') as f:
+            self.config = json.load(f)
+        self.context_length = self.config['plbert']['max_position_embeddings']
+        
+        # Load voicepack (.npy file)
+        voicepack_filename = f"{voice}.npy"
+        self.voicepack_path = os.path.join(voicepack_dir, voicepack_filename)
+        if not os.path.exists(self.voicepack_path):
+            raise FileNotFoundError(f"Không tìm thấy file giọng đọc npy: {self.voicepack_path}")
+        self.voicepack = np.load(self.voicepack_path)
+        
+        # Khởi tạo ONNX runtime session (Chỉ dùng CPU)
+        self.session = ort.InferenceSession(str(self.onnx_path), providers=['CPUExecutionProvider'])
+        
+    def phonemes_to_input_ids(self, phonemes, vocab):
+        input_ids = [vocab[p] for p in phonemes if p in vocab]
+        if len(input_ids) + 2 > self.context_length:
+            raise ValueError(f"Phoneme sequence too long: {len(input_ids) + 2} > {self.context_length}")
+        return np.asarray([[0, *input_ids, 0]], dtype=np.int64)
+        
+    def select_voice_style(self, phoneme_count):
+        index = min(phoneme_count, self.voicepack.shape[0]) - 1
+        return np.asarray(self.voicepack[index], dtype=np.float32)
+        
+    def synthesize(self, text, speed=1.0, crossfade_ms=50):
+        audio_chunks = []
+        phoneme_chunks = []
+        speed_value = np.asarray(float(speed), dtype=np.float32)
+        
+        for index, text_chunk in enumerate(split_text(text), start=1):
+            ps = phonemize(text_chunk)
+            if not ps:
+                continue
+            if len(ps) > 510:
+                raise ValueError(f'Phoneme chunk too long ({len(ps)} > 510): {text_chunk[:80]}')
+                
+            phoneme_chunks.append(f'[{index}] {ps}')
+            input_ids = self.phonemes_to_input_ids(ps, self.config['vocab'])
+            ref_s = self.select_voice_style(len(ps))
+            
+            waveform, _duration = self.session.run(
+                None,
+                {
+                    'input_ids': input_ids,
+                    'ref_s': ref_s,
+                    'speed': speed_value,
+                },
+            )
+            audio_chunks.append(np.asarray(waveform, dtype=np.float32).reshape(-1))
+            
+        crossfade_samples = round(24000 * int(crossfade_ms) / 1000)
+        audio = merge_audio_chunks(audio_chunks, crossfade_samples)
+        return normalize_audio(audio), '\n'.join(phoneme_chunks)
 
-device = "cuda" if torch.cuda.is_available() else "cpu"
-print(f"Device selected: {device}")
+app = FastAPI(title="Kokoro Vietnamese TTS API (ONNX-only)")
+
+KOKORO_DIR = os.path.dirname(os.path.abspath(__file__))
+VOICEPACKS_DIR = os.path.join(KOKORO_DIR, 'voicepacks')
 
 tts_instances = {}
 
 def get_tts_instance(voice: str):
     if voice not in tts_instances:
-        print(f"Loading Kokoro model for voice: {voice}...")
-        tts_instances[voice] = KokoroVietnamese(device=device, voice=voice)
+        print(f"Loading Kokoro ONNX model for voice: {voice}...")
+        tts_instances[voice] = KokoroVietnameseONNXNoTorch(
+            voice=voice,
+            voicepack_dir=VOICEPACKS_DIR
+        )
     return tts_instances[voice]
 
 class TTSRequest(BaseModel):
@@ -1998,7 +2074,7 @@ async def text_to_speech(req: TTSRequest):
 
 @app.get("/health")
 async def health_check():
-    return {"status": "ok", "device": device}
+    return {"status": "ok", "device": "cpu_onnx"}
 
 if __name__ == "__main__":
     port = int(os.environ.get("KOKORO_PORT", 8889))
