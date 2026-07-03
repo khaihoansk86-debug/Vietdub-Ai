@@ -1761,8 +1761,24 @@ async function startKokoroBackend() {
     kokoroInstallLog += 'Môi trường ảo Python Kokoro chưa sẵn sàng hoặc thiếu thư viện. Đang tiến hành cài đặt/sửa chữa...\n';
     
     try {
+      if (hasVenv && !venvIsReady) {
+        kokoroInstallLog += 'Phát hiện thư viện PyTorch bị lỗi DLL. Đang tiến hành xóa môi trường ảo venv cũ để cài lại bản CPU-only sạch sẽ...\n';
+        try {
+          cleanupKokoro(); // Tắt tiến trình python ngầm trước khi xóa
+          const venvDir = path.join(kokoroDir, 'venv');
+          await fs.rm(venvDir, { recursive: true, force: true });
+          kokoroInstallLog += 'Đã xóa môi trường cũ thành công!\n';
+          hasVenv = false; // Đặt về false để kích hoạt khối tạo venv mới ở dưới
+        } catch (rmErr) {
+          console.error('Không thể xóa thư mục venv:', rmErr.message);
+          kokoroInstallLog += `[LỖI] Không thể tự động dọn dẹp thư mục venv cũ: ${rmErr.message}.\n`;
+          kokoroInstallLog += `Vui lòng:\n1. Tắt app VietDub AI.\n2. Xóa thủ công thư mục venv tại: ${path.join(kokoroDir, 'venv')}\n3. Mở lại app để cài bản CPU-only.\n`;
+          throw rmErr;
+        }
+      }
+
       if (!hasVenv) {
-        kokoroInstallLog += 'Đang tạo môi trường ảo Python (venv)... (Quá trình này có thể tốn vài phút)\n';
+        kokoroInstallLog += 'Đang tạo môi trường ảo Python (venv) mới... (Quá trình này có thể tốn vài phút)\n';
         const venvProcess = spawn('python', ['-m', 'venv', 'venv'], {
           cwd: kokoroDir,
           stdio: 'pipe'
@@ -1782,14 +1798,6 @@ async function startKokoroBackend() {
         if (venvExitCode !== 0) {
           throw new Error(`Tạo venv thất bại với mã thoát ${venvExitCode}`);
         }
-      } else {
-        // Gỡ cài đặt torch cũ nếu venv bị lỗi import để dọn dẹp sạch sẽ bản CUDA lỗi
-        kokoroInstallLog += 'Phát hiện thư viện PyTorch bị lỗi khởi tạo DLL. Đang dọn dẹp để cài đặt bản vá CPU-only...\n';
-        const uninstallTorch = spawn(venvPython, ['-m', 'pip', 'uninstall', '-y', 'torch'], {
-          cwd: kokoroDir,
-          stdio: 'pipe'
-        });
-        await new Promise((resolve) => uninstallTorch.on('close', resolve));
       }
       
       kokoroInstallLog += 'Đang nâng cấp trình quản lý gói pip...\n';
