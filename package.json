@@ -1,6 +1,6 @@
 {
   "name": "vietdub-ai-local",
-  "version": "1.4.14",
+  "version": "1.4.15",
   "description": "Ứng dụng Windows/local để tải, ghép, tạo phụ đề và lồng tiếng AI cho video.",
   "author": "VietDub AI",
   "private": true,

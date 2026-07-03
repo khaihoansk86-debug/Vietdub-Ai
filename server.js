@@ -1638,6 +1638,40 @@ async function copyToOutputDir(job, payload, sourceFile) {
   }
 }
 
+async function findSystemPython() {
+  const possiblePaths = [];
+  
+  // 1. Quét AppData Local cho các phiên bản Python 3.12, 3.11, 3.10
+  if (process.env.LOCALAPPDATA) {
+    possiblePaths.push(
+      path.join(process.env.LOCALAPPDATA, 'Programs', 'Python', 'Python312', 'python.exe'),
+      path.join(process.env.LOCALAPPDATA, 'Programs', 'Python', 'Python311', 'python.exe'),
+      path.join(process.env.LOCALAPPDATA, 'Programs', 'Python', 'Python310', 'python.exe')
+    );
+  }
+  
+  // 2. Quét Program Files
+  possiblePaths.push(
+    'C:\\Program Files\\Python312\\python.exe',
+    'C:\\Program Files\\Python311\\python.exe',
+    'C:\\Program Files\\Python310\\python.exe'
+  );
+  
+  // 3. Kiểm tra xem file nào tồn tại và trả về đường dẫn đầu tiên tìm thấy
+  for (const p of possiblePaths) {
+    try {
+      await fs.access(p);
+      console.log('Tìm thấy Python chuẩn tại:', p);
+      return p;
+    } catch {
+      // Bỏ qua nếu không tồn tại
+    }
+  }
+  
+  // 4. Fallback về lệnh python chung của hệ thống
+  return 'python';
+}
+
 async function startKokoroBackend() {
   const possiblePaths = [
     path.join(process.cwd(), 'kokoro-vietnamese'),
@@ -1795,7 +1829,8 @@ async function startKokoroBackend() {
 
       if (!hasVenv) {
         kokoroInstallLog += 'Đang tạo môi trường ảo Python (venv) mới... (Quá trình này có thể tốn vài phút)\n';
-        const venvProcess = spawn('python', ['-m', 'venv', 'venv'], {
+        const systemPython = await findSystemPython();
+        const venvProcess = spawn(systemPython, ['-m', 'venv', 'venv'], {
           cwd: kokoroDir,
           stdio: 'pipe'
         });
