@@ -1824,8 +1824,8 @@ async function startKokoroBackend() {
       });
       await new Promise((resolve) => pipProcess.on('close', resolve));
 
-      kokoroInstallLog += 'Đang cài đặt các thư viện bổ trợ gọn nhẹ chạy ONNX Runtime (fastapi, uvicorn, soundfile, onnxruntime, vig2p, huggingface_hub, numpy, scipy)...\n';
-      const installDepsProcess = spawn(venvPython, ['-m', 'pip', 'install', 'fastapi', 'uvicorn', 'soundfile', 'onnxruntime', 'vig2p', 'huggingface_hub', 'numpy', 'scipy'], {
+      kokoroInstallLog += 'Đang cài đặt các thư viện bổ trợ gọn nhẹ chạy ONNX Runtime (fastapi, uvicorn, soundfile, onnxruntime==1.16.3, vig2p, huggingface_hub, numpy, scipy)...\n';
+      const installDepsProcess = spawn(venvPython, ['-m', 'pip', 'install', 'fastapi', 'uvicorn', 'soundfile', 'onnxruntime==1.16.3', 'vig2p', 'huggingface_hub', 'numpy', 'scipy'], {
         cwd: kokoroDir,
         stdio: 'pipe'
       });
@@ -1962,7 +1962,6 @@ import sys
 import io
 import json
 import numpy as np
-import onnxruntime as ort
 import soundfile as sf
 import uvicorn
 from fastapi import FastAPI, HTTPException
@@ -1977,6 +1976,7 @@ from kokoro_vietnamese.core import _download_or_resolve, DEFAULT_HF_REPO_ID, DEF
 
 class KokoroVietnameseONNXNoTorch:
     def __init__(self, repo_id=DEFAULT_HF_REPO_ID, voice=DEFAULT_VOICE, onnx_path=None, voicepack_dir=None, config_path=None):
+        import onnxruntime as ort
         self.onnx_path = _download_or_resolve(repo_id, DEFAULT_ONNX_FILE, onnx_path)
         self.config_path = _download_or_resolve(repo_id, DEFAULT_CONFIG_FILE, config_path)
         
