@@ -1728,35 +1728,58 @@ async function startKokoroBackend() {
     hasVenv = false;
   }
 
-  if (!hasVenv) {
-    console.log('Khởi tạo venv tại:', kokoroDir);
+  // Kiểm tra xem các thư viện đã được cài đặt hoàn thiện trong venv chưa
+  let venvIsReady = false;
+  if (hasVenv) {
+    console.log('Đang kiểm tra tính toàn vẹn của thư viện Kokoro trong venv...');
+    try {
+      venvIsReady = await new Promise((resolve) => {
+        const checkProcess = spawn(venvPython, ['-c', 'import torch, kokoro_vietnamese, fastapi, uvicorn, soundfile, onnxruntime']);
+        checkProcess.on('close', (code) => {
+          resolve(code === 0);
+        });
+        checkProcess.on('error', () => {
+          resolve(false);
+        });
+      });
+    } catch {
+      venvIsReady = false;
+    }
+    console.log(`Kết quả kiểm tra thư viện Kokoro: ${venvIsReady ? 'ĐẦY ĐỦ' : 'THIẾU/LỖI'}`);
+  }
+
+  if (!hasVenv || !venvIsReady) {
+    console.log('Khởi tạo hoặc sửa chữa venv tại:', kokoroDir);
     kokoroStatus = 'installing';
-    kokoroInstallLog += 'Đang tạo môi trường ảo Python (venv)... (Quá trình này có thể tốn vài phút)\n';
+    kokoroInstallLog += 'Môi trường ảo Python Kokoro chưa sẵn sàng hoặc thiếu thư viện. Đang tiến hành cài đặt/sửa chữa...\n';
     
     try {
-      const venvProcess = spawn('python', ['-m', 'venv', 'venv'], {
-        cwd: kokoroDir,
-        stdio: 'pipe'
-      });
+      if (!hasVenv) {
+        kokoroInstallLog += 'Đang tạo môi trường ảo Python (venv)... (Quá trình này có thể tốn vài phút)\n';
+        const venvProcess = spawn('python', ['-m', 'venv', 'venv'], {
+          cwd: kokoroDir,
+          stdio: 'pipe'
+        });
 
-      venvProcess.stdout.on('data', (data) => {
-        kokoroInstallLog += data.toString();
-      });
-      venvProcess.stderr.on('data', (data) => {
-        kokoroInstallLog += data.toString();
-      });
-      
-      const venvExitCode = await new Promise((resolve) => {
-        venvProcess.on('close', resolve);
-      });
-      
-      if (venvExitCode !== 0) {
-        throw new Error(`Tạo venv thất bại với mã thoát ${venvExitCode}`);
+        venvProcess.stdout.on('data', (data) => {
+          kokoroInstallLog += data.toString();
+        });
+        venvProcess.stderr.on('data', (data) => {
+          kokoroInstallLog += data.toString();
+        });
+        
+        const venvExitCode = await new Promise((resolve) => {
+          venvProcess.on('close', resolve);
+        });
+        
+        if (venvExitCode !== 0) {
+          throw new Error(`Tạo venv thất bại với mã thoát ${venvExitCode}`);
+        }
       }
       
-      kokoroInstallLog += 'Tạo venv thành công. Đang cài đặt thư viện Kokoro và các dependency (fastapi, uvicorn, soundfile, onnxruntime)...\n';
+      kokoroInstallLog += 'Đang tiến hành cài đặt/sửa chữa thư viện Kokoro và các dependency (fastapi, uvicorn, soundfile, onnxruntime)...\n';
       
-      // Chạy pip install thông qua venv python
+      // Chạy pip install nâng cấp pip và cài đặt packages
       const pipProcess = spawn(venvPython, ['-m', 'pip', 'install', '--upgrade', 'pip'], {
         cwd: kokoroDir,
         stdio: 'pipe'
