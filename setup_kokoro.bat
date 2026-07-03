@@ -43,4 +43,6 @@ echo ====================================================
 echo.
 echo Bạn có thể chạy file "run_kokoro.bat" để khởi động server TTS.
 echo.
+if "%1"=="--silent" goto end
 pause
+:end
