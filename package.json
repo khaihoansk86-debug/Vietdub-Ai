@@ -1,6 +1,6 @@
 {
   "name": "vietdub-ai-local",
-  "version": "1.4.16",
+  "version": "1.4.17",
   "description": "Ứng dụng Windows/local để tải, ghép, tạo phụ đề và lồng tiếng AI cho video.",
   "author": "VietDub AI",
   "private": true,
@@ -10,6 +10,7 @@
     "start": "node server.js",
     "desktop": "electron .",
     "build:win": "electron-builder --win nsis",
+    "build:mac": "electron-builder --mac dmg",
     "check": "node --check server.js && node --check public/app.js && node --check electron/main.cjs"
   },
   "build": {

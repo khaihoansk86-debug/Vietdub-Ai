@@ -1639,6 +1639,20 @@ async function copyToOutputDir(job, payload, sourceFile) {
 }
 
 async function findSystemPython() {
+  if (process.platform !== 'win32') {
+    // Trên macOS/Linux, kiểm tra xem lệnh python3 có chạy được không
+    try {
+      await new Promise((resolve, reject) => {
+        const check = spawn('python3', ['--version']);
+        check.on('close', (code) => code === 0 ? resolve() : reject());
+        check.on('error', reject);
+      });
+      return 'python3';
+    } catch {
+      return 'python';
+    }
+  }
+
   const possiblePaths = [];
   
   // 1. Quét AppData Local cho các phiên bản Python 3.12, 3.11, 3.10
