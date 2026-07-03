@@ -1261,9 +1261,9 @@ function translateOptions(t) {
   });
   setOptions('#ttsProvider', {
     'openai-tts': currentLang === 'en' ? 'OpenAI TTS - most natural' : 'OpenAI TTS - tự nhiên nhất',
-    'edge-neural': currentLang === 'en' ? 'Microsoft Edge Neural - fallback' : 'Microsoft Edge Neural - dự phòng',
-    'kokoro-local': currentLang === 'en' ? 'Kokoro TTS - Local Offline' : 'Kokoro TTS - Ngoại tuyến Local'
+    'edge-neural': currentLang === 'en' ? 'Microsoft Edge Neural - fallback' : 'Microsoft Edge Neural - dự phòng'
   });
+  checkKokoroStatus();
   setOptions('#ttsStyle', currentLang === 'en' ? {
     natural: 'Natural, clear', friendly: 'Friendly, warm', cheerful: 'Bright, energetic', calm: 'Calm, gentle', serious: 'Serious, firm', story: 'Storytelling, expressive', news: 'Presenter, professional', soft: 'Soft, easy to hear'
   } : {
@@ -1281,3 +1281,49 @@ function setOptions(selector, labels) {
     if (labels[option.value]) option.textContent = labels[option.value];
   }
 }
+
+async function checkKokoroStatus() {
+  const select = document.querySelector('#ttsProvider');
+  if (!select) return;
+  const option = Array.from(select.options).find((opt) => opt.value === 'kokoro-local');
+  if (!option) return;
+
+  try {
+    const res = await fetch('/api/kokoro/status');
+    const data = await res.json();
+    if (data.success) {
+      if (data.status === 'installing') {
+        option.textContent = currentLang === 'en'
+          ? 'Kokoro TTS (Installing background...)'
+          : 'Kokoro TTS (Đang cài đặt ngầm...)';
+        option.disabled = true;
+      } else if (data.status === 'starting') {
+        option.textContent = currentLang === 'en'
+          ? 'Kokoro TTS (Starting...)'
+          : 'Kokoro TTS (Đang khởi động...)';
+        option.disabled = true;
+      } else if (data.status === 'ready') {
+        option.textContent = currentLang === 'en'
+          ? 'Kokoro TTS (Local Offline) - Ready'
+          : 'Kokoro TTS (Local Offline) - Sẵn sàng';
+        option.disabled = false;
+      } else if (data.status === 'error') {
+        option.textContent = currentLang === 'en'
+          ? 'Kokoro TTS (Local Offline) - Setup Error'
+          : 'Kokoro TTS (Ngoại tuyến Local) - Lỗi cài đặt';
+        option.disabled = false;
+      } else {
+        option.textContent = currentLang === 'en'
+          ? 'Kokoro TTS (Local Offline) - Stopped'
+          : 'Kokoro TTS (Local Offline) - Chưa khởi chạy';
+        option.disabled = false;
+      }
+    }
+  } catch (err) {
+    console.error('Lỗi khi kiểm tra trạng thái Kokoro:', err);
+  }
+}
+
+// Kiểm tra trạng thái Kokoro định kỳ mỗi 3 giây
+setInterval(checkKokoroStatus, 3000);
+checkKokoroStatus();

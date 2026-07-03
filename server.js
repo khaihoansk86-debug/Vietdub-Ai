@@ -30,6 +30,9 @@ const TTS_SYNC_OFFSET_MS = 30;
 const MAX_TTS_TEMPO = 1.30;
 
 let dialog = null;
+let kokoroProcess = null;
+let kokoroStatus = 'stopped'; // 'stopped', 'installing', 'starting', 'ready', 'error'
+let kokoroInstallLog = '';
 if (process.versions.electron) {
   try {
     const electronModule = await import('electron');
@@ -351,10 +354,19 @@ app.post('/api/system/select-folder', async (req, res) => {
   }
 });
 
+app.get('/api/kokoro/status', (_req, res) => {
+  res.json({
+    success: true,
+    status: kokoroStatus,
+    log: kokoroInstallLog
+  });
+});
+
 app.get('/health', (_req, res) => res.json({ ok: true }));
 
 app.listen(PORT, HOST, () => {
   console.log(`VietDub AI is running at http://${HOST}:${PORT}`);
+  startKokoroBackend().catch((err) => console.error('Lỗi khi tự động khởi chạy Kokoro:', err));
 });
 
 async function processJob(job, payload) {
@@ -1612,3 +1624,131 @@ async function copyToOutputDir(job, payload, sourceFile) {
     log(job, `Lỗi khi lưu video sang thư mục lưu trữ: ${error.message}`);
   }
 }
+
+async function startKokoroBackend() {
+  const kokoroDir = path.join(process.cwd(), 'kokoro-vietnamese');
+  
+  try {
+    await fs.access(kokoroDir);
+  } catch {
+    console.log('Không tìm thấy thư mục kokoro-vietnamese. Bỏ qua tự động khởi chạy Kokoro.');
+    kokoroStatus = 'stopped';
+    return;
+  }
+
+  const venvPython = path.join(kokoroDir, 'venv', 'Scripts', 'python.exe');
+  const serverScript = path.join(kokoroDir, 'server_api.py');
+  
+  let hasVenv = false;
+  try {
+    await fs.access(venvPython);
+    hasVenv = true;
+  } catch {
+    hasVenv = false;
+  }
+
+  if (!hasVenv) {
+    console.log('Chưa tìm thấy môi trường venv của Kokoro. Bắt đầu tự động cài đặt ngầm...');
+    kokoroStatus = 'installing';
+    
+    const setupProcess = spawn('cmd.exe', ['/c', 'setup_kokoro.bat'], {
+      cwd: process.cwd(),
+      stdio: 'pipe'
+    });
+
+    setupProcess.stdout.on('data', (data) => {
+      const msg = data.toString();
+      kokoroInstallLog += msg;
+      console.log(`[Kokoro Setup] ${msg.trim()}`);
+    });
+
+    setupProcess.stderr.on('data', (data) => {
+      const msg = data.toString();
+      kokoroInstallLog += msg;
+      console.error(`[Kokoro Setup Error] ${msg.trim()}`);
+    });
+
+    setupProcess.on('close', (code) => {
+      if (code === 0) {
+        console.log('Cài đặt Kokoro thành công! Đang khởi chạy API server...');
+        kokoroStatus = 'starting';
+        launchKokoroServer(venvPython, serverScript);
+      } else {
+        console.error(`Cài đặt Kokoro thất bại với mã thoát ${code}.`);
+        kokoroStatus = 'error';
+      }
+    });
+  } else {
+    console.log('Môi trường Kokoro đã sẵn sàng. Đang khởi chạy API server ngầm...');
+    kokoroStatus = 'starting';
+    launchKokoroServer(venvPython, serverScript);
+  }
+}
+
+function launchKokoroServer(pythonBin, scriptPath) {
+  kokoroProcess = spawn(pythonBin, [scriptPath], {
+    cwd: path.dirname(scriptPath),
+    stdio: 'pipe'
+  });
+
+  kokoroProcess.stdout.on('data', (data) => {
+    console.log(`[Kokoro Server] ${data.toString().trim()}`);
+  });
+
+  kokoroProcess.stderr.on('data', (data) => {
+    console.error(`[Kokoro Server Error] ${data.toString().trim()}`);
+  });
+
+  kokoroProcess.on('close', (code) => {
+    console.log(`Kokoro Server đã đóng với mã thoát ${code}`);
+    kokoroStatus = 'stopped';
+    kokoroProcess = null;
+  });
+
+  pollKokoroHealth();
+}
+
+async function pollKokoroHealth() {
+  const url = process.env.KOKORO_SERVER_URL || 'http://localhost:8888/health';
+  let attempts = 0;
+  const maxAttempts = 300; 
+  
+  while (attempts < maxAttempts) {
+    if (kokoroStatus !== 'starting') break;
+    try {
+      const res = await fetch(url);
+      if (res.ok) {
+        console.log('Kokoro Local API Server đã sẵn sàng ở cổng 8888!');
+        kokoroStatus = 'ready';
+        break;
+      }
+    } catch {
+      // Bỏ qua lỗi kết nối
+    }
+    attempts++;
+    await new Promise((r) => setTimeout(r, 1000));
+  }
+  if (kokoroStatus === 'starting') {
+    console.error('Không kết nối được với Kokoro server.');
+    kokoroStatus = 'error';
+  }
+}
+
+// Lắng nghe các sự kiện thoát để dọn dẹp tiến trình Python chạy ngầm
+function cleanupKokoro() {
+  if (kokoroProcess) {
+    console.log('Đang tắt tiến trình Kokoro server ngầm...');
+    kokoroProcess.kill();
+    kokoroProcess = null;
+  }
+}
+
+process.on('exit', cleanupKokoro);
+process.on('SIGINT', () => {
+  cleanupKokoro();
+  process.exit();
+});
+process.on('SIGTERM', () => {
+  cleanupKokoro();
+  process.exit();
+});
