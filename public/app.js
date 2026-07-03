@@ -1288,13 +1288,17 @@ async function checkKokoroStatus() {
   const option = Array.from(select.options).find((opt) => opt.value === 'kokoro-local');
   if (!option) return;
 
+  const alertBox = document.querySelector('#kokoroStatusAlert');
+  const alertText = document.querySelector('#kokoroAlertText');
+  const retryBtn = document.querySelector('#kokoroRetryBtn');
+
   try {
     const res = await fetch('/api/kokoro/status');
     const data = await res.json();
     if (data.success) {
       if (data.status === 'installing') {
         option.textContent = currentLang === 'en'
-          ? 'Kokoro TTS (Installing background...)'
+          ? 'Kokoro TTS (Installing ngầm...)'
           : 'Kokoro TTS (Đang cài đặt ngầm...)';
         option.disabled = true;
       } else if (data.status === 'starting') {
@@ -1309,7 +1313,7 @@ async function checkKokoroStatus() {
         option.disabled = false;
       } else if (data.status === 'error') {
         option.textContent = currentLang === 'en'
-          ? 'Kokoro TTS (Local Offline) - Setup Error'
+          ? 'Kokoro TTS (Local Offline) - Error'
           : 'Kokoro TTS (Ngoại tuyến Local) - Lỗi cài đặt';
         option.disabled = false;
       } else {
@@ -1318,11 +1322,76 @@ async function checkKokoroStatus() {
           : 'Kokoro TTS (Local Offline) - Chưa khởi chạy';
         option.disabled = false;
       }
+
+      if (alertBox && alertText && retryBtn) {
+        if (data.status === 'installing') {
+          alertBox.className = 'alert-box info';
+          alertBox.classList.remove('hidden');
+          alertText.innerHTML = currentLang === 'en'
+            ? 'Downloading Kokoro models and libraries (takes 2-5 mins)... <a href="http://localhost:3210/api/kokoro/status" target="_blank">Watch Logs</a>'
+            : 'Đang tự động tải mô hình & cài đặt ngầm Kokoro Việt Nam (lần đầu, mất 2-5 phút)... <a href="http://localhost:3210/api/kokoro/status" target="_blank">Xem Logs chi tiết</a>';
+          retryBtn.classList.add('hidden');
+        } else if (data.status === 'starting') {
+          alertBox.className = 'alert-box warning';
+          alertBox.classList.remove('hidden');
+          alertText.textContent = currentLang === 'en'
+            ? 'Starting Kokoro Offline TTS server background daemon...'
+            : 'Đang khởi chạy máy chủ lồng tiếng Kokoro chạy ngầm...';
+          retryBtn.classList.add('hidden');
+        } else if (data.status === 'error') {
+          alertBox.className = 'alert-box error';
+          alertBox.classList.remove('hidden');
+          retryBtn.classList.remove('hidden');
+
+          const logText = (data.log || '') + '\n' + (data.serverLog || '');
+          if (logText.includes('Git') || logText.toLowerCase().includes('git clone')) {
+            alertText.innerHTML = currentLang === 'en'
+              ? '<strong>Prerequisite Missing:</strong> Please install <a href="https://git-scm.com/downloads" target="_blank">Git</a> on your system, then click <strong>Retry</strong>.'
+              : '<strong>Thiếu phần mềm Git:</strong> Vui lòng tải và cài đặt <a href="https://git-scm.com/downloads" target="_blank">Git</a> cho máy tính của bạn, sau đó bấm <strong>Thử lại</strong>.';
+          } else if (logText.includes('venv') || logText.includes('python')) {
+            alertText.innerHTML = currentLang === 'en'
+              ? '<strong>Prerequisite Missing:</strong> Please install <a href="https://www.python.org/downloads/" target="_blank">Python 3.8+</a> (ensure "Add Python to PATH" is checked), then click <strong>Retry</strong>.'
+              : '<strong>Thiếu môi trường Python:</strong> Vui lòng tải và cài đặt <a href="https://www.python.org/downloads/" target="_blank">Python 3.8+</a> (nhớ tích chọn <em>Add Python to PATH</em> khi cài), sau đó bấm <strong>Thử lại</strong>.';
+          } else {
+            alertText.innerHTML = currentLang === 'en'
+              ? 'Setup failed. Please check <a href="http://localhost:3210/api/kokoro/status" target="_blank">logs</a> for details or click <strong>Retry</strong>.'
+              : 'Cài đặt lồng tiếng thất bại. Vui lòng bấm <a href="http://localhost:3210/api/kokoro/status" target="_blank">xem logs lỗi</a> hoặc click <strong>Thử lại</strong>.';
+          }
+        } else if (data.status === 'ready') {
+          alertBox.classList.add('hidden');
+        } else {
+          alertBox.className = 'alert-box warning';
+          alertBox.classList.remove('hidden');
+          alertText.innerHTML = currentLang === 'en'
+            ? 'Kokoro Local Server is stopped. Click <button type="button" class="btn-link" id="kokoroStartInlineBtn" style="display:inline;padding:0;text-decoration:underline;">Start Server</button> to run.'
+            : 'Máy chủ lồng tiếng Kokoro đang dừng. Bấm <button type="button" class="btn-link" id="kokoroStartInlineBtn" style="display:inline;padding:0;text-decoration:underline;">Khởi chạy máy chủ</button> để chạy.';
+          
+          document.querySelector('#kokoroStartInlineBtn')?.addEventListener('click', async () => {
+            await fetch('/api/kokoro/retry', { method: 'POST' });
+            checkKokoroStatus();
+          });
+          retryBtn.classList.add('hidden');
+        }
+      }
     }
   } catch (err) {
     console.error('Lỗi khi kiểm tra trạng thái Kokoro:', err);
   }
 }
+
+// Gán sự kiện click cho nút Thử lại cài đặt Kokoro
+document.querySelector('#kokoroRetryBtn')?.addEventListener('click', async () => {
+  const retryBtn = document.querySelector('#kokoroRetryBtn');
+  if (retryBtn) retryBtn.disabled = true;
+  try {
+    await fetch('/api/kokoro/retry', { method: 'POST' });
+    checkKokoroStatus();
+  } catch (err) {
+    console.error('Lỗi khi thử lại cài đặt Kokoro:', err);
+  } finally {
+    if (retryBtn) retryBtn.disabled = false;
+  }
+});
 
 // Kiểm tra trạng thái Kokoro định kỳ mỗi 3 giây
 setInterval(checkKokoroStatus, 3000);

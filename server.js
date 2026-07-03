@@ -364,6 +364,17 @@ app.get('/api/kokoro/status', (_req, res) => {
   });
 });
 
+app.post('/api/kokoro/retry', (_req, res) => {
+  if (kokoroStatus === 'installing' || kokoroStatus === 'starting') {
+    return res.json({ success: false, error: 'Tiến trình đang chạy, không thể thử lại lúc này.' });
+  }
+  kokoroStatus = 'stopped';
+  kokoroInstallLog = 'Đang bắt đầu cài đặt/sửa chữa lại...\n';
+  kokoroServerLog = '';
+  startKokoroBackend().catch((err) => console.error('Lỗi khi thử lại khởi chạy Kokoro:', err));
+  res.json({ success: true });
+});
+
 app.get('/health', (_req, res) => res.json({ ok: true }));
 
 app.listen(PORT, HOST, () => {
