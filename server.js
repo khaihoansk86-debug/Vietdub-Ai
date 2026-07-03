@@ -1782,17 +1782,45 @@ async function startKokoroBackend() {
         if (venvExitCode !== 0) {
           throw new Error(`Tạo venv thất bại với mã thoát ${venvExitCode}`);
         }
+      } else {
+        // Gỡ cài đặt torch cũ nếu venv bị lỗi import để dọn dẹp sạch sẽ bản CUDA lỗi
+        kokoroInstallLog += 'Phát hiện thư viện PyTorch bị lỗi khởi tạo DLL. Đang dọn dẹp để cài đặt bản vá CPU-only...\n';
+        const uninstallTorch = spawn(venvPython, ['-m', 'pip', 'uninstall', '-y', 'torch'], {
+          cwd: kokoroDir,
+          stdio: 'pipe'
+        });
+        await new Promise((resolve) => uninstallTorch.on('close', resolve));
       }
       
-      kokoroInstallLog += 'Đang tiến hành cài đặt/sửa chữa thư viện Kokoro và các dependency (fastapi, uvicorn, soundfile, onnxruntime)...\n';
-      
-      // Chạy pip install nâng cấp pip và cài đặt packages
+      kokoroInstallLog += 'Đang nâng cấp trình quản lý gói pip...\n';
+      // Chạy pip install nâng cấp pip
       const pipProcess = spawn(venvPython, ['-m', 'pip', 'install', '--upgrade', 'pip'], {
         cwd: kokoroDir,
         stdio: 'pipe'
       });
       await new Promise((resolve) => pipProcess.on('close', resolve));
 
+      kokoroInstallLog += 'Đang cài đặt phiên bản PyTorch CPU-only (Tối ưu hóa dung lượng nhẹ và sửa lỗi DLL)... (Tải khoảng 150MB)\n';
+      const installTorchCpuProcess = spawn(venvPython, ['-m', 'pip', 'install', 'torch', '--index-url', 'https://download.pytorch.org/whl/cpu'], {
+        cwd: kokoroDir,
+        stdio: 'pipe'
+      });
+      
+      installTorchCpuProcess.stdout.on('data', (data) => {
+        kokoroInstallLog += data.toString();
+      });
+      installTorchCpuProcess.stderr.on('data', (data) => {
+        kokoroInstallLog += data.toString();
+      });
+
+      const torchExitCode = await new Promise((resolve) => {
+        installTorchCpuProcess.on('close', resolve);
+      });
+      if (torchExitCode !== 0) {
+        throw new Error(`Cài đặt PyTorch CPU-only thất bại với mã thoát ${torchExitCode}`);
+      }
+
+      kokoroInstallLog += 'Đang tiến hành cài đặt/sửa chữa thư viện Kokoro và các dependency khác (fastapi, uvicorn, soundfile, onnxruntime)...\n';
       const installDepsProcess = spawn(venvPython, ['-m', 'pip', 'install', '-e', '.', 'fastapi', 'uvicorn', 'soundfile', 'onnxruntime'], {
         cwd: kokoroDir,
         stdio: 'pipe'
