@@ -1626,19 +1626,98 @@ async function copyToOutputDir(job, payload, sourceFile) {
 }
 
 async function startKokoroBackend() {
-  const kokoroDir = path.join(process.cwd(), 'kokoro-vietnamese');
-  
-  try {
-    await fs.access(kokoroDir);
-  } catch {
-    console.log('Không tìm thấy thư mục kokoro-vietnamese. Bỏ qua tự động khởi chạy Kokoro.');
-    kokoroStatus = 'stopped';
-    return;
+  const possiblePaths = [
+    path.join(process.cwd(), 'kokoro-vietnamese'),
+    path.join(path.dirname(process.execPath), 'kokoro-vietnamese'),
+    path.join(os.homedir(), 'VietDub-AI-Kokoro')
+  ];
+
+  let kokoroDir = '';
+  for (const p of possiblePaths) {
+    try {
+      await fs.access(p);
+      kokoroDir = p;
+      console.log(`Đã tìm thấy thư mục Kokoro tại: ${kokoroDir}`);
+      break;
+    } catch {
+      // Tiếp tục tìm
+    }
   }
 
-  const venvPython = path.join(kokoroDir, 'venv', 'Scripts', 'python.exe');
+  // Nếu không tìm thấy ở bất cứ đâu, tự động clone về thư mục Home của người dùng
+  if (!kokoroDir) {
+    kokoroDir = path.join(os.homedir(), 'VietDub-AI-Kokoro');
+    console.log(`Không tìm thấy Kokoro. Tiến hành tải về thư mục: ${kokoroDir}`);
+    kokoroStatus = 'installing';
+    kokoroInstallLog = 'Không tìm thấy thư mục Kokoro. Đang tiến hành tải tự động từ GitHub...\n';
+    
+    // Kiểm tra xem máy có Git không
+    let hasGit = false;
+    try {
+      await new Promise((resolve, reject) => {
+        const checkGit = spawn('git', ['--version']);
+        checkGit.on('close', (code) => code === 0 ? resolve() : reject());
+        checkGit.on('error', reject);
+      });
+      hasGit = true;
+    } catch {
+      hasGit = false;
+    }
+
+    if (!hasGit) {
+      console.error('Không tìm thấy Git trên máy tính.');
+      kokoroInstallLog += '[LỖI] Không tìm thấy phần mềm Git trên máy tính của bạn.\n';
+      kokoroInstallLog += 'Vui lòng:\n';
+      kokoroInstallLog += '1. Cài đặt Git (https://git-scm.com) rồi khởi động lại app.\n';
+      kokoroInstallLog += `2. Hoặc tải/clone thủ công repo Kokoro-Vietnamese về thư mục: ${kokoroDir}\n`;
+      kokoroStatus = 'error';
+      return;
+    }
+
+    try {
+      await fs.mkdir(os.homedir(), { recursive: true });
+      
+      const cloneProcess = spawn('git', ['clone', 'https://github.com/iamdinhthuan/Kokoro-Vietnamese.git', kokoroDir], {
+        stdio: 'pipe'
+      });
+
+      cloneProcess.stdout.on('data', (data) => {
+        kokoroInstallLog += data.toString();
+      });
+      cloneProcess.stderr.on('data', (data) => {
+        kokoroInstallLog += data.toString();
+      });
+
+      const cloneExitCode = await new Promise((resolve) => {
+        cloneProcess.on('close', resolve);
+      });
+
+      if (cloneExitCode !== 0) {
+        throw new Error(`Git clone thất bại với mã thoát ${cloneExitCode}`);
+      }
+      kokoroInstallLog += 'Đã tải xong mã nguồn Kokoro! Đang tiến hành cấu hình...\n';
+    } catch (err) {
+      console.error('Lỗi khi tải mã nguồn Kokoro:', err.message);
+      kokoroInstallLog += `[LỖI] Không thể tải mã nguồn: ${err.message}\n`;
+      kokoroStatus = 'error';
+      return;
+    }
+  }
+
+  const venvPython = os.platform() === 'win32'
+    ? path.join(kokoroDir, 'venv', 'Scripts', 'python.exe')
+    : path.join(kokoroDir, 'venv', 'bin', 'python');
   const serverScript = path.join(kokoroDir, 'server_api.py');
-  
+
+  // Đảm bảo file server_api.py có mặt trong kokoroDir
+  try {
+    await fs.access(serverScript);
+  } catch {
+    console.log('Tự động tạo file server_api.py trong thư mục Kokoro...');
+    const serverApiContent = getKokoroServerApiContent();
+    await fs.writeFile(serverScript, serverApiContent, 'utf-8');
+  }
+
   let hasVenv = false;
   try {
     await fs.access(venvPython);
@@ -1648,38 +1727,69 @@ async function startKokoroBackend() {
   }
 
   if (!hasVenv) {
-    console.log('Chưa tìm thấy môi trường venv của Kokoro. Bắt đầu tự động cài đặt ngầm...');
+    console.log('Khởi tạo venv tại:', kokoroDir);
     kokoroStatus = 'installing';
+    kokoroInstallLog += 'Đang tạo môi trường ảo Python (venv)... (Quá trình này có thể tốn vài phút)\n';
     
-    const setupProcess = spawn('cmd.exe', ['/c', 'setup_kokoro.bat'], {
-      cwd: process.cwd(),
-      stdio: 'pipe'
-    });
+    try {
+      const venvProcess = spawn('python', ['-m', 'venv', 'venv'], {
+        cwd: kokoroDir,
+        stdio: 'pipe'
+      });
 
-    setupProcess.stdout.on('data', (data) => {
-      const msg = data.toString();
-      kokoroInstallLog += msg;
-      console.log(`[Kokoro Setup] ${msg.trim()}`);
-    });
-
-    setupProcess.stderr.on('data', (data) => {
-      const msg = data.toString();
-      kokoroInstallLog += msg;
-      console.error(`[Kokoro Setup Error] ${msg.trim()}`);
-    });
-
-    setupProcess.on('close', (code) => {
-      if (code === 0) {
-        console.log('Cài đặt Kokoro thành công! Đang khởi chạy API server...');
-        kokoroStatus = 'starting';
-        launchKokoroServer(venvPython, serverScript);
-      } else {
-        console.error(`Cài đặt Kokoro thất bại với mã thoát ${code}.`);
-        kokoroStatus = 'error';
+      venvProcess.stdout.on('data', (data) => {
+        kokoroInstallLog += data.toString();
+      });
+      venvProcess.stderr.on('data', (data) => {
+        kokoroInstallLog += data.toString();
+      });
+      
+      const venvExitCode = await new Promise((resolve) => {
+        venvProcess.on('close', resolve);
+      });
+      
+      if (venvExitCode !== 0) {
+        throw new Error(`Tạo venv thất bại với mã thoát ${venvExitCode}`);
       }
-    });
+      
+      kokoroInstallLog += 'Tạo venv thành công. Đang cài đặt thư viện Kokoro và các dependency (fastapi, uvicorn, soundfile, onnxruntime)...\n';
+      
+      // Chạy pip install thông qua venv python
+      const pipProcess = spawn(venvPython, ['-m', 'pip', 'install', '--upgrade', 'pip'], {
+        cwd: kokoroDir,
+        stdio: 'pipe'
+      });
+      await new Promise((resolve) => pipProcess.on('close', resolve));
+
+      const installDepsProcess = spawn(venvPython, ['-m', 'pip', 'install', '-e', '.', 'fastapi', 'uvicorn', 'soundfile', 'onnxruntime'], {
+        cwd: kokoroDir,
+        stdio: 'pipe'
+      });
+      
+      installDepsProcess.stdout.on('data', (data) => {
+        kokoroInstallLog += data.toString();
+      });
+      installDepsProcess.stderr.on('data', (data) => {
+        kokoroInstallLog += data.toString();
+      });
+      
+      const installExitCode = await new Promise((resolve) => {
+        installDepsProcess.on('close', resolve);
+      });
+      
+      if (installExitCode !== 0) {
+        throw new Error(`Cài đặt thư viện thất bại với mã thoát ${installExitCode}`);
+      }
+      
+      kokoroInstallLog += 'Cài đặt thư viện thành công! Đang khởi chạy API server...\n';
+      kokoroStatus = 'starting';
+      launchKokoroServer(venvPython, serverScript);
+    } catch (err) {
+      console.error('Lỗi thiết lập venv:', err.message);
+      kokoroInstallLog += `[LỖI] Thiết lập venv thất bại: ${err.message}\n`;
+      kokoroStatus = 'error';
+    }
   } else {
-    console.log('Môi trường Kokoro đã sẵn sàng. Đang khởi chạy API server ngầm...');
     kokoroStatus = 'starting';
     launchKokoroServer(venvPython, serverScript);
   }
@@ -1734,7 +1844,6 @@ async function pollKokoroHealth() {
   }
 }
 
-// Lắng nghe các sự kiện thoát để dọn dẹp tiến trình Python chạy ngầm
 function cleanupKokoro() {
   if (kokoroProcess) {
     console.log('Đang tắt tiến trình Kokoro server ngầm...');
@@ -1752,3 +1861,66 @@ process.on('SIGTERM', () => {
   cleanupKokoro();
   process.exit();
 });
+
+function getKokoroServerApiContent() {
+  return `import os
+import sys
+import io
+import torch
+import uvicorn
+import soundfile as sf
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
+
+sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
+
+try:
+    from kokoro_vietnamese import KokoroVietnamese
+except ImportError:
+    sys.path.append(os.path.dirname(__file__))
+    from kokoro_vietnamese import KokoroVietnamese
+
+app = FastAPI(title="Kokoro Vietnamese TTS API")
+
+device = "cuda" if torch.cuda.is_available() else "cpu"
+print(f"Device selected: {device}")
+
+tts_instances = {}
+
+def get_tts_instance(voice: str):
+    if voice not in tts_instances:
+        print(f"Loading Kokoro model for voice: {voice}...")
+        tts_instances[voice] = KokoroVietnamese(device=device, voice=voice)
+    return tts_instances[voice]
+
+class TTSRequest(BaseModel):
+    text: str
+    voice: str = "diem_trinh"
+    speed: float = 1.0
+
+@app.post("/tts")
+async def text_to_speech(req: TTSRequest):
+    if not req.text.strip():
+        raise HTTPException(status_code=400, detail="Text cannot be empty")
+    
+    try:
+        tts = get_tts_instance(req.voice)
+        audio, phonemes = tts.synthesize(req.text, speed=req.speed)
+        wav_io = io.BytesIO()
+        sf.write(wav_io, audio, 24000, format='WAV', subtype='PCM_16')
+        wav_io.seek(0)
+        return StreamingResponse(wav_io, media_type="audio/wav")
+    except Exception as e:
+        print(f"Error during TTS synthesis: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/health")
+async def health_check():
+    return {"status": "ok", "device": device}
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 8888))
+    uvicorn.run(app, host="0.0.0.0", port=port)
+`;
+}
