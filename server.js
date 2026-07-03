@@ -2033,7 +2033,7 @@ class KokoroVietnameseONNXNoTorch:
             
         crossfade_samples = round(24000 * int(crossfade_ms) / 1000)
         audio = merge_audio_chunks(audio_chunks, crossfade_samples)
-        return normalize_audio(audio), '\n'.join(phoneme_chunks)
+        return normalize_audio(audio), '\\n'.join(phoneme_chunks)
 
 app = FastAPI(title="Kokoro Vietnamese TTS API (ONNX-only)")
 
