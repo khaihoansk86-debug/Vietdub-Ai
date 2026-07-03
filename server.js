@@ -1817,9 +1817,13 @@ async function startKokoroBackend() {
 }
 
 function launchKokoroServer(pythonBin, scriptPath) {
+  const env = { ...process.env };
+  delete env.PORT; // Tránh việc Python server lấy nhầm cổng 3210 của NodeJS cha
+  
   kokoroProcess = spawn(pythonBin, [scriptPath], {
     cwd: path.dirname(scriptPath),
-    stdio: 'pipe'
+    stdio: 'pipe',
+    env: env
   });
 
   kokoroProcess.stdout.on('data', (data) => {
@@ -1947,7 +1951,7 @@ async def health_check():
     return {"status": "ok", "device": device}
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8889))
+    port = int(os.environ.get("KOKORO_PORT", 8889))
     uvicorn.run(app, host="0.0.0.0", port=port)
 `;
 }
