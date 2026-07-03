@@ -1859,8 +1859,8 @@ async function startKokoroBackend() {
       });
       await new Promise((resolve) => pipProcess.on('close', resolve));
 
-      kokoroInstallLog += 'Đang cài đặt các thư viện bổ trợ gọn nhẹ chạy ONNX Runtime (fastapi, uvicorn, soundfile, onnxruntime==1.16.3, vig2p, huggingface_hub, numpy, scipy)...\n';
-      const installDepsProcess = spawn(venvPython, ['-m', 'pip', 'install', 'fastapi', 'uvicorn', 'soundfile', 'onnxruntime==1.16.3', 'vig2p', 'huggingface_hub', 'numpy', 'scipy'], {
+      kokoroInstallLog += 'Đang cài đặt các thư viện bổ trợ gọn nhẹ chạy ONNX Runtime (fastapi, uvicorn, soundfile, onnxruntime==1.17.0, vig2p, huggingface_hub, numpy, scipy)...\n';
+      const installDepsProcess = spawn(venvPython, ['-m', 'pip', 'install', 'fastapi', 'uvicorn', 'soundfile', 'onnxruntime==1.17.0', 'vig2p', 'huggingface_hub', 'numpy', 'scipy'], {
         cwd: kokoroDir,
         stdio: 'pipe'
       });
