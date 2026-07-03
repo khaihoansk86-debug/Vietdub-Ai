@@ -33,6 +33,7 @@ let dialog = null;
 let kokoroProcess = null;
 let kokoroStatus = 'stopped'; // 'stopped', 'installing', 'starting', 'ready', 'error'
 let kokoroInstallLog = '';
+let kokoroServerLog = '';
 if (process.versions.electron) {
   try {
     const electronModule = await import('electron');
@@ -358,7 +359,8 @@ app.get('/api/kokoro/status', (_req, res) => {
   res.json({
     success: true,
     status: kokoroStatus,
-    log: kokoroInstallLog
+    log: kokoroInstallLog,
+    serverLog: kokoroServerLog
   });
 });
 
@@ -1802,15 +1804,21 @@ function launchKokoroServer(pythonBin, scriptPath) {
   });
 
   kokoroProcess.stdout.on('data', (data) => {
-    console.log(`[Kokoro Server] ${data.toString().trim()}`);
+    const msg = data.toString();
+    kokoroServerLog += msg;
+    console.log(`[Kokoro Server] ${msg.trim()}`);
   });
 
   kokoroProcess.stderr.on('data', (data) => {
-    console.error(`[Kokoro Server Error] ${data.toString().trim()}`);
+    const msg = data.toString();
+    kokoroServerLog += msg;
+    console.error(`[Kokoro Server Error] ${msg.trim()}`);
   });
 
   kokoroProcess.on('close', (code) => {
-    console.log(`Kokoro Server đã đóng với mã thoát ${code}`);
+    const msg = `Kokoro Server đã đóng với mã thoát ${code}\n`;
+    kokoroServerLog += msg;
+    console.log(msg.trim());
     kokoroStatus = 'stopped';
     kokoroProcess = null;
   });
