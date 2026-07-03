@@ -530,6 +530,22 @@ const voiceCatalog = {
     ['verse', 'Verse - Năng lượng'],
     ['marin', 'Marin - Tự nhiên'],
     ['cedar', 'Cedar - Ấm']
+  ],
+  'kokoro-local': [
+    ['diem_trinh', 'Diễm Trinh - Nữ Nam Bộ'],
+    ['hung_thinh', 'Hưng Thịnh - Nam miền Nam'],
+    ['mai_linh', 'Mai Linh - Nữ Hà Nội'],
+    ['mai_loan', 'Mai Loan - Nữ ấm áp'],
+    ['manh_dung', 'Mạnh Dũng - Nam trầm Bắc'],
+    ['my_yen', 'Mỹ Yến - Nữ ngọt ngào'],
+    ['ngoc_huyen', 'Ngọc Huyền - Nữ Bắc Bộ'],
+    ['phat_tai', 'Phát Tài - Nam miền Tây'],
+    ['thanh_dat', 'Thành Đạt - Nam Hà Nội'],
+    ['thuc_trinh', 'Thục Trinh - Nữ truyền cảm'],
+    ['tuan_ngoc', 'Tuấn Ngọc - Nam trầm ấm'],
+    ['storyvert', 'Storyvert - Kể chuyện'],
+    ['duc_an', 'Đức An - Nam nhẹ nhàng'],
+    ['duc_duy', 'Đức Duy - Nam trẻ']
   ]
 };
 
@@ -549,7 +565,21 @@ const voiceLabels = {
     shimmer: 'Shimmer - Nữ mềm',
     verse: 'Verse - Năng lượng',
     marin: 'Marin - Tự nhiên',
-    cedar: 'Cedar - Ấm'
+    cedar: 'Cedar - Ấm',
+    diem_trinh: 'Diễm Trinh - Nữ Nam Bộ',
+    hung_thinh: 'Hưng Thịnh - Nam miền Nam',
+    mai_linh: 'Mai Linh - Nữ Hà Nội',
+    mai_loan: 'Mai Loan - Nữ ấm áp',
+    manh_dung: 'Mạnh Dũng - Nam trầm Bắc',
+    my_yen: 'Mỹ Yến - Nữ ngọt ngào',
+    ngoc_huyen: 'Ngọc Huyền - Nữ Bắc Bộ',
+    phat_tai: 'Phát Tài - Nam miền Tây',
+    thanh_dat: 'Thành Đạt - Nam Hà Nội',
+    thuc_trinh: 'Thục Trinh - Nữ truyền cảm',
+    tuan_ngoc: 'Tuấn Ngọc - Nam trầm ấm',
+    storyvert: 'Storyvert - Kể chuyện',
+    duc_an: 'Đức An - Nam nhẹ nhàng',
+    duc_duy: 'Đức Duy - Nam trẻ'
   },
   en: {
     'vi-VN-HoaiMyNeural': 'Hoai My - Vietnamese female',
@@ -566,7 +596,21 @@ const voiceLabels = {
     shimmer: 'Shimmer - soft female',
     verse: 'Verse - energetic',
     marin: 'Marin - natural',
-    cedar: 'Cedar - warm'
+    cedar: 'Cedar - warm',
+    diem_trinh: 'Diem Trinh - Southern female',
+    hung_thinh: 'Hung Thinh - Southern male',
+    mai_linh: 'Mai Linh - Northern female',
+    mai_loan: 'Warm female',
+    manh_dung: 'Deep Northern male',
+    my_yen: 'Sweet female',
+    ngoc_huyen: 'Northern female',
+    phat_tai: 'Western male',
+    thanh_dat: 'Thanh Dat - Northern male',
+    thuc_trinh: 'Expressive female',
+    tuan_ngoc: 'Deep warm male',
+    storyvert: 'Storyteller',
+    duc_an: 'Soft male',
+    duc_duy: 'Young male'
   }
 };
 
@@ -1217,7 +1261,8 @@ function translateOptions(t) {
   });
   setOptions('#ttsProvider', {
     'openai-tts': currentLang === 'en' ? 'OpenAI TTS - most natural' : 'OpenAI TTS - tự nhiên nhất',
-    'edge-neural': currentLang === 'en' ? 'Microsoft Edge Neural - fallback' : 'Microsoft Edge Neural - dự phòng'
+    'edge-neural': currentLang === 'en' ? 'Microsoft Edge Neural - fallback' : 'Microsoft Edge Neural - dự phòng',
+    'kokoro-local': currentLang === 'en' ? 'Kokoro TTS - Local Offline' : 'Kokoro TTS - Ngoại tuyến Local'
   });
   setOptions('#ttsStyle', currentLang === 'en' ? {
     natural: 'Natural, clear', friendly: 'Friendly, warm', cheerful: 'Bright, energetic', calm: 'Calm, gentle', serious: 'Serious, firm', story: 'Storytelling, expressive', news: 'Presenter, professional', soft: 'Soft, easy to hear'

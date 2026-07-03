@@ -98,6 +98,23 @@ const OPENAI_VOICES = new Set([
   'cedar'
 ]);
 
+const KOKORO_VOICES = new Set([
+  'diem_trinh',
+  'hung_thinh',
+  'mai_linh',
+  'mai_loan',
+  'manh_dung',
+  'my_yen',
+  'ngoc_huyen',
+  'phat_tai',
+  'thanh_dat',
+  'thuc_trinh',
+  'tuan_ngoc',
+  'storyvert',
+  'duc_an',
+  'duc_duy'
+]);
+
 const TTS_STYLES = new Map([
   ['natural', 'Đọc như hội thoại đời thường: tự nhiên, rõ chữ, nhịp vừa phải, không diễn quá lố.'],
   ['friendly', 'Đọc thân thiện và ấm áp, có nụ cười nhẹ trong giọng, gần gũi như đang nói chuyện với người quen.'],
@@ -386,13 +403,15 @@ async function processJob(job, payload) {
 }
 
 function parseTtsOptions(body) {
-  const provider = ['edge-neural', 'openai-tts'].includes(body.ttsProvider) ? body.ttsProvider : 'edge-neural';
+  const provider = ['edge-neural', 'openai-tts', 'kokoro-local'].includes(body.ttsProvider) ? body.ttsProvider : 'edge-neural';
   const requestedVoice = String(body.voice || '');
   const style = TTS_STYLES.has(String(body.ttsStyle || '')) ? String(body.ttsStyle) : 'natural';
   const originalVolumeRaw = clampNumber(body.originalVolume, 0, 150, 52);
   let voice;
   if (provider === 'openai-tts') {
     voice = OPENAI_VOICES.has(requestedVoice) ? requestedVoice : 'nova';
+  } else if (provider === 'kokoro-local') {
+    voice = KOKORO_VOICES.has(requestedVoice) ? requestedVoice : 'diem_trinh';
   } else {
     voice = EDGE_VOICES.get(requestedVoice) || 'vi-VN-HoaiMyNeural';
   }
@@ -861,6 +880,7 @@ async function synthesizeTtsText(text, target, tts, job, cueIndex = 0) {
   try {
     if (tts.provider === 'google-translate') return await synthesizeGoogleTts(text, target);
     if (tts.provider === 'openai-tts') return await synthesizeOpenAiTts(text, target, tts);
+    if (tts.provider === 'kokoro-local') return await synthesizeKokoroTts(text, target, tts);
     return await synthesizeEdgeTts(text, target, tts, job);
   } catch (error) {
     if (job) log(job, `TTS lỗi${cueIndex ? ` ở câu ${cueIndex}` : ''}, chuyển sang Edge/Google: ${error.message}`);
@@ -1049,6 +1069,24 @@ async function synthesizeOpenAiTts(text, target, tts) {
     })
   }, { logs: [] }, 'OpenAI TTS');
   if (!response.ok) throw new Error(`OpenAI TTS lỗi ${response.status}: ${await response.text()}`);
+  await fs.writeFile(target, Buffer.from(await response.arrayBuffer()));
+}
+
+async function synthesizeKokoroTts(text, target, tts) {
+  const serverUrl = process.env.KOKORO_SERVER_URL || 'http://localhost:8888/tts';
+  const response = await fetch(serverUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      text,
+      voice: tts.voice || 'diem_trinh',
+      speed: tts.speed || 1.0
+    })
+  });
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`Kokoro local server error: ${response.status} - ${errText}`);
+  }
   await fs.writeFile(target, Buffer.from(await response.arrayBuffer()));
 }
 
