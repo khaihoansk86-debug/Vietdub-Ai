@@ -1087,7 +1087,7 @@ async function synthesizeOpenAiTts(text, target, tts) {
 }
 
 async function synthesizeKokoroTts(text, target, tts) {
-  const serverUrl = process.env.KOKORO_SERVER_URL || 'http://localhost:8888/tts';
+  const serverUrl = process.env.KOKORO_SERVER_URL || 'http://localhost:8889/tts';
   const response = await fetch(serverUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -1711,14 +1711,10 @@ async function startKokoroBackend() {
     : path.join(kokoroDir, 'venv', 'bin', 'python');
   const serverScript = path.join(kokoroDir, 'server_api.py');
 
-  // Đảm bảo file server_api.py có mặt trong kokoroDir
-  try {
-    await fs.access(serverScript);
-  } catch {
-    console.log('Tự động tạo file server_api.py trong thư mục Kokoro...');
-    const serverApiContent = getKokoroServerApiContent();
-    await fs.writeFile(serverScript, serverApiContent, 'utf-8');
-  }
+  // Luôn ghi đè file server_api.py để đồng bộ bản mới nhất chạy ở cổng 8889
+  console.log('Đang đồng bộ file server_api.py...');
+  const serverApiContent = getKokoroServerApiContent();
+  await fs.writeFile(serverScript, serverApiContent, 'utf-8');
 
   let hasVenv = false;
   try {
@@ -1850,7 +1846,7 @@ function launchKokoroServer(pythonBin, scriptPath) {
 }
 
 async function pollKokoroHealth() {
-  const url = process.env.KOKORO_SERVER_URL || 'http://localhost:8888/health';
+  const url = process.env.KOKORO_SERVER_URL || 'http://localhost:8889/health';
   let attempts = 0;
   const maxAttempts = 300; 
   
@@ -1859,7 +1855,7 @@ async function pollKokoroHealth() {
     try {
       const res = await fetch(url);
       if (res.ok) {
-        console.log('Kokoro Local API Server đã sẵn sàng ở cổng 8888!');
+        console.log('Kokoro Local API Server đã sẵn sàng ở cổng 8889!');
         kokoroStatus = 'ready';
         break;
       }
@@ -1951,7 +1947,7 @@ async def health_check():
     return {"status": "ok", "device": device}
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8888))
+    port = int(os.environ.get("PORT", 8889))
     uvicorn.run(app, host="0.0.0.0", port=port)
 `;
 }
