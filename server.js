@@ -1943,6 +1943,9 @@ process.on('SIGTERM', () => {
 function getKokoroServerApiContent() {
   return `import os
 import sys
+# Sửa lỗi trùng lặp thư viện OpenMP và tắt CUDA để tránh lỗi khởi tạo DLL c10.dll của PyTorch
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 import io
 import torch
 import uvicorn
