@@ -1042,19 +1042,16 @@ function setView(view) {
   const normalized = view === 'settings' ? 'settings' : 'process';
   localStorage.setItem('vietdub-view', normalized);
   viewTabs.forEach((button) => button.classList.toggle('active', button.dataset.view === normalized));
-  const processBlocks = ['.quick-presets', '.source-section', '.setup-section', '.display-section', '.action-bar'];
-  const settingsBlocks = ['#apiSettings', '.file-section'];
-  
+
+  const viewProcess = document.querySelector('#viewProcess');
+  const viewSettings = document.querySelector('#viewSettings');
+
   if (normalized === 'process') {
-    processBlocks.forEach((selector) => document.querySelector(selector)?.classList.remove('hidden'));
-    document.querySelector('.file-section')?.classList.add('hidden');
-    document.querySelector('#apiSettings')?.removeAttribute('open');
+    viewProcess?.classList.remove('hidden');
+    viewSettings?.classList.add('hidden');
   } else {
-    processBlocks.forEach((selector) => document.querySelector(selector)?.classList.add('hidden'));
-    document.querySelector('.file-section')?.classList.remove('hidden');
-    document.querySelector('#apiSettings')?.setAttribute('open', '');
-    document.querySelector('.setup-section')?.classList.remove('hidden');
-    document.querySelector('.action-bar')?.classList.remove('hidden');
+    viewProcess?.classList.add('hidden');
+    viewSettings?.classList.remove('hidden');
   }
 }
 

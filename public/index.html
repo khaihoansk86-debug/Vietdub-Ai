@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>VietDub AI Studio Pro - Tải & Lồng Tiếng Video Hàng Loạt</title>
+    <title>VietDub AI Studio Pro v2.0 - Tải & Lồng Tiếng Video Hàng Loạt</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ctext y='50' font-size='48'%3E%F0%9F%A4%96%3C/text%3E%3C/svg%3E">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -49,177 +49,302 @@
         </nav>
 
         <form id="jobForm" class="panel">
-          <!-- QUICK PRESETS -->
-          <section class="form-section quick-presets">
-            <div class="section-head">
-              <div>
-                <h2><span>🚀</span> Preset Thiết Lập Nhanh</h2>
-                <p>Chọn nhanh cấu hình tối ưu cho từng nền tảng trước khi xuất video.</p>
-              </div>
-            </div>
-            <div class="preset-row">
-              <button class="preset-btn active" type="button" data-preset="none">Mặc định</button>
-              <button class="preset-btn" type="button" data-preset="shorts">TikTok / Reels / Shorts</button>
-              <button class="preset-btn" type="button" data-preset="clearVoice">Lồng tiếng rõ giọng</button>
-              <button class="preset-btn" type="button" data-preset="keepMusic">Giữ nhạc nền gốc</button>
-              <button class="preset-btn" type="button" data-preset="subtitleFocus">Phụ đề nổi bật</button>
-            </div>
-            <p id="presetStatus" class="helper-text"></p>
-          </section>
-
-          <!-- SOURCE SECTION & NUMBERED BATCH INSPECTOR -->
-          <section class="form-section source-section">
-            <div class="section-head">
-              <div>
-                <h2><span>📥</span> Nguồn Video Đầu Vào</h2>
-                <p>Dán danh sách nhiều link video để tải hàng loạt, hoặc tải tệp video trực tiếp từ máy tính.</p>
-              </div>
-            </div>
-
-            <label class="field">
-              <span class="field-label">
-                <span>Danh sách link video hoặc link SRT</span>
-                <span id="batchCountBadge" class="field-badge hidden">0 video</span>
-              </span>
-              <textarea name="links" id="linksInput" rows="5" placeholder="Dán một hoặc nhiều link video (TikTok, Douyin, YouTube, Facebook, Kuaishou, MP4...). Mỗi link một dòng."></textarea>
-            </label>
-
-            <!-- Real-time Batch Numbering Inspector Preview -->
-            <div id="batchInspectorBox" class="batch-inspector-box hidden">
-              <div class="batch-inspector-head" id="batchInspectorToggle">
-                <div class="batch-inspector-title">
-                  <span>📋 Danh sách video được đánh số thứ tự</span>
-                  <span id="batchInspectorCount">(0)</span>
+          <!-- TAB 1: WORKFLOW & PROCESSING -->
+          <div id="viewProcess" class="view-panel-tab">
+            <!-- QUICK PRESETS -->
+            <section class="form-section quick-presets">
+              <div class="section-head">
+                <div>
+                  <h2><span>🚀</span> Preset Thiết Lập Nhanh</h2>
+                  <p>Chọn nhanh cấu hình tối ưu cho từng nền tảng trước khi xuất video.</p>
                 </div>
-                <button type="button" id="clearBatchDuplicatesBtn" class="link-btn" style="font-size:0.75rem;">Lọc trùng link</button>
               </div>
-              <ul id="batchInspectorList" class="batch-inspector-list"></ul>
-            </div>
+              <div class="preset-row">
+                <button class="preset-btn active" type="button" data-preset="none">Mặc định</button>
+                <button class="preset-btn" type="button" data-preset="shorts">TikTok / Reels / Shorts</button>
+                <button class="preset-btn" type="button" data-preset="clearVoice">Lồng tiếng rõ giọng</button>
+                <button class="preset-btn" type="button" data-preset="keepMusic">Giữ nhạc nền gốc</button>
+                <button class="preset-btn" type="button" data-preset="subtitleFocus">Phụ đề nổi bật</button>
+              </div>
+              <p id="presetStatus" class="helper-text"></p>
+            </section>
 
-            <div class="grid" style="margin-top: 14px;">
+            <!-- SOURCE SECTION & NUMBERED BATCH INSPECTOR -->
+            <section class="form-section source-section">
+              <div class="section-head">
+                <div>
+                  <h2><span>📥</span> Nguồn Video Đầu Vào</h2>
+                  <p>Dán danh sách nhiều link video để tải hàng loạt, hoặc tải tệp video trực tiếp từ máy tính.</p>
+                </div>
+              </div>
+
               <label class="field">
-                <span>File video cục bộ</span>
-                <div class="file-picker">
-                  <input name="videos" type="file" accept="video/*,.mp4,.mov,.mkv,.webm" multiple>
-                  <span class="file-button">Chọn tệp</span>
-                  <span class="file-name">Không có tệp nào được chọn</span>
-                </div>
+                <span class="field-label">
+                  <span>Danh sách link video hoặc link SRT</span>
+                  <span id="batchCountBadge" class="field-badge hidden">0 video</span>
+                </span>
+                <textarea name="links" id="linksInput" rows="5" placeholder="Dán một hoặc nhiều link video (TikTok, Douyin, YouTube, Facebook, Kuaishou, MP4...). Mỗi link một dòng."></textarea>
               </label>
-              <label class="field">
-                <span>File SRT có sẵn</span>
-                <div class="file-picker">
-                  <input name="srtFile" type="file" accept=".srt,text/*">
-                  <span class="file-button">Chọn tệp</span>
-                  <span class="file-name">Không có tệp nào được chọn</span>
+
+              <!-- Real-time Batch Numbering Inspector Preview -->
+              <div id="batchInspectorBox" class="batch-inspector-box hidden">
+                <div class="batch-inspector-head" id="batchInspectorToggle">
+                  <div class="batch-inspector-title">
+                    <span>📋 Danh sách video được đánh số thứ tự</span>
+                    <span id="batchInspectorCount">(0)</span>
+                  </div>
+                  <button type="button" id="clearBatchDuplicatesBtn" class="link-btn" style="font-size:0.75rem;">Lọc trùng link</button>
                 </div>
-              </label>
-            </div>
-
-            <label class="field" style="margin-top: 8px;">
-              <span>URL SRT riêng biệt (nếu có)</span>
-              <input name="srtUrl" type="url" placeholder="https://domain.com/subtitle.srt">
-            </label>
-          </section>
-
-          <!-- SETUP SECTION & TTS ENGINE -->
-          <section class="form-section setup-section">
-            <div class="section-head">
-              <div>
-                <h2><span>⚙️</span> Thiết Lập Xử Lý & Âm Thanh</h2>
-                <p>Tùy chỉnh chế độ xuất video, tỷ lệ khung hình và giọng đọc AI.</p>
+                <ul id="batchInspectorList" class="batch-inspector-list"></ul>
               </div>
-            </div>
 
-            <fieldset class="segmented">
-              <legend>Chế độ xuất video</legend>
-              <label><input type="radio" name="mode" value="dub" checked> <span>🎬 Phụ đề + Lồng tiếng</span></label>
-              <label><input type="radio" name="mode" value="download"> <span>⚡ Chỉ tải / Gộp video</span></label>
-              <label><input type="radio" name="mode" value="raw"> <span>📦 Trích xuất Raw</span></label>
-            </fieldset>
-
-            <fieldset class="segmented aspect-ratio-segmented" style="margin-top: 14px;">
-              <legend>Tỷ lệ khung hình</legend>
-              <label><input type="radio" name="aspectRatio" value="9:16" checked> <span>Dọc (9:16)</span></label>
-              <label><input type="radio" name="aspectRatio" value="16:9"> <span>Ngang (16:9)</span></label>
-              <label><input type="radio" name="aspectRatio" value="1:1"> <span>Vuông (1:1)</span></label>
-              <label><input type="radio" name="aspectRatio" value="original"> <span>Giữ nguyên gốc</span></label>
-            </fieldset>
-
-            <!-- TTS SETTINGS -->
-            <fieldset class="settings-group tts-settings" style="margin-top: 18px;">
-              <legend>🎙️ Máy chủ TTS & Giọng Đọc AI</legend>
-              <div class="control-row">
+              <div class="grid" style="margin-top: 14px;">
                 <label class="field">
-                  <span>Máy chủ TTS</span>
-                  <select name="ttsProvider" id="ttsProvider">
-                    <option value="kokoro-local" selected>Kokoro TTS (Local Offline) - Siêu nhanh</option>
-                    <option value="edge-neural">Microsoft Edge Neural - Miễn phí Online</option>
-                    <option value="openai-tts">OpenAI TTS - Tự nhiên nhất</option>
+                  <span>File video cục bộ</span>
+                  <div class="file-picker">
+                    <input name="videos" type="file" accept="video/*,.mp4,.mov,.mkv,.webm" multiple>
+                    <span class="file-button">Chọn tệp</span>
+                    <span class="file-name">Không có tệp nào được chọn</span>
+                  </div>
+                </label>
+                <label class="field">
+                  <span>File SRT có sẵn</span>
+                  <div class="file-picker">
+                    <input name="srtFile" type="file" accept=".srt,text/*">
+                    <span class="file-button">Chọn tệp</span>
+                    <span class="file-name">Không có tệp nào được chọn</span>
+                  </div>
+                </label>
+              </div>
+
+              <label class="field" style="margin-top: 8px;">
+                <span>URL SRT riêng biệt (nếu có)</span>
+                <input name="srtUrl" type="url" placeholder="https://domain.com/subtitle.srt">
+              </label>
+            </section>
+
+            <!-- SETUP SECTION & TTS ENGINE -->
+            <section class="form-section setup-section">
+              <div class="section-head">
+                <div>
+                  <h2><span>⚙️</span> Thiết Lập Xử Lý & Âm Thanh</h2>
+                  <p>Tùy chỉnh chế độ xuất video, tỷ lệ khung hình và giọng đọc AI.</p>
+                </div>
+              </div>
+
+              <fieldset class="segmented">
+                <legend>Chế độ xuất video</legend>
+                <label><input type="radio" name="mode" value="dub" checked> <span>🎬 Phụ đề + Lồng tiếng</span></label>
+                <label><input type="radio" name="mode" value="download"> <span>⚡ Chỉ tải / Gộp video</span></label>
+                <label><input type="radio" name="mode" value="raw"> <span>📦 Trích xuất Raw</span></label>
+              </fieldset>
+
+              <fieldset class="segmented aspect-ratio-segmented" style="margin-top: 14px;">
+                <legend>Tỷ lệ khung hình</legend>
+                <label><input type="radio" name="aspectRatio" value="9:16" checked> <span>Dọc (9:16)</span></label>
+                <label><input type="radio" name="aspectRatio" value="16:9"> <span>Ngang (16:9)</span></label>
+                <label><input type="radio" name="aspectRatio" value="1:1"> <span>Vuông (1:1)</span></label>
+                <label><input type="radio" name="aspectRatio" value="original"> <span>Giữ nguyên gốc</span></label>
+              </fieldset>
+
+              <!-- TTS SETTINGS -->
+              <fieldset class="settings-group tts-settings" style="margin-top: 18px;">
+                <legend>🎙️ Máy chủ TTS & Giọng Đọc AI</legend>
+                <div class="control-row">
+                  <label class="field">
+                    <span>Máy chủ TTS</span>
+                    <select name="ttsProvider" id="ttsProvider">
+                      <option value="kokoro-local" selected>Kokoro TTS (Local Offline) - Siêu nhanh</option>
+                      <option value="edge-neural">Microsoft Edge Neural - Miễn phí Online</option>
+                      <option value="openai-tts">OpenAI TTS - Tự nhiên nhất</option>
+                    </select>
+                  </label>
+                  <label class="field">
+                    <span>Giọng đọc văn bản</span>
+                    <select name="voice" id="voice">
+                      <option value="diem_trinh" selected>Diễm Trinh - Nữ Nam Bộ</option>
+                      <option value="hung_thinh">Hưng Thịnh - Nam miền Nam</option>
+                    </select>
+                  </label>
+                </div>
+
+                <div id="kokoroStatusAlert" class="alert-box info hidden">
+                  <span class="alert-icon">ℹ️</span>
+                  <span class="alert-text" id="kokoroAlertText">Đang cài đặt...</span>
+                  <button type="button" class="btn-link hidden" id="kokoroRetryBtn">Thử lại</button>
+                </div>
+
+                <label class="field hidden" id="ttsStyleField">
+                  <span>Tone giọng cảm xúc</span>
+                  <select name="ttsStyle" id="ttsStyle">
+                    <option value="natural" selected>Tự nhiên, rõ chữ</option>
+                    <option value="friendly">Thân thiện, gần gũi</option>
+                    <option value="cheerful">Tươi sáng, có năng lượng</option>
+                    <option value="calm">Bình tĩnh, nhẹ nhàng</option>
+                    <option value="serious">Nghiêm túc, chắc giọng</option>
+                    <option value="story">Kể chuyện, có cảm xúc</option>
+                    <option value="news">Dẫn chương trình, chuyên nghiệp</option>
+                    <option value="soft">Mềm, nhẹ, dễ nghe</option>
                   </select>
                 </label>
+
+                <label class="field" style="margin-top: 10px;">
+                  <span>Câu phát thử nghiệm</span>
+                  <input name="previewText" id="previewText" type="text" value="Xin chào, đây là giọng đọc thử nghiệm chất lượng cao của VietDub AI.">
+                </label>
+
+                <div class="inline-actions">
+                  <button class="secondary" id="previewVoiceBtn" type="button">▶️ Phát giọng nói</button>
+                  <button class="secondary" id="mixPreviewBtn" type="button">🎧 Nghe thử mix âm thanh</button>
+                </div>
+                
+                <audio id="ttsPreviewAudio" class="preview-audio" controls hidden></audio>
+                <audio id="mixPreviewAudio" class="preview-audio" controls hidden></audio>
+                <span id="mixPreviewResult" class="helper-text"></span>
+
+                <div class="control-row">
+                  <label class="field">
+                    <span>Âm lượng giọng đọc: <output id="ttsVolumeValue">1.05</output>x</span>
+                    <input name="ttsVolume" id="ttsVolume" type="range" min="0.6" max="2" step="0.05" value="1.05">
+                  </label>
+                  <label class="field">
+                    <span>Tốc độ đọc: <output id="ttsSpeedValue">0.9</output>x</span>
+                    <input name="ttsSpeed" id="ttsSpeed" type="range" min="0.7" max="1.3" step="0.01" value="0.9">
+                  </label>
+                </div>
+
+                <label class="field" style="margin-top: 10px;">
+                  <span>Âm lượng video gốc: <output id="originalVolumeValue">52</output>%</span>
+                  <input name="originalVolume" id="originalVolume" type="range" min="0" max="150" step="5" value="52">
+                </label>
+              </fieldset>
+            </section>
+
+            <!-- DISPLAY & SUBTITLE DESIGNER -->
+            <section class="form-section display-section">
+              <div class="section-head">
+                <div>
+                  <h2><span>🎨</span> Tùy Chỉnh Phụ Đề & Watermark</h2>
+                  <p>Tinh chỉnh phông chữ, màu sắc, vị trí hiển thị và xem trước thời gian thực.</p>
+                </div>
+              </div>
+
+              <!-- LIVE PREVIEW CANVAS STAGE -->
+              <div class="preview-stage-container">
+                <div class="preview-screen-mockup" id="previewMockupScreen">
+                  <div id="mockupWatermark" class="mockup-watermark" style="top: 14px; right: 14px;">VIETDUB AI</div>
+                  <div id="mockupSubtitle" class="mockup-subtitle" style="bottom: 24px;">
+                    Xin chào, đây là phụ đề mẫu được căn chỉnh tự động theo kích thước và vị trí bạn chọn.
+                  </div>
+                </div>
+              </div>
+
+              <fieldset class="settings-group" style="margin-top: 16px;">
+                <legend>📝 Định Dạng Phụ Đề</legend>
                 <label class="field">
-                  <span>Giọng đọc văn bản</span>
-                  <select name="voice" id="voice">
-                    <option value="diem_trinh" selected>Diễm Trinh - Nữ Nam Bộ</option>
-                    <option value="hung_thinh">Hưng Thịnh - Nam miền Nam</option>
+                  <span>Font chữ phụ đề</span>
+                  <select name="subtitleFont" id="subtitleFontSelect">
+                    <option value="segoe-ui" selected>Segoe UI (Hiện đại, rõ nét)</option>
+                    <option value="arial">Arial</option>
+                    <option value="times-new-roman">Times New Roman</option>
+                    <option value="tahoma">Tahoma</option>
+                    <option value="verdana">Verdana</option>
+                    <option value="calibri">Calibri</option>
+                    <option value="georgia">Georgia</option>
                   </select>
                 </label>
-              </div>
+                <div class="control-row">
+                  <label class="field">
+                    <span>Kích thước chữ: <output id="subtitleSizeValue">11</output></span>
+                    <input name="subtitleSize" id="subtitleSize" type="range" min="8" max="24" step="1" value="11">
+                  </label>
+                  <label class="field">
+                    <span>Khoảng cách đáy: <output id="subtitleBottomValue">34</output>px</span>
+                    <input name="subtitleBottomMargin" id="subtitleBottomMargin" type="range" min="12" max="120" step="1" value="34">
+                  </label>
+                </div>
+                <div class="control-row">
+                  <label class="field">
+                    <span>Kiểu nền phụ đề</span>
+                    <select name="subtitleBackground" id="subtitleBackground">
+                      <option value="none" selected>Không nền (Viền chữ sắc nét)</option>
+                      <option value="box">Nền hộp (Box mờ)</option>
+                    </select>
+                  </label>
+                  <label class="field">
+                    <span>Màu nền</span>
+                    <input name="subtitleBgColor" id="subtitleBgColor" type="color" value="#000000">
+                  </label>
+                </div>
+                <div class="control-row">
+                  <label class="field">
+                    <span>Độ đậm nền: <output id="subtitleBgOpacityValue">65</output>%</span>
+                    <input name="subtitleBgOpacity" id="subtitleBgOpacity" type="range" min="0" max="100" step="5" value="65">
+                  </label>
+                  <label class="field">
+                    <span>Độ dài mỗi dòng: <output id="subtitleLineLengthValue">28</output> ký tự</span>
+                    <input name="subtitleLineLength" id="subtitleLineLength" type="range" min="18" max="42" step="1" value="28">
+                  </label>
+                </div>
+              </fieldset>
 
-              <div id="kokoroStatusAlert" class="alert-box info hidden">
-                <span class="alert-icon">ℹ️</span>
-                <span class="alert-text" id="kokoroAlertText">Đang cài đặt...</span>
-                <button type="button" class="btn-link hidden" id="kokoroRetryBtn">Thử lại</button>
-              </div>
-
-              <label class="field hidden" id="ttsStyleField">
-                <span>Tone giọng cảm xúc</span>
-                <select name="ttsStyle" id="ttsStyle">
-                  <option value="natural" selected>Tự nhiên, rõ chữ</option>
-                  <option value="friendly">Thân thiện, gần gũi</option>
-                  <option value="cheerful">Tươi sáng, có năng lượng</option>
-                  <option value="calm">Bình tĩnh, nhẹ nhàng</option>
-                  <option value="serious">Nghiêm túc, chắc giọng</option>
-                  <option value="story">Kể chuyện, có cảm xúc</option>
-                  <option value="news">Dẫn chương trình, chuyên nghiệp</option>
-                  <option value="soft">Mềm, nhẹ, dễ nghe</option>
-                </select>
-              </label>
-
-              <label class="field" style="margin-top: 10px;">
-                <span>Câu phát thử nghiệm</span>
-                <input name="previewText" id="previewText" type="text" value="Xin chào, đây là giọng đọc thử nghiệm chất lượng cao của VietDub AI.">
-              </label>
-
-              <div class="inline-actions">
-                <button class="secondary" id="previewVoiceBtn" type="button">▶️ Phát giọng nói</button>
-                <button class="secondary" id="mixPreviewBtn" type="button">🎧 Nghe thử mix âm thanh</button>
-              </div>
-              
-              <audio id="ttsPreviewAudio" class="preview-audio" controls hidden></audio>
-              <audio id="mixPreviewAudio" class="preview-audio" controls hidden></audio>
-              <span id="mixPreviewResult" class="helper-text"></span>
-
-              <div class="control-row">
-                <label class="field">
-                  <span>Âm lượng giọng đọc: <output id="ttsVolumeValue">1.05</output>x</span>
-                  <input name="ttsVolume" id="ttsVolume" type="range" min="0.6" max="2" step="0.05" value="1.05">
+              <fieldset class="settings-group" style="margin-top: 16px;">
+                <legend>🏷️ Chèn Hình Ảnh Watermark / Logo</legend>
+                <label class="check-row">
+                  <input name="watermarkEnabled" id="watermarkEnabled" type="checkbox">
+                  <span>Bật chèn watermark lên video</span>
                 </label>
-                <label class="field">
-                  <span>Tốc độ đọc: <output id="ttsSpeedValue">0.9</output>x</span>
-                  <input name="ttsSpeed" id="ttsSpeed" type="range" min="0.7" max="1.3" step="0.01" value="0.9">
+                <label class="field" style="margin-top: 10px;">
+                  <span>Chọn ảnh watermark (PNG, JPG, WEBP)</span>
+                  <div class="file-picker">
+                    <input name="watermarkFile" type="file" accept="image/png,image/jpeg,image/webp,image/gif">
+                    <span class="file-button">Chọn tệp</span>
+                    <span class="file-name">Không có tệp nào được chọn</span>
+                  </div>
                 </label>
+                <div class="control-row">
+                  <label class="field">
+                    <span>Vị trí hiển thị</span>
+                    <select name="watermarkPosition" id="watermarkPositionSelect">
+                      <option value="top-right" selected>Góc trên bên phải</option>
+                      <option value="top-left">Góc trên bên trái</option>
+                      <option value="bottom-right">Góc dưới bên phải</option>
+                      <option value="bottom-left">Góc dưới bên trái</option>
+                      <option value="center">Chính giữa video</option>
+                    </select>
+                  </label>
+                  <label class="field">
+                    <span>Kích thước watermark: <output id="watermarkWidthValue">14</output>%</span>
+                    <input name="watermarkWidthPercent" id="watermarkWidthPercent" type="range" min="5" max="40" step="1" value="14">
+                  </label>
+                </div>
+                <label class="field" style="margin-top: 10px;">
+                  <span>Độ rõ nét (Opacity): <output id="watermarkOpacityValue">85</output>%</span>
+                  <input name="watermarkOpacity" id="watermarkOpacity" type="range" min="10" max="100" step="5" value="85">
+                </label>
+              </fieldset>
+            </section>
+
+            <!-- MAIN SUBMIT ACTION BAR -->
+            <div class="action-bar" style="margin-top: 6px;">
+              <button class="primary" id="submitBtn" type="submit">
+                <span>🚀</span>
+                <span>BẮT ĐẦU XỬ LÝ TOÀN BỘ DANH SÁCH</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- TAB 2: SYSTEM CONFIG & API KEYS -->
+          <div id="viewSettings" class="view-panel-tab hidden">
+            <!-- API KEYS & AI MODELS -->
+            <section class="form-section api-settings-section">
+              <div class="section-head">
+                <div>
+                  <h2><span>🔑</span> Cấu Hình API Keys & Mô Hình AI</h2>
+                  <p>Thiết lập khoá API tạo phụ đề, lồng tiếng và dịch thuật tự động.</p>
+                </div>
               </div>
 
-              <label class="field" style="margin-top: 10px;">
-                <span>Âm lượng video gốc: <output id="originalVolumeValue">52</output>%</span>
-                <input name="originalVolume" id="originalVolume" type="range" min="0" max="150" step="5" value="52">
-              </label>
-            </fieldset>
-
-            <!-- API SETTINGS (ACCORDION) -->
-            <details class="settings-group api-settings" id="apiSettings" style="margin-top: 16px;">
-              <summary>🔑 Cấu hình API Keys & Mô hình AI</summary>
               <div class="control-row">
                 <label class="field">
                   <span>Gemini API Key (Tạo phụ đề)</span>
@@ -237,7 +362,8 @@
                   </select>
                 </label>
               </div>
-              <div class="control-row">
+
+              <div class="control-row" style="margin-top: 10px;">
                 <label class="field">
                   <span>OpenAI API Key (Lồng tiếng)</span>
                   <input name="openaiApiKey" id="openaiApiKey" class="api-input" type="password" placeholder="Dùng file .env nếu để trống" autocomplete="off">
@@ -251,191 +377,81 @@
                   </select>
                 </label>
               </div>
+
               <label class="field" style="margin-top: 10px;">
                 <span>RapidAPI Key (Dự phòng tải Douyin/TikTok)</span>
                 <input name="rapidApiKey" id="rapidApiKey" class="api-input" type="password" placeholder="Dùng file .env nếu để trống" autocomplete="off">
               </label>
-              <div class="inline-actions">
+
+              <div class="inline-actions" style="margin-top: 14px;">
                 <button class="secondary" id="apiCheckBtn" type="button">⚡ Kiểm tra kết nối API</button>
                 <span id="apiCheckResult" class="helper-text"></span>
               </div>
-              <label class="check-row" style="margin-top: 10px;">
+
+              <label class="check-row" style="margin-top: 12px;">
                 <input name="rememberApiKeys" id="rememberApiKeys" type="checkbox">
                 <span>Lưu thông tin API và Mô hình trên trình duyệt này</span>
               </label>
-            </details>
-          </section>
+            </section>
 
-          <!-- DISPLAY & SUBTITLE DESIGNER -->
-          <section class="form-section display-section">
-            <div class="section-head">
-              <div>
-                <h2><span>🎨</span> Tùy Chỉnh Phụ Đề & Watermark</h2>
-                <p>Tinh chỉnh phông chữ, màu sắc, vị trí hiển thị và xem trước thời gian thực.</p>
-              </div>
-            </div>
-
-            <!-- LIVE PREVIEW CANVAS STAGE -->
-            <div class="preview-stage-container">
-              <div class="preview-screen-mockup" id="previewMockupScreen">
-                <div id="mockupWatermark" class="mockup-watermark" style="top: 14px; right: 14px;">VIETDUB AI</div>
-                <div id="mockupSubtitle" class="mockup-subtitle" style="bottom: 24px;">
-                  Xin chào, đây là phụ đề mẫu được căn chỉnh tự động theo kích thước và vị trí bạn chọn.
+            <!-- FILE MANAGEMENT & OUTPUT DIRECTORY -->
+            <section class="form-section file-section">
+              <div class="section-head">
+                <div>
+                  <h2><span>📁</span> Quản Lý File & Preset Cá Nhân</h2>
+                  <p>Chọn thư mục lưu trữ kết quả và tự động dọn dẹp dữ liệu tạm.</p>
                 </div>
               </div>
-            </div>
 
-            <fieldset class="settings-group" style="margin-top: 16px;">
-              <legend>📝 Định Dạng Phụ Đề</legend>
-              <label class="field">
-                <span>Font chữ phụ đề</span>
-                <select name="subtitleFont" id="subtitleFontSelect">
-                  <option value="segoe-ui" selected>Segoe UI (Hiện đại, rõ nét)</option>
-                  <option value="arial">Arial</option>
-                  <option value="times-new-roman">Times New Roman</option>
-                  <option value="tahoma">Tahoma</option>
-                  <option value="verdana">Verdana</option>
-                  <option value="calibri">Calibri</option>
-                  <option value="georgia">Georgia</option>
-                </select>
-              </label>
-              <div class="control-row">
-                <label class="field">
-                  <span>Kích thước chữ: <output id="subtitleSizeValue">11</output></span>
-                  <input name="subtitleSize" id="subtitleSize" type="range" min="8" max="24" step="1" value="11">
-                </label>
-                <label class="field">
-                  <span>Khoảng cách đáy: <output id="subtitleBottomValue">34</output>px</span>
-                  <input name="subtitleBottomMargin" id="subtitleBottomMargin" type="range" min="12" max="120" step="1" value="34">
-                </label>
-              </div>
-              <div class="control-row">
-                <label class="field">
-                  <span>Kiểu nền phụ đề</span>
-                  <select name="subtitleBackground" id="subtitleBackground">
-                    <option value="none" selected>Không nền (Viền chữ sắc nét)</option>
-                    <option value="box">Nền hộp (Box mờ)</option>
-                  </select>
-                </label>
-                <label class="field">
-                  <span>Màu nền</span>
-                  <input name="subtitleBgColor" id="subtitleBgColor" type="color" value="#000000">
-                </label>
-              </div>
-              <div class="control-row">
-                <label class="field">
-                  <span>Độ đậm nền: <output id="subtitleBgOpacityValue">65</output>%</span>
-                  <input name="subtitleBgOpacity" id="subtitleBgOpacity" type="range" min="0" max="100" step="5" value="65">
-                </label>
-                <label class="field">
-                  <span>Độ dài mỗi dòng: <output id="subtitleLineLengthValue">28</output> ký tự</span>
-                  <input name="subtitleLineLength" id="subtitleLineLength" type="range" min="18" max="42" step="1" value="28">
-                </label>
-              </div>
-            </fieldset>
-
-            <fieldset class="settings-group" style="margin-top: 16px;">
-              <legend>🏷️ Chèn Hình Ảnh Watermark / Logo</legend>
-              <label class="check-row">
-                <input name="watermarkEnabled" id="watermarkEnabled" type="checkbox">
-                <span>Bật chèn watermark lên video</span>
-              </label>
-              <label class="field" style="margin-top: 10px;">
-                <span>Chọn ảnh watermark (PNG, JPG, WEBP)</span>
-                <div class="file-picker">
-                  <input name="watermarkFile" type="file" accept="image/png,image/jpeg,image/webp,image/gif">
-                  <span class="file-button">Chọn tệp</span>
-                  <span class="file-name">Không có tệp nào được chọn</span>
+              <fieldset class="settings-group compact output-directory-box">
+                <legend>📂 Thư Mục Lưu Video Đầu Ra</legend>
+                <div style="display: flex; gap: 10px; align-items: flex-end; margin-top: 8px;">
+                  <label class="field" style="flex: 1; margin-bottom: 0;">
+                    <span>Đường dẫn thư mục lưu trữ</span>
+                    <input name="outputDir" id="outputDir" type="text" placeholder="Để trống để lưu tại thư mục tạm của app">
+                  </label>
+                  <button class="secondary" id="selectOutputDirBtn" type="button" style="height: 42px; flex-shrink: 0; padding: 0 18px;">📁 Chọn thư mục</button>
                 </div>
-              </label>
-              <div class="control-row">
-                <label class="field">
-                  <span>Vị trí hiển thị</span>
-                  <select name="watermarkPosition" id="watermarkPositionSelect">
-                    <option value="top-right" selected>Góc trên bên phải</option>
-                    <option value="top-left">Góc trên bên trái</option>
-                    <option value="bottom-right">Góc dưới bên phải</option>
-                    <option value="bottom-left">Góc dưới bên trái</option>
-                    <option value="center">Chính giữa video</option>
+              </fieldset>
+
+              <div id="diskNotice" class="notice hidden" style="margin-top: 12px;"></div>
+
+              <fieldset class="settings-group compact" style="margin-top: 16px;">
+                <legend>🧹 Tự Động Dọn Dẹp Sau Khi Xuất</legend>
+                <label class="check-row">
+                  <input name="autoCleanup" type="checkbox" checked>
+                  <span>Tự động dọn dẹp thư mục job tạm sau khi hoàn tất</span>
+                </label>
+                <label class="field" style="margin-top: 10px;">
+                  <span>Giữ lại file kết quả trên server trong</span>
+                  <select name="cleanupDelayMinutes">
+                    <option value="5">5 phút</option>
+                    <option value="15">15 phút</option>
+                    <option value="30" selected>30 phút</option>
+                    <option value="60">1 giờ</option>
+                    <option value="180">3 giờ</option>
+                    <option value="1440">1 ngày</option>
                   </select>
                 </label>
+              </fieldset>
+
+              <fieldset class="settings-group compact custom-preset-box" style="margin-top: 16px;">
+                <legend>💾 Lưu Preset Cấu Hình Riêng</legend>
                 <label class="field">
-                  <span>Kích thước watermark: <output id="watermarkWidthValue">14</output>%</span>
-                  <input name="watermarkWidthPercent" id="watermarkWidthPercent" type="range" min="5" max="40" step="1" value="14">
+                  <span>Tên preset cá nhân</span>
+                  <input id="customPresetName" type="text" placeholder="Ví dụ: Khải Hoàn Shorts Chuẩn">
                 </label>
-              </div>
-              <label class="field" style="margin-top: 10px;">
-                <span>Độ rõ nét (Opacity): <output id="watermarkOpacityValue">85</output>%</span>
-                <input name="watermarkOpacity" id="watermarkOpacity" type="range" min="10" max="100" step="5" value="85">
-              </label>
-            </fieldset>
-          </section>
-
-          <!-- FILE MANAGEMENT & OUTPUT DIRECTORY -->
-          <section class="form-section file-section">
-            <div class="section-head">
-              <div>
-                <h2><span>📁</span> Quản Lý File & Preset Cá Nhân</h2>
-                <p>Chọn thư mục lưu trữ kết quả và tự động dọn dẹp dữ liệu tạm.</p>
-              </div>
-            </div>
-
-            <fieldset class="settings-group compact output-directory-box">
-              <legend>📂 Thư Mục Lưu Video Đầu Ra</legend>
-              <div style="display: flex; gap: 10px; align-items: flex-end; margin-top: 8px;">
-                <label class="field" style="flex: 1; margin-bottom: 0;">
-                  <span>Đường dẫn thư mục lưu trữ</span>
-                  <input name="outputDir" id="outputDir" type="text" placeholder="Để trống để lưu tại thư mục tạm của app">
+                <div class="inline-actions">
+                  <button class="secondary" id="savePresetBtn" type="button">💾 Lưu cấu hình</button>
+                  <button class="secondary" id="loadPresetBtn" type="button">⚡ Áp dụng</button>
+                  <button class="secondary" id="deletePresetBtn" type="button">🗑️ Xóa</button>
+                </div>
+                <label class="field" style="margin-top: 10px;">
+                  <span>Danh sách preset đã lưu</span>
+                  <select id="customPresetSelect"></select>
                 </label>
-                <button class="secondary" id="selectOutputDirBtn" type="button" style="height: 42px; flex-shrink: 0; padding: 0 18px;">📁 Chọn thư mục</button>
-              </div>
-            </fieldset>
-
-            <div id="diskNotice" class="notice hidden" style="margin-top: 12px;"></div>
-
-            <fieldset class="settings-group compact" style="margin-top: 16px;">
-              <legend>🧹 Tự Động Dọn Dẹp Sau Khi Xuất</legend>
-              <label class="check-row">
-                <input name="autoCleanup" type="checkbox" checked>
-                <span>Tự động dọn dẹp thư mục job tạm sau khi hoàn tất</span>
-              </label>
-              <label class="field" style="margin-top: 10px;">
-                <span>Giữ lại file kết quả trên server trong</span>
-                <select name="cleanupDelayMinutes">
-                  <option value="5">5 phút</option>
-                  <option value="15">15 phút</option>
-                  <option value="30" selected>30 phút</option>
-                  <option value="60">1 giờ</option>
-                  <option value="180">3 giờ</option>
-                  <option value="1440">1 ngày</option>
-                </select>
-              </label>
-            </fieldset>
-
-            <fieldset class="settings-group compact custom-preset-box" style="margin-top: 16px;">
-              <legend>💾 Lưu Preset Cấu Hình Riêng</legend>
-              <label class="field">
-                <span>Tên preset cá nhân</span>
-                <input id="customPresetName" type="text" placeholder="Ví dụ: Khải Hoàn Shorts Chuẩn">
-              </label>
-              <div class="inline-actions">
-                <button class="secondary" id="savePresetBtn" type="button">💾 Lưu cấu hình</button>
-                <button class="secondary" id="loadPresetBtn" type="button">⚡ Áp dụng</button>
-                <button class="secondary" id="deletePresetBtn" type="button">🗑️ Xóa</button>
-              </div>
-              <label class="field" style="margin-top: 10px;">
-                <span>Danh sách preset đã lưu</span>
-                <select id="customPresetSelect"></select>
-              </label>
-            </fieldset>
-          </section>
-
-          <!-- MAIN SUBMIT ACTION BAR -->
-          <div class="action-bar" style="margin-top: 6px;">
-            <button class="primary" id="submitBtn" type="submit">
-              <span>🚀</span>
-              <span>BẮT ĐẦU XỬ LÝ TOÀN BỘ DANH SÁCH</span>
-            </button>
+              </fieldset>
+            </section>
           </div>
         </form>
       </section>
