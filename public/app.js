@@ -4,7 +4,6 @@ const state = document.querySelector('#state');
 const result = document.querySelector('#result');
 const cleanupBtn = document.querySelector('#cleanupBtn');
 const themeToggle = document.querySelector('#themeToggle');
-const languageSelect = document.querySelector('#languageSelect');
 const submitBtn = document.querySelector('#submitBtn') || form.querySelector('button[type="submit"]');
 const linksInput = document.querySelector('#linksInput') || form.querySelector('textarea[name="links"]');
 const batchCountBadge = document.querySelector('#batchCountBadge');
@@ -70,7 +69,7 @@ const savedTheme = localStorage.getItem('vietdub-theme') || 'dark';
 setTheme(savedTheme);
 restoreAiSettings();
 restoreOutputDir();
-let currentLang = localStorage.getItem('vietdub-lang') || 'vi';
+let currentLang = 'vi';
 
 themeToggle?.addEventListener('click', () => {
   const nextTheme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
@@ -83,7 +82,7 @@ function setTheme(theme) {
   localStorage.setItem('vietdub-theme', normalized);
   if (themeToggle) {
     themeToggle.setAttribute('aria-pressed', normalized === 'dark' ? 'true' : 'false');
-    themeToggle.textContent = normalized === 'dark' ? '🌓' : '☀️';
+    themeToggle.textContent = normalized === 'dark' ? '🌓 Giao diện' : '☀️ Giao diện';
   }
 }
 
@@ -531,7 +530,7 @@ loadDiskInfo();
 loadHistory();
 
 if (logs && logs.children.length === 0) {
-  appendLog('VietDub AI Studio Pro v1.4.19 đã khởi động thành công.');
+  appendLog('VietDub AI Studio Pro v2.0 đã khởi động thành công.');
   appendLog('Dán danh sách link video hoặc chọn tệp để bắt đầu xử lý hàng loạt.');
 }
 
