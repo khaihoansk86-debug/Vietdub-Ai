@@ -527,9 +527,13 @@ initViews();
 initPresetStore();
 initLiveSubtitlePreview();
 initBatchInspector();
-setActivePreset('none');
 loadDiskInfo();
 loadHistory();
+
+if (logs && logs.children.length === 0) {
+  appendLog('VietDub AI Studio Pro v1.4.19 đã khởi động thành công.');
+  appendLog('Dán danh sách link video hoặc chọn tệp để bắt đầu xử lý hàng loạt.');
+}
 
 function syncPreviewPlayback() {
   if (!ttsPreviewAudio) return;
@@ -1366,13 +1370,15 @@ function updateFilePicker(input) {
 
 function translateOptions(t) {
   setOptions('#geminiModel', currentLang === 'en' ? {
-    'gemini-3.5-flash': 'Gemini 3.5 Flash - Latest',
+    'gemini-3.7-flash': 'Gemini 3.7 Flash - Latest (Recommended)',
+    'gemini-3.5-flash': 'Gemini 3.5 Flash',
     'gemini-2.5-pro': 'Gemini 2.5 Pro - Most accurate',
     'gemini-2.5-flash': 'Gemini 2.5 Flash - Fast',
     'gemini-1.5-pro': 'Gemini 1.5 Pro',
     'gemini-1.5-flash': 'Gemini 1.5 Flash'
   } : {
-    'gemini-3.5-flash': 'Gemini 3.5 Flash - Mới nhất',
+    'gemini-3.7-flash': 'Gemini 3.7 Flash - Mới nhất (Khuyên dùng)',
+    'gemini-3.5-flash': 'Gemini 3.5 Flash',
     'gemini-2.5-pro': 'Gemini 2.5 Pro - Chính xác cao',
     'gemini-2.5-flash': 'Gemini 2.5 Flash - Siêu nhanh',
     'gemini-1.5-pro': 'Gemini 1.5 Pro',
@@ -1428,9 +1434,9 @@ async function checkKokoroStatus() {
       if (topStatusDot && topEngineText) {
         topStatusDot.className = `status-dot ${data.status}`;
         if (data.status === 'ready') topEngineText.textContent = 'Kokoro Sẵn sàng';
-        else if (data.status === 'installing') topEngineText.textContent = 'Kokoro Đang cài đặt';
-        else if (data.status === 'starting') topEngineText.textContent = 'Kokoro Đang khởi động';
-        else if (data.status === 'error') topEngineText.textContent = 'Kokoro Lỗi khởi chạy';
+        else if (data.status === 'installing') topEngineText.textContent = 'Kokoro Đang cài...';
+        else if (data.status === 'starting') topEngineText.textContent = 'Kokoro Khởi động...';
+        else if (data.status === 'error') topEngineText.textContent = 'Kokoro Lỗi';
         else topEngineText.textContent = 'Kokoro Chưa chạy';
       }
 

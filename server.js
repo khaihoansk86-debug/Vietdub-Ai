@@ -20,7 +20,7 @@ const PUBLIC_DIR = process.env.VIETDUB_PUBLIC_DIR || path.join(ROOT, 'public');
 
 const RAPIDAPI_KEY = process.env.RAPIDAPI_KEY || '';
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.5-flash';
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.7-flash';
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '';
 const OPENAI_TTS_MODEL = process.env.OPENAI_TTS_MODEL || 'gpt-4o-mini-tts';
 const FFMPEG_BIN = process.env.FFMPEG_BIN || unpackAsarPath(ffmpegStatic) || 'ffmpeg';
@@ -1873,8 +1873,8 @@ async function startKokoroBackend() {
       });
       await new Promise((resolve) => pipProcess.on('close', resolve));
 
-      kokoroInstallLog += 'Đang cài đặt các thư viện bổ trợ gọn nhẹ chạy ONNX Runtime (fastapi, uvicorn, soundfile, onnxruntime==1.17.0, vig2p, huggingface_hub, numpy, scipy)...\n';
-      const installDepsProcess = spawn(venvPython, ['-m', 'pip', 'install', 'fastapi', 'uvicorn', 'soundfile', 'onnxruntime==1.17.0', 'vig2p', 'huggingface_hub', 'numpy', 'scipy'], {
+      kokoroInstallLog += 'Đang cài đặt các thư viện bổ trợ gọn nhẹ chạy ONNX Runtime (fastapi, uvicorn, soundfile, onnxruntime, vig2p, huggingface_hub, numpy, scipy)...\n';
+      const installDepsProcess = spawn(venvPython, ['-m', 'pip', 'install', 'fastapi', 'uvicorn', 'soundfile', 'onnxruntime', 'vig2p', 'huggingface_hub', 'numpy', 'scipy'], {
         cwd: kokoroDir,
         stdio: 'pipe'
       });
