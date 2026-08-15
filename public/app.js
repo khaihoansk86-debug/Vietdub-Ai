@@ -127,7 +127,6 @@ function saveOutputDir() {
 }
 
 outputDirInput?.addEventListener('input', saveOutputDir);
-languageSelect?.addEventListener('change', () => setLanguage(languageSelect.value));
 
 const i18n = {
   vi: {
@@ -334,7 +333,6 @@ const extraI18n = {
 function setLanguage(lang) {
   currentLang = lang === 'en' ? 'en' : 'vi';
   localStorage.setItem('vietdub-lang', currentLang);
-  if (languageSelect) languageSelect.value = currentLang;
   const t = i18n[currentLang];
   
   setText('#cleanupBtn', t.cleanup);
