@@ -1,0 +1,13 @@
+node_modules/
+dist/
+data/
+.env
+*.log
+preview_*.jpg
+watermark_check.jpg
+test_*.mp4
+test_*.srt
+test_*.png
+tts_audio_test.mp3
+kokoro-vietnamese/
+
