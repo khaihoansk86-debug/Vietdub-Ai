@@ -241,18 +241,28 @@
 
               <fieldset class="settings-group" style="margin-top: 16px;">
                 <legend>📝 Định Dạng Phụ Đề</legend>
-                <label class="field">
-                  <span>Font chữ phụ đề</span>
-                  <select name="subtitleFont" id="subtitleFontSelect">
-                    <option value="segoe-ui" selected>Segoe UI (Hiện đại, rõ nét)</option>
-                    <option value="arial">Arial</option>
-                    <option value="times-new-roman">Times New Roman</option>
-                    <option value="tahoma">Tahoma</option>
-                    <option value="verdana">Verdana</option>
-                    <option value="calibri">Calibri</option>
-                    <option value="georgia">Georgia</option>
-                  </select>
-                </label>
+                <div class="control-row">
+                  <label class="field">
+                    <span>Chế độ ngôn ngữ phụ đề</span>
+                    <select name="subtitleLanguageMode" id="subtitleLanguageMode">
+                      <option value="vietnamese" selected>🇻🇳 Chỉ Tiếng Việt (Chuẩn lồng tiếng)</option>
+                      <option value="bilingual">🌐 Song ngữ 2 tầng (Gốc + Tiếng Việt)</option>
+                      <option value="original">🏷️ Chỉ ngôn ngữ gốc của video</option>
+                    </select>
+                  </label>
+                  <label class="field">
+                    <span>Font chữ phụ đề</span>
+                    <select name="subtitleFont" id="subtitleFontSelect">
+                      <option value="segoe-ui" selected>Segoe UI (Hiện đại, rõ nét)</option>
+                      <option value="arial">Arial</option>
+                      <option value="times-new-roman">Times New Roman</option>
+                      <option value="tahoma">Tahoma</option>
+                      <option value="verdana">Verdana</option>
+                      <option value="calibri">Calibri</option>
+                      <option value="georgia">Georgia</option>
+                    </select>
+                  </label>
+                </div>
                 <div class="control-row">
                   <label class="field">
                     <span>Kích thước chữ: <output id="subtitleSizeValue">11</output></span>
@@ -381,6 +391,11 @@
               <label class="field" style="margin-top: 10px;">
                 <span>RapidAPI Key (Dự phòng tải Douyin/TikTok)</span>
                 <input name="rapidApiKey" id="rapidApiKey" class="api-input" type="password" placeholder="Dùng file .env nếu để trống" autocomplete="off">
+              </label>
+
+              <label class="field" style="margin-top: 10px;">
+                <span>Từ điển thuật ngữ & Tên riêng (Glossary)</span>
+                <textarea name="glossary" id="glossary" rows="3" placeholder="Nhập các từ khóa chuyên ngành, tên thương hiệu, tên riêng (ví dụ: SK-II, Niacinamide, Retinol, Khải Hoàn...). AI sẽ luôn dịch chính xác 100% các từ này."></textarea>
               </label>
 
               <div class="inline-actions" style="margin-top: 14px;">

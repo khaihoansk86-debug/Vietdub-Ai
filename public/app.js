@@ -58,7 +58,7 @@ const updateYtdlpBtn = document.querySelector('#updateYtdlpBtn');
 const ytdlpUpdateStatus = document.querySelector('#ytdlpUpdateStatus');
 const outputDirInput = document.querySelector('#outputDir');
 const selectOutputDirBtn = document.querySelector('#selectOutputDirBtn');
-const apiFields = ['geminiApiKey', 'geminiModel', 'openaiApiKey', 'openaiTtsModel', 'rapidApiKey'];
+const apiFields = ['geminiApiKey', 'geminiModel', 'openaiApiKey', 'openaiTtsModel', 'rapidApiKey', 'glossary'];
 const rememberApiKeys = document.querySelector('#rememberApiKeys');
 
 let queuedJobs = [];
@@ -736,6 +736,7 @@ function removeBatchDuplicates() {
 
 function initLiveSubtitlePreview() {
   const fontSelect = document.querySelector('#subtitleFontSelect') || document.querySelector('select[name="subtitleFont"]');
+  const langModeSelect = document.querySelector('#subtitleLanguageMode') || document.querySelector('select[name="subtitleLanguageMode"]');
   const sizeRange = document.querySelector('#subtitleSize');
   const bottomRange = document.querySelector('#subtitleBottomMargin');
   const bgSelect = document.querySelector('#subtitleBackground');
@@ -746,7 +747,7 @@ function initLiveSubtitlePreview() {
   const watermarkWidth = document.querySelector('#watermarkWidthPercent');
   const watermarkOpacity = document.querySelector('#watermarkOpacity');
 
-  const controls = [fontSelect, sizeRange, bottomRange, bgSelect, bgColorInput, bgOpacityRange, watermarkCheck, watermarkPos, watermarkWidth, watermarkOpacity];
+  const controls = [fontSelect, langModeSelect, sizeRange, bottomRange, bgSelect, bgColorInput, bgOpacityRange, watermarkCheck, watermarkPos, watermarkWidth, watermarkOpacity];
   controls.forEach((ctrl) => {
     ctrl?.addEventListener('input', updateSubtitleMockup);
     ctrl?.addEventListener('change', updateSubtitleMockup);
@@ -760,6 +761,7 @@ function updateSubtitleMockup() {
   const mockupWatermark = document.querySelector('#mockupWatermark');
   if (!mockupSubtitle || !mockupWatermark) return;
 
+  const langMode = document.querySelector('select[name="subtitleLanguageMode"]')?.value || 'vietnamese';
   const font = document.querySelector('select[name="subtitleFont"]')?.value || 'segoe-ui';
   const size = Number(document.querySelector('#subtitleSize')?.value || 11);
   const bottom = Number(document.querySelector('#subtitleBottomMargin')?.value || 34);
@@ -780,6 +782,14 @@ function updateSubtitleMockup() {
   mockupSubtitle.style.fontFamily = fontMap[font] || fontMap['segoe-ui'];
   mockupSubtitle.style.fontSize = `${Math.max(10, size * 0.95)}px`;
   mockupSubtitle.style.bottom = `${Math.min(180, Math.max(10, bottom * 0.85))}px`;
+
+  if (langMode === 'bilingual') {
+    mockupSubtitle.innerHTML = '<span style="font-size:0.82em; opacity:0.85; display:block; margin-bottom:2px; font-weight:500;">Hello and welcome to our video!</span><span style="font-weight:700;">Xin chào và chào mừng bạn đến với video của chúng tôi!</span>';
+  } else if (langMode === 'original') {
+    mockupSubtitle.textContent = 'Hello and welcome to our video!';
+  } else {
+    mockupSubtitle.textContent = 'Xin chào, đây là phụ đề mẫu được căn chỉnh tự động theo kích thước và vị trí bạn chọn.';
+  }
 
   if (bgType === 'box') {
     mockupSubtitle.style.backgroundColor = hexToRgba(bgColor, bgOpacity);
@@ -1091,7 +1101,7 @@ function setActivePreset(name) {
 }
 
 function readConfig() {
-  const names = ['subtitleSize', 'subtitleBottomMargin', 'subtitleBackground', 'subtitleBgOpacity', 'subtitleLineLength', 'subtitleFont', 'watermarkPosition', 'watermarkWidthPercent', 'watermarkOpacity', 'ttsProvider', 'voice', 'ttsStyle', 'ttsVolume', 'ttsSpeed', 'originalVolume', 'cleanupDelayMinutes', 'aspectRatio', 'mode'];
+  const names = ['subtitleLanguageMode', 'subtitleSize', 'subtitleBottomMargin', 'subtitleBackground', 'subtitleBgOpacity', 'subtitleLineLength', 'subtitleFont', 'watermarkPosition', 'watermarkWidthPercent', 'watermarkOpacity', 'ttsProvider', 'voice', 'ttsStyle', 'ttsVolume', 'ttsSpeed', 'originalVolume', 'cleanupDelayMinutes', 'aspectRatio', 'mode'];
   const config = {};
   for (const name of names) {
     const el = form.elements[name];

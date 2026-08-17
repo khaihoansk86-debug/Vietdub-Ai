@@ -457,7 +457,9 @@ function parseAiOptions(body) {
   return {
     geminiApiKey: cleanSecret(body.geminiApiKey) || GEMINI_API_KEY,
     geminiModel: cleanModel(body.geminiModel, GEMINI_MODEL),
-    rapidApiKey: cleanSecret(body.rapidApiKey) || RAPIDAPI_KEY
+    rapidApiKey: cleanSecret(body.rapidApiKey) || RAPIDAPI_KEY,
+    glossary: String(body.glossary || '').trim(),
+    subtitleLanguageMode: ['vietnamese', 'bilingual', 'original'].includes(body.subtitleLanguageMode) ? body.subtitleLanguageMode : 'vietnamese'
   };
 }
 
@@ -756,49 +758,52 @@ async function createSrtWithGemini(job, video, srtPath, ai = {}) {
   const audioBase64 = await fs.readFile(audio, 'base64');
   log(job, 'Đang gọi Gemini để tạo SRT.');
 
-  const systemInstruction = 'Ban la chuyen gia transcript, dich phu de va dao dien long tieng tieng Viet. Nhiem vu bat buoc: nghe audio that ky, xac dinh chinh xac loi thoai goc va timestamp, sau do moi dich sang tieng Viet tu nhien. Khong duoc doan noi dung khi khong nghe ro. Chi tra ve SRT hop le.';
-  const prompt = `Tao phu de SRT tieng Viet tu audio dinh kem de dung cho long tieng.
+  const isBilingual = ai.subtitleLanguageMode === 'bilingual';
+  const isOriginal = ai.subtitleLanguageMode === 'original';
+  const glossary = String(ai.glossary || '').trim();
 
-QUY TRINH NOI BO BAT BUOC, KHONG IN RA:
+  let systemInstruction = 'Ban la chuyen gia transcript, dich phu de va dao dien long tieng video chuyen nghiep. Nhiem vu: nghe audio that ky, xac dinh chinh xac loi thoai goc va timestamp.';
+  if (isBilingual) {
+    systemInstruction += ' Xuat phu de SONG NGU 2 TANG (dong 1: cau goc; dong 2: ban dich tieng Viet).';
+  } else if (isOriginal) {
+    systemInstruction += ' Xuat phu de tieng goc nguyen van.';
+  } else {
+    systemInstruction += ' Xuat phu de tieng Viet tu nhien dung de long tieng.';
+  }
+  if (glossary) {
+    systemInstruction += `\nDANH SACH THUAT NGU & TEN RIENG BAT BUOC DUNG CHINH XAC (GLOSSARY):\n${glossary}\nLuu y: Bat buoc dich hoac giu nguyen cac tu khoa tren dung theo yeu cau, khong tu y thay doi hay phien am sai.`;
+  }
+  systemInstruction += ' Chi tra ve SRT hop le, khong markdown hay chu thich.';
+
+  let prompt = isBilingual
+    ? `Tao phu de SRT SONG NGU 2 TANG tu audio dinh kem.
+Moi block SRT bat buoc co DUNG 2 DONG:
+- Dong 1: Loi thoai goc nguyen van trong audio (tieng Trung / tieng Anh / tieng goc).
+- Dong 2: Ban dich tieng Viet chuan xac, tu nhien, thoat y va dung sac thai de long tieng.`
+    : isOriginal
+    ? `Tao phu de SRT tieng goc nguyen van tu audio dinh kem (khong dich).`
+    : `Tao phu de SRT tieng Viet tu audio dinh kem de dung cho long tieng.`;
+
+  prompt += `
+
+QUY TRINH NOI BO BAT BUOC:
 1. Nghe va transcript nguyen van loi thoai goc theo tung cau/ngat hoi.
 2. Kiem tra lai ten rieng, dai tu, so dem, phu dinh, cau hoi/cau cam than.
-3. Chi sau khi transcript dung moi dich sang tieng Viet.
-4. Neu mot doan khong nghe ro, hay viet ban dich ngan theo phan chac chan nghe duoc, khong tu them chi tiet.
+3. Chi sau khi transcript dung moi dich sang tieng Viet tu nhien.
+4. Neu mot doan khong nghe ro, hay viet ban dich ngan theo phan chac chan nghe duoc.
 
-YEU CAU DICH VA NGU CANH:
-- Neu audio la ngon ngu khac, dich thoat y sang tieng Viet tu nhien, dung ngu canh, dung sac thai, khong dich tung chu.
-- Neu audio da la tieng Viet, chep hoac luoc lai cho ro nghia va de long tieng.
-- Giu dung dai tu xung ho, cam xuc, y hai huoc, muc do lich su/than mat neu co.
-- Khong them noi dung khong co trong audio.
-- Khong thay doi y nghia chinh, khong dao nguoc phu dinh/khang dinh, khong bo qua cau noi quan trong.
-- Ten rieng nhu Ross, Rachel, Phoebe, Monica, Joey, Chandler phai giu dung neu nghe thay.
-- Viet nhu loi noi hang ngay, tranh van viet, tranh cau dai hoac trang trong qua muc.
-- Cho phep rut gon y neu can de nghe tu nhien hon, mien la khong sai nghia chinh.
-
-YEU CAU NHIP LONG TIENG:
-- Moi cau phai du ngan de TTS doc kip trong khoang thoi gian cua block.
-- Uu tien cau Viet gon, tu nhien; bo tu dem khong can thiet.
-- Moi block toi da 24 ky tu hoac 6 tu; neu cau dai hay chia nhieu block noi tiep.
-- Neu block ngan hon 1.5 giay, toi da 4 tu tieng Viet va phai tom y that gon.
-- Neu loi dich tieng Viet doc khong kip bang toc do noi tu nhien, bat buoc rut gon y thay vi viet day du.
-- Moi block nen dai 1.0 den 3.2 giay, tranh block qua ngan duoi 0.7 giay tru khi bat buoc.
-- Khong de loi thoai Viet dai hon nhip noi goc; neu can hay tom y.
-- Khong chen so thu tu, timestamp hoac ky tu "-->" vao noi dung phu de.
-- Timestamp phai bam sat thoi diem bat dau va ket thuc cau noi trong audio goc, khong chia deu theo video.
-- Neu giua hai cau co khoang lang, giu khoang lang do; khong keo dai cau truoc de lap khoang trong.
-- Neu nhieu nguoi noi gan nhau, tach block theo tung cau/ngat hoi de long tieng khong bi cham nhip.
-- Uu tien nhip noi tu nhien hon viec nhoi qua nhieu chu vao mot block ngan.
+YEU CAU NHIP LONG TIENG & DONG CHU:
+- Moi cau phai gon de doc kip trong thoi gian block (khoang 1.0 - 3.2 giay).
+- Timestamp bam sat nhip noi thuc te trong audio goc.
+- Dinh dang SRT chuan.
 
 DINH DANG BAT BUOC:
 1
 00:00:00,000 --> 00:00:02,000
-Noi dung tieng Viet.
-
-2
-00:00:02,000 --> 00:00:04,000
-Noi dung tiep theo.
+${isBilingual ? 'Cau thoai goc trong video.\nBan dich tieng Viet tuong ung.' : 'Noi dung tieng Viet.'}
 
 Chi tra ve SRT thuan, khong markdown, khong code fence va khong ghi chu.`;
+
   const response = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${geminiApiKey}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -865,7 +870,12 @@ async function normalizeAndParseSrt(input, output, maxLineLength = 28) {
       index += 1;
     }
 
-    const text = cleanSubtitleText(textLines.join(' '));
+    let text;
+    if (textLines.length >= 2) {
+      text = textLines.map((l) => cleanSubtitleText(l)).filter(Boolean).join('\n');
+    } else {
+      text = cleanSubtitleText(textLines.join(' '));
+    }
     if (text) cues.push({ index: cues.length + 1, start: start.ms, end: end.ms, text });
   }
 
@@ -891,7 +901,9 @@ async function createTtsFiles(job, cues, tts) {
 
   for (const cue of cues) {
     const rawTarget = path.join(job.dir, `tts_raw_${String(cue.index).padStart(4, '0')}.mp3`);
-    const text = cue.text.slice(0, 180);
+    const lines = cue.text.split('\n').map((l) => l.trim()).filter(Boolean);
+    const spokenText = lines.length >= 2 ? lines[lines.length - 1] : cue.text;
+    const text = spokenText.slice(0, 180);
     await synthesizeTtsText(text, rawTarget, tts, job, cue.index);
     const target = await fitTtsToCue(job, cue, rawTarget);
     files.push(target);
@@ -1404,6 +1416,13 @@ function pad(value) {
 }
 
 function wrapSubtitleText(text, maxLineLength = 28) {
+  if (text.includes('\n')) {
+    return text.split('\n').map((part) => wrapSingleLineSubtitle(part, maxLineLength)).join('\n');
+  }
+  return wrapSingleLineSubtitle(text, maxLineLength);
+}
+
+function wrapSingleLineSubtitle(text, maxLineLength = 28) {
   const words = text.split(/\s+/).filter(Boolean);
   const lines = [];
   let line = '';
