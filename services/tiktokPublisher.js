@@ -6,7 +6,19 @@ import { spawn } from 'child_process';
 import { chromium } from 'playwright-core';
 
 function getDataDir() {
-  const dir = process.env.VIETDUB_DATA_DIR || path.join(process.cwd(), 'data');
+  if (process.env.VIETDUB_DATA_DIR) {
+    if (!fs.existsSync(process.env.VIETDUB_DATA_DIR)) {
+      fs.mkdirSync(process.env.VIETDUB_DATA_DIR, { recursive: true });
+    }
+    return process.env.VIETDUB_DATA_DIR;
+  }
+  if (process.platform === 'win32' && process.env.APPDATA) {
+    const appDataPath = path.join(process.env.APPDATA, 'vietdub-ai-local', 'data');
+    if (fs.existsSync(appDataPath)) {
+      return appDataPath;
+    }
+  }
+  const dir = path.join(process.cwd(), 'data');
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
@@ -609,6 +621,7 @@ export async function generateTikTokMetadata(cues = [], originalTitle = '', aiOp
   const cuesText = (cues && cues.length > 0) ? cues.map((c) => c.text).join(' ').slice(0, 3000) : '';
   const fullText = cuesText || String(originalTitle || '').trim();
   const userHashtags = String(aiOptions.extraHashtags || '').trim();
+  const userPrompt = String(aiOptions.captionPrompt || '').trim();
 
   if (!geminiApiKey || !fullText) {
     const defaultTitle = originalTitle ? `Review: ${originalTitle.slice(0, 60)}` : 'Video Lồng Tiếng Hay Nhất';
@@ -625,10 +638,10 @@ export async function generateTikTokMetadata(cues = [], originalTitle = '', aiOp
 """
 ${fullText}
 """
-
-Nhiem vu: Hay viet tieu de va noi dung dang bai TikTok (social media post) cuc ky hap dan, giat tit tuc thi, chuan xu huong TikTok Viet Nam:
+${userPrompt ? `\nYEU CAU PHONG CACH & PROMPT MAU TU NGUOI DUNG (BAT BUOC TUAN THU):\n"${userPrompt}"\n` : ''}
+Nhiem vu: Hay viet tieu de va noi dung dang bai TikTok (social media post) cuc ky hap dan, giat tit tuc thi, chuan xu huong TikTok Viet Nam theo dung phong cach nguoi dung yeu cau:
 1. "hook": 1 cau giat tit gay to mo, ngan gon duoi 50 ky tu (co icon phu hop).
-2. "caption": 1-2 cau tom tat kich tinh hoac loi keu goi xem video (duoi 120 ky tu).
+2. "caption": 1-2 cau tom tat kich tinh hoac loi keu goi xem video (duoi 150 ky tu).
 3. "hashtags": Danh sach 5-7 hashtags hot nhat (#xuhuong, #fyp va cac hashtag sat voi noi dung). ${userHashtags ? `Gom ca cac hashtag bat buoc: ${userHashtags}` : ''}
 
 Tra ve DUY NHAT dinh dang JSON hop le theo mau sau, khong markdown fence, khong chu thich:
@@ -1011,8 +1024,10 @@ export function scanWarehouseVideos(folderPath) {
 
 export async function distributeWarehouseVideos({
   folderPath,
+  accountIds = [],
   postMode = 'draft',
   extraHashtags = '',
+  captionPrompt = '',
   distributionStrategy = 'distinct_random',
   geminiApiKey = '',
   geminiModel = 'gemini-3.8-flash',
@@ -1028,15 +1043,20 @@ export async function distributeWarehouseVideos({
   if (scan.freshCount === 0) {
     return {
       ok: false,
-      message: `Toàn bộ ${scan.totalCount} video trong kho đã được đăng trước đó! Không còn video mới nào để đăng. Hãy thêm video mới vào kho.`
+      message: `Toàn bộ ${scan.totalCount} video trong kho đã được đăng trước đó! Không còn video mới nào để đăng. Hãy thêm video mới vào kho hoặc bấm "Xóa Toàn Bộ Lịch Sử" để đăng lại.`
     };
   }
 
-  const accounts = loadTikTokAccounts();
-  const selectedAccounts = accounts.filter((a) => a.selected && a.loggedIn);
+  const allAccounts = loadTikTokAccounts();
+  let selectedAccounts = [];
+  if (Array.isArray(accountIds) && accountIds.length > 0) {
+    selectedAccounts = allAccounts.filter((a) => accountIds.includes(a.id));
+  } else {
+    selectedAccounts = allAccounts.filter((a) => a.selected);
+  }
 
   if (selectedAccounts.length === 0) {
-    return { ok: false, message: 'Chưa có tài khoản TikTok nào đã đăng nhập và được chọn để đăng bài.' };
+    return { ok: false, message: 'Chưa có tài khoản TikTok nào được chọn để đăng bài. Vui lòng tích chọn ít nhất 1 kênh trong danh sách quản lý.' };
   }
 
   // Shuffle fresh videos randomly (Fisher-Yates)
@@ -1047,57 +1067,111 @@ export async function distributeWarehouseVideos({
   }
 
   log(`📦 [Kho Video] Tìm thấy ${scan.totalCount} video (${scan.publishedCount} đã đăng bỏ qua, ${scan.freshCount} video mới sẵn sàng).`);
-  log(`🎯 [Kho Video] Đang phân bổ ngẫu nhiên lên ${selectedAccounts.length} kênh TikTok đã chọn...`);
 
   const results = [];
-  const limit = distributionStrategy === 'distinct_random'
-    ? Math.min(shuffledVideos.length, selectedAccounts.length)
-    : shuffledVideos.length;
+  if (distributionStrategy === 'distinct_random') {
+    // 🎯 STRICT 1:1 DISTRIBUTION:
+    // Each selected channel gets EXACTLY 1 unique video. Limit is strictly min(videos, accounts).
+    const targetAccounts = [...selectedAccounts];
+    const limit = Math.min(shuffledVideos.length, targetAccounts.length);
+    log(`🎯 [Kho Video - Phân bổ 1:1] Phân phối ${limit} video cho ${limit} kênh TikTok đã chọn (mỗi kênh nhận đúng 1 video riêng biệt, tuyệt đối không trùng lặp)...`);
 
-  for (let i = 0; i < limit; i++) {
-    const video = shuffledVideos[i];
-    const account = selectedAccounts[i % selectedAccounts.length];
+    for (let i = 0; i < limit; i++) {
+      const video = shuffledVideos[i];
+      const account = targetAccounts[i];
 
-    log(`\n======================================================`);
-    log(`[${i + 1}/${limit}] Đang xử lý video: "${video.name}" -> Kênh: "${account.name}" (${account.username})`);
+      log(`\n======================================================`);
+      log(`[${i + 1}/${limit}] [Phân bổ 1:1] Video: "${video.name}" -> Gán độc quyền cho Kênh: "${account.name}" (${account.username || account.name})`);
 
-    // AI Generate metadata from filename
-    const cleanTitle = path.basename(video.name, path.extname(video.name)).replace(/[-_]/g, ' ');
-    log(`🤖 [AI Gemini] Đang tạo tiêu đề & caption giật tít cho video...`);
-    const metadata = await generateTikTokMetadata([], cleanTitle, {
-      geminiApiKey: geminiApiKey || process.env.GEMINI_API_KEY,
-      geminiModel: geminiModel || process.env.GEMINI_MODEL,
-      extraHashtags
-    });
-    log(`✨ [AI Gemini] Tiêu đề: "${metadata.title}"`);
-
-    try {
-      await uploadSingleAccount({
-        account,
-        videoPath: video.path,
-        caption: metadata.caption,
-        hashtags: metadata.hashtags,
-        postMode,
-        log
+      const cleanTitle = path.basename(video.name, path.extname(video.name)).replace(/[-_]/g, ' ');
+      log(`🤖 [AI Gemini] Đang tạo tiêu đề & caption theo prompt mẫu...`);
+      const metadata = await generateTikTokMetadata([], cleanTitle, {
+        geminiApiKey: geminiApiKey || process.env.GEMINI_API_KEY,
+        geminiModel: geminiModel || process.env.GEMINI_MODEL,
+        extraHashtags,
+        captionPrompt
       });
-      recordPublishedVideo({
-        videoPath: video.path,
-        account,
-        caption: metadata.caption,
-        hashtags: metadata.hashtags,
-        postMode,
-        status: 'success'
-      });
-      results.push({ video: video.name, account: account.name, status: 'success' });
-      log(`🎉 Hoàn tất đăng video "${video.name}" lên kênh "${account.name}"!`);
-    } catch (err) {
-      log(`❌ Lỗi đăng video "${video.name}" lên kênh "${account.name}": ${err.message}`);
-      results.push({ video: video.name, account: account.name, status: 'error', error: err.message });
+      log(`✨ [AI Gemini] Tiêu đề: "${metadata.title}"`);
+
+      try {
+        await uploadSingleAccount({
+          account,
+          videoPath: video.path,
+          caption: metadata.caption,
+          hashtags: metadata.hashtags,
+          postMode,
+          log
+        });
+        recordPublishedVideo({
+          videoPath: video.path,
+          account,
+          caption: metadata.caption,
+          hashtags: metadata.hashtags,
+          postMode,
+          status: 'success'
+        });
+        results.push({ video: video.name, account: account.name, status: 'success' });
+        log(`🎉 Hoàn tất phân bổ video "${video.name}" lên kênh "${account.name}"!`);
+      } catch (err) {
+        log(`❌ Lỗi đăng video "${video.name}" lên kênh "${account.name}": ${err.message}`);
+        results.push({ video: video.name, account: account.name, status: 'error', error: err.message });
+      }
+
+      if (i < limit - 1) {
+        log('⏳ Đang đợi 6 giây trước khi chuyển sang kênh tiếp theo...');
+        await new Promise((r) => setTimeout(r, 6000));
+      }
     }
+  } else {
+    // Round-robin or broadcast
+    const limit = shuffledVideos.length;
+    log(`📢 [Kho Video] Phân bổ toàn bộ ${limit} video xoay vòng cho ${selectedAccounts.length} kênh TikTok đã chọn...`);
 
-    if (i < limit - 1) {
-      log('⏳ Đang đợi 6 giây trước khi chuyển sang kênh tiếp theo...');
-      await new Promise((r) => setTimeout(r, 6000));
+    for (let i = 0; i < limit; i++) {
+      const video = shuffledVideos[i];
+      const account = selectedAccounts[i % selectedAccounts.length];
+
+      log(`\n======================================================`);
+      log(`[${i + 1}/${limit}] Video: "${video.name}" -> Kênh: "${account.name}" (${account.username || account.name})`);
+
+      const cleanTitle = path.basename(video.name, path.extname(video.name)).replace(/[-_]/g, ' ');
+      log(`🤖 [AI Gemini] Đang tạo tiêu đề & caption theo prompt mẫu...`);
+      const metadata = await generateTikTokMetadata([], cleanTitle, {
+        geminiApiKey: geminiApiKey || process.env.GEMINI_API_KEY,
+        geminiModel: geminiModel || process.env.GEMINI_MODEL,
+        extraHashtags,
+        captionPrompt
+      });
+      log(`✨ [AI Gemini] Tiêu đề: "${metadata.title}"`);
+
+      try {
+        await uploadSingleAccount({
+          account,
+          videoPath: video.path,
+          caption: metadata.caption,
+          hashtags: metadata.hashtags,
+          postMode,
+          log
+        });
+        recordPublishedVideo({
+          videoPath: video.path,
+          account,
+          caption: metadata.caption,
+          hashtags: metadata.hashtags,
+          postMode,
+          status: 'success'
+        });
+        results.push({ video: video.name, account: account.name, status: 'success' });
+        log(`🎉 Hoàn tất đăng video "${video.name}" lên kênh "${account.name}"!`);
+      } catch (err) {
+        log(`❌ Lỗi đăng video "${video.name}" lên kênh "${account.name}": ${err.message}`);
+        results.push({ video: video.name, account: account.name, status: 'error', error: err.message });
+      }
+
+      if (i < limit - 1) {
+        log('⏳ Đang đợi 6 giây trước khi chuyển sang kênh tiếp theo...');
+        await new Promise((r) => setTimeout(r, 6000));
+      }
     }
   }
 

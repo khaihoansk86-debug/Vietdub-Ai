@@ -394,6 +394,13 @@
                     <input name="tiktokHashtags" id="tiktokHashtags" type="text" placeholder="#xuhuong #fyp #review #skincare">
                   </label>
                 </div>
+
+                <div class="control-row" style="margin-top: 10px;">
+                  <label class="field" style="width: 100%;">
+                    <span>🤖 Prompt Mẫu Cho AI Viết Bài Đăng (Caption & Tiêu Đề)</span>
+                    <textarea name="tiktokCaptionPrompt" id="tiktokCaptionPrompt" rows="2" placeholder="Ví dụ: Viết tiêu đề và caption TikTok hấp dẫn, giật tít, kích thích người xem tương tác (thả tim, bình luận) và tò mò xem hết video. Viết ngắn gọn dưới 150 ký tự kèm kêu gọi hành động..."></textarea>
+                  </label>
+                </div>
                 <p class="helper-text" style="margin-top: 6px; font-size: 12px; opacity: 0.75;">
                   💡 <em>Gợi ý: Chế độ <strong>Phân bổ ngẫu nhiên 1:1</strong> đảm bảo khi có 10 video và 10 kênh, mỗi kênh sẽ nhận 1 video duy nhất với tiêu đề và caption riêng biệt do AI tạo, tránh trùng lặp nội dung tuyệt đối.</em>
                 </p>
@@ -753,8 +760,15 @@
           </div>
         </div>
 
-        <div class="tiktok-modal-footer" style="justify-content: space-between;">
-          <button type="button" class="secondary tiktok-btn-sm" id="clearTikTokHistoryBtn" style="color: #f87171; border-color: rgba(248, 113, 113, 0.4);">🗑️ Xóa Toàn Bộ Lịch Sử</button>
+        <div class="tiktok-modal-footer" style="justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+          <div id="clearHistoryNormalGroup">
+            <button type="button" class="secondary tiktok-btn-sm" id="clearTikTokHistoryBtn" style="color: #f87171; border-color: rgba(248, 113, 113, 0.4);">🗑️ Xóa Toàn Bộ Lịch Sử</button>
+          </div>
+          <div id="clearHistoryConfirmGroup" class="hidden" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+            <span style="font-size: 0.84rem; color: #fca5a5;">⚠️ Xác nhận xóa sạch lịch sử?</span>
+            <button type="button" class="primary tiktok-btn-sm" id="confirmClearHistoryInlineBtn" style="background: #ef4444; border-color: #dc2626; color: white;">🗑️ Đồng Ý Xóa</button>
+            <button type="button" class="secondary tiktok-btn-sm" id="cancelClearHistoryInlineBtn">Hủy</button>
+          </div>
           <button type="button" class="secondary tiktok-btn-sm" id="closeTikTokHistoryModalBtn2">Đóng</button>
         </div>
       </div>

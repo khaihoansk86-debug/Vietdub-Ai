@@ -506,8 +506,10 @@ app.get('/api/tiktok/warehouse/events', (req, res) => {
 app.post('/api/tiktok/warehouse/distribute', async (req, res) => {
   try {
     const folderPath = String(req.body?.folderPath || '').trim();
+    const accountIds = Array.isArray(req.body?.accountIds) ? req.body.accountIds : [];
     const postMode = req.body?.postMode || 'draft';
     const extraHashtags = String(req.body?.extraHashtags || '').trim();
+    const captionPrompt = String(req.body?.captionPrompt || '').trim();
     const distributionStrategy = req.body?.distributionStrategy || 'distinct_random';
 
     // Run async background distribution
@@ -515,8 +517,10 @@ app.post('/api/tiktok/warehouse/distribute', async (req, res) => {
 
     distributeWarehouseVideos({
       folderPath,
+      accountIds,
       postMode,
       extraHashtags,
+      captionPrompt,
       distributionStrategy,
       geminiApiKey: req.body?.geminiApiKey || GEMINI_API_KEY,
       geminiModel: req.body?.geminiModel || GEMINI_MODEL,
@@ -612,7 +616,8 @@ async function processJob(job, payload) {
       const metadata = await generateTikTokMetadata(cues, job.title || '', {
         geminiApiKey: payload.ai.geminiApiKey,
         geminiModel: payload.ai.geminiModel,
-        extraHashtags: payload.tiktok.extraHashtags
+        extraHashtags: payload.tiktok.extraHashtags,
+        captionPrompt: payload.tiktok.captionPrompt
       });
       log(job, `📱 [TikTok] AI đã tạo tiêu đề: "${metadata.title}"`);
       await uploadToMultipleAccounts({
@@ -780,7 +785,8 @@ function parseTikTokOptions(body) {
     mode,
     distributionStrategy,
     skipAlreadyPublished,
-    extraHashtags: String(body.tiktokHashtags || '').trim()
+    extraHashtags: String(body.tiktokHashtags || '').trim(),
+    captionPrompt: String(body.tiktokCaptionPrompt || '').trim()
   };
 }
 

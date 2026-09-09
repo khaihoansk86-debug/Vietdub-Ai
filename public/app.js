@@ -2027,6 +2027,18 @@ const tiktokHistoryListContainer = document.querySelector('#tiktokHistoryListCon
 const closeTikTokHistoryModalBtn = document.querySelector('#closeTikTokHistoryModalBtn');
 const closeTikTokHistoryModalBtn2 = document.querySelector('#closeTikTokHistoryModalBtn2');
 const clearTikTokHistoryBtn = document.querySelector('#clearTikTokHistoryBtn');
+const tiktokCaptionPrompt = document.querySelector('#tiktokCaptionPrompt');
+const clearHistoryNormalGroup = document.querySelector('#clearHistoryNormalGroup');
+const clearHistoryConfirmGroup = document.querySelector('#clearHistoryConfirmGroup');
+const confirmClearHistoryInlineBtn = document.querySelector('#confirmClearHistoryInlineBtn');
+const cancelClearHistoryInlineBtn = document.querySelector('#cancelClearHistoryInlineBtn');
+
+if (tiktokCaptionPrompt) {
+  tiktokCaptionPrompt.value = localStorage.getItem('vietdub-tiktok-caption-prompt') || '';
+  tiktokCaptionPrompt.addEventListener('input', () => {
+    localStorage.setItem('vietdub-tiktok-caption-prompt', tiktokCaptionPrompt.value);
+  });
+}
 
 // Auto-sync warehouse folder with output directory if available
 if (warehouseFolderPath && outputDirInput && outputDirInput.value) {
@@ -2085,6 +2097,9 @@ async function scanWarehouse() {
           </span>
         ` : ''}
       `;
+      if (tiktokViewHistoryBtn) {
+        tiktokViewHistoryBtn.innerHTML = `<span>📜</span> Lịch Sử Đã Đăng (${publishedCount || 0})`;
+      }
     } else {
       warehouseScanStatus.innerHTML = `<span style="color: #f87171;">⚠️ ${escapeHtml(data.message)}</span>`;
     }
@@ -2163,7 +2178,9 @@ warehouseDistributeBtn?.addEventListener('click', async () => {
 
   const postMode = document.querySelector('#tiktokPostMode')?.value || 'draft';
   const extraHashtags = document.querySelector('#tiktokHashtags')?.value || '';
+  const captionPrompt = document.querySelector('#tiktokCaptionPrompt')?.value?.trim() || '';
   const distributionStrategy = document.querySelector('#tiktokDistributionStrategy')?.value || 'distinct_random';
+  const accountIds = Array.from(selectedCards).map((c) => c.dataset.id).filter(Boolean);
 
   try {
     const res = await fetch('/api/tiktok/warehouse/distribute', {
@@ -2171,8 +2188,10 @@ warehouseDistributeBtn?.addEventListener('click', async () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         folderPath,
+        accountIds,
         postMode,
         extraHashtags,
+        captionPrompt,
         distributionStrategy
       })
     });
@@ -2194,8 +2213,13 @@ warehouseDistributeBtn?.addEventListener('click', async () => {
   }
 });
 
-// History Modal Functions
+function resetClearHistoryInline() {
+  if (clearHistoryConfirmGroup) clearHistoryConfirmGroup.classList.add('hidden');
+  if (clearHistoryNormalGroup) clearHistoryNormalGroup.classList.remove('hidden');
+}
+
 async function openTikTokHistoryModal() {
+  resetClearHistoryInline();
   if (tiktokHistoryModal) tiktokHistoryModal.classList.remove('hidden');
   if (tiktokHistoryListContainer) {
     tiktokHistoryListContainer.innerHTML = '<div style="text-align: center; color: var(--muted); padding: 24px;">⏳ Đang tải lịch sử đã đăng...</div>';
@@ -2203,7 +2227,10 @@ async function openTikTokHistoryModal() {
   try {
     const res = await fetch('/api/tiktok/history');
     const data = await res.json();
+    const modalTitle = tiktokHistoryModal?.querySelector('.tiktok-modal-title');
     if (data.ok && Array.isArray(data.history) && data.history.length > 0) {
+      if (modalTitle) modalTitle.textContent = `Lịch Sử Đã Đăng TikTok (${data.history.length})`;
+      if (tiktokViewHistoryBtn) tiktokViewHistoryBtn.innerHTML = `<span>📜</span> Lịch Sử Đã Đăng (${data.history.length})`;
       tiktokHistoryListContainer.innerHTML = `
         <table class="tiktok-history-table">
           <thead>
@@ -2236,6 +2263,8 @@ async function openTikTokHistoryModal() {
         </table>
       `;
     } else {
+      if (modalTitle) modalTitle.textContent = 'Lịch Sử Đã Đăng TikTok (0)';
+      if (tiktokViewHistoryBtn) tiktokViewHistoryBtn.innerHTML = '<span>📜</span> Lịch Sử Đã Đăng (0)';
       tiktokHistoryListContainer.innerHTML = `
         <div style="text-align: center; color: var(--muted); padding: 36px 16px;">
           <span style="font-size: 2rem; display: block; margin-bottom: 8px;">📭</span>
@@ -2251,6 +2280,7 @@ async function openTikTokHistoryModal() {
 }
 
 function closeTikTokHistoryModal() {
+  resetClearHistoryInline();
   if (tiktokHistoryModal) tiktokHistoryModal.classList.add('hidden');
 }
 
@@ -2261,25 +2291,33 @@ tiktokHistoryModal?.addEventListener('click', (e) => {
   if (e.target === tiktokHistoryModal) closeTikTokHistoryModal();
 });
 
-clearTikTokHistoryBtn?.addEventListener('click', async () => {
-  const confirmed = await showCustomConfirm({
-    title: 'Xác Nhận Xóa Toàn Bộ Lịch Sử',
-    message: 'Bạn có chắc muốn xóa toàn bộ lịch sử đã đăng? Sau khi xóa, các video cũ trong kho sẽ có thể được bốc lại để đăng tiếp.',
-    confirmText: 'Xác Nhận Xóa',
-    icon: '🗑️',
-    isDanger: true
-  });
-  if (!confirmed) return;
+clearTikTokHistoryBtn?.addEventListener('click', () => {
+  if (clearHistoryNormalGroup) clearHistoryNormalGroup.classList.add('hidden');
+  if (clearHistoryConfirmGroup) clearHistoryConfirmGroup.classList.remove('hidden');
+});
 
+cancelClearHistoryInlineBtn?.addEventListener('click', () => {
+  resetClearHistoryInline();
+});
+
+confirmClearHistoryInlineBtn?.addEventListener('click', async () => {
+  confirmClearHistoryInlineBtn.disabled = true;
+  confirmClearHistoryInlineBtn.textContent = '⏳ Đang xóa...';
   try {
     const res = await fetch('/api/tiktok/history', { method: 'DELETE' });
     const data = await res.json();
     if (data.ok) {
+      resetClearHistoryInline();
       openTikTokHistoryModal();
       scanWarehouse();
+    } else {
+      alert('Lỗi xóa lịch sử: ' + (data.message || 'Không thể xóa'));
     }
   } catch (err) {
     alert('Lỗi xóa lịch sử: ' + err.message);
+  } finally {
+    confirmClearHistoryInlineBtn.disabled = false;
+    confirmClearHistoryInlineBtn.textContent = '🗑️ Đồng Ý Xóa';
   }
 });
 

@@ -1361,6 +1361,10 @@ button.secondary:hover:not(:disabled) {
   display: none !important;
 }
 
+#tiktokConfirmModal {
+  z-index: 10005 !important;
+}
+
 @keyframes fadeInModal {
   from { opacity: 0; }
   to { opacity: 1; }
