@@ -707,28 +707,28 @@
       </div>
     </div>
 
-    <!-- TIKTOK CUSTOM CONFIRM MODAL (DELETE) -->
+    <!-- TIKTOK CUSTOM CONFIRM MODAL -->
     <div id="tiktokConfirmModal" class="tiktok-modal-backdrop hidden">
-      <div class="tiktok-modal-card" style="max-width: 440px;">
+      <div class="tiktok-modal-card" style="max-width: 500px;">
         <div class="tiktok-modal-header">
           <div style="display: flex; align-items: center; gap: 10px;">
-            <span style="font-size: 1.4rem;">🗑️</span>
+            <span id="tiktokConfirmModalIcon" style="font-size: 1.4rem;">❓</span>
             <div>
-              <h3 id="tiktokConfirmModalTitle" class="tiktok-modal-title">Xác Nhận Xóa Kênh</h3>
+              <h3 id="tiktokConfirmModalTitle" class="tiktok-modal-title">Xác Nhận Thao Tác</h3>
             </div>
           </div>
           <button type="button" id="closeTikTokConfirmModalBtn" class="tiktok-modal-close" title="Đóng">&times;</button>
         </div>
 
         <div class="tiktok-modal-body" style="padding: 20px 22px;">
-          <p id="tiktokConfirmModalDesc" style="color: #e2e8f0; font-size: 0.9rem; line-height: 1.5; margin: 0;">
-            Bạn có chắc chắn muốn xóa kênh TikTok này khỏi danh sách quản lý?
-          </p>
+          <div id="tiktokConfirmModalDesc" style="color: #e2e8f0; font-size: 0.9rem; line-height: 1.55; margin: 0;">
+            Bạn có chắc chắn muốn thực hiện thao tác này?
+          </div>
         </div>
 
         <div class="tiktok-modal-footer" style="justify-content: flex-end; gap: 10px;">
-          <button type="button" class="secondary tiktok-btn-sm" id="cancelTikTokConfirmModalBtn">Hủy</button>
-          <button type="button" class="tiktok-btn-sm" id="confirmTikTokConfirmModalBtn" style="background: #ef4444; color: #ffffff; border: 1px solid #dc2626; font-weight: 600;">Xác Nhận Xóa</button>
+          <button type="button" class="secondary tiktok-btn-sm" id="cancelTikTokConfirmModalBtn">Hủy Bỏ</button>
+          <button type="button" class="tiktok-btn-sm" id="confirmTikTokConfirmModalBtn" style="font-weight: 600;">Xác Nhận</button>
         </div>
       </div>
     </div>

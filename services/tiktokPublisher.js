@@ -670,9 +670,42 @@ Tra ve DUY NHAT dinh dang JSON hop le theo mau sau, khong markdown fence, khong 
   }
 }
 
+// Helper to dismiss guide, sound recommendations, or copyright check popups
+async function dismissTikTokStudioPopups(page, log) {
+  try {
+    const popupSelectors = [
+      'button:has-text("Got it")',
+      'button:has-text("Đã hiểu")',
+      'button:has-text("Turn on")',
+      'button:has-text("Bật")',
+      'button:has-text("Cancel")',
+      'button:has-text("Hủy")',
+      '.common-modal-close',
+      'button[aria-label="Close"]',
+      'button[aria-label="Đóng"]',
+      '.TUXModal .common-modal-close'
+    ];
+    for (const sel of popupSelectors) {
+      const loc = page.locator(sel).first();
+      if (await loc.isVisible().catch(() => false)) {
+        if (log) log(`📱 [TikTok] Đang đóng popup thông báo: "${sel}"...`);
+        await loc.click().catch(() => {});
+        await page.waitForTimeout(400);
+      }
+    }
+    await page.keyboard.press('Escape').catch(() => {});
+  } catch {}
+}
+
 export async function uploadSingleAccount({ account, videoPath, caption, hashtags, postMode, log }) {
   const channel = await detectBrowserChannel();
   const profileDir = getAccountProfileDir(account);
+
+  // Clean lingering SingletonLock if previous session closed unexpectedly
+  const lockFile = path.join(profileDir, 'SingletonLock');
+  if (fs.existsSync(lockFile)) {
+    try { fs.unlinkSync(lockFile); } catch {}
+  }
 
   log(`📱 [TikTok - ${account.name}] Đang khởi chạy Google Chrome...`);
 
@@ -708,18 +741,20 @@ export async function uploadSingleAccount({ account, videoPath, caption, hashtag
   const page = context.pages().length > 0 ? context.pages()[0] : await context.newPage();
 
   try {
-    log(`📱 [TikTok - ${account.name}] Đang mở TikTok Creator Studio Upload...`);
-    await page.goto('https://www.tiktok.com/creator-center/upload?from=upload', {
+    log(`📱 [TikTok - ${account.name}] Đang mở TikTok Studio Upload...`);
+    await page.goto('https://www.tiktok.com/tiktokstudio/upload?from=upload', {
       waitUntil: 'domcontentloaded',
       timeout: 45000
     });
 
-    await page.waitForTimeout(3000);
+    await page.waitForTimeout(3500);
     if (page.url().includes('/login')) {
       throw new Error(`Tài khoản "${account.name}" chưa đăng nhập hoặc phiên đã hết hạn.`);
     }
 
     log(`📱 [TikTok - ${account.name}] Đang nạp video vào khung tải lên...`);
+    await dismissTikTokStudioPopups(page, log);
+
     let uploadTarget = page;
     const uploadFrameElement = await page.$('iframe[src*="upload"]');
     if (uploadFrameElement) {
@@ -727,62 +762,71 @@ export async function uploadSingleAccount({ account, videoPath, caption, hashtag
       if (frame) uploadTarget = frame;
     }
 
-    const fileInput = await uploadTarget.waitForSelector('input[type="file"]', { timeout: 30000 });
+    // TikTok input[type="file"] is attached with style="display: none;"
+    // We MUST use attached state wait instead of visible
+    const fileInput = uploadTarget.locator('input[type="file"][accept*="video"], input[type="file"]').first();
+    await fileInput.waitFor({ state: 'attached', timeout: 35000 });
     await fileInput.setInputFiles(videoPath);
-    log(`📱 [TikTok - ${account.name}] Đã nạp file video. Đang tải lên máy chủ TikTok...`);
+    log(`📱 [TikTok - ${account.name}] Đã nạp file video thành công! Đang tải lên máy chủ TikTok...`);
 
-    await page.waitForTimeout(8000);
+    await page.waitForTimeout(6000);
+    for (let attempt = 0; attempt < 3; attempt++) {
+      await dismissTikTokStudioPopups(page, log);
+      await page.waitForTimeout(400);
+    }
 
-    const tagString = hashtags.map((t) => (t.startsWith('#') ? t : `#${t}`)).join(' ');
+    const tagString = (hashtags || []).map((t) => (t.startsWith('#') ? t : `#${t}`)).join(' ');
     const fullPostText = `${caption}\n\n${tagString}`.trim();
 
     log(`📱 [TikTok - ${account.name}] Đang nhập Caption & Hashtags...`);
-    const editorSelector = 'div[contenteditable="true"], .DraftEditor-root, div[role="textbox"]';
+    const editorSelector = 'div.notranslate.public-DraftEditor-content, div[contenteditable="true"], .DraftEditor-root, div[role="textbox"], textarea';
     try {
-      const editor = await uploadTarget.waitForSelector(editorSelector, { timeout: 20000 });
+      const editor = uploadTarget.locator(editorSelector).first();
+      await editor.waitFor({ state: 'visible', timeout: 25000 });
       await editor.click();
       await page.keyboard.press('Control+A');
       await page.keyboard.press('Backspace');
-      await page.keyboard.type(fullPostText, { delay: 25 });
-    } catch {
-      log(`📱 [TikTok - ${account.name}] Cảnh báo: Không thể nhập tự động vào khung caption.`);
+      await page.keyboard.type(fullPostText, { delay: 20 });
+      log(`📱 [TikTok - ${account.name}] Đã hoàn tất nhập Caption & Hashtags.`);
+    } catch (editorErr) {
+      log(`⚠️ [TikTok - ${account.name}] Cảnh báo không thể tự động gõ caption: ${editorErr.message}`);
     }
 
-    await page.waitForTimeout(3000);
+    await page.waitForTimeout(2500);
+    await dismissTikTokStudioPopups(page, log);
 
-    if (postMode === 'draft') {
-      log(`📱 [TikTok - ${account.name}] Đang lưu vào mục Bản Nháp (Draft)...`);
-      const buttons = await uploadTarget.$$('button');
-      let clicked = false;
-      for (const btn of buttons) {
-        const text = (await btn.innerText()).toLowerCase();
-        if (text.includes('draft') || text.includes('nháp')) {
-          await btn.click();
-          clicked = true;
-          log(`📱 [TikTok - ${account.name}] Đã bấm nút "Lưu bản nháp".`);
-          break;
-        }
+    if (postMode === 'public') {
+      log(`📱 [TikTok - ${account.name}] Đang thực hiện Đăng Công Khai (Post)...`);
+      const postBtn = uploadTarget.locator('button.Button__root--type-primary:has-text("Post"), button:has-text("Đăng")').first();
+      await postBtn.waitFor({ state: 'visible', timeout: 20000 });
+
+      // Wait until upload finishes and button is enabled
+      for (let w = 0; w < 30; w++) {
+        if (await postBtn.isEnabled().catch(() => false)) break;
+        await page.waitForTimeout(1000);
       }
-      if (!clicked) log(`📱 [TikTok - ${account.name}] Lưu bản nháp tự động hoàn tất.`);
+
+      await postBtn.click();
+      log(`📱 [TikTok - ${account.name}] Đã bấm nút "Đăng video". Đang hoàn tất...`);
+      await page.waitForTimeout(6000);
     } else {
-      log(`📱 [TikTok - ${account.name}] Đang thực hiện Đăng Công Khai (Public Post)...`);
-      const buttons = await uploadTarget.$$('button');
-      for (const btn of buttons) {
-        const text = (await btn.innerText()).toLowerCase();
-        if (text.trim() === 'post' || text.trim() === 'đăng') {
-          await btn.click();
-          log(`📱 [TikTok - ${account.name}] Đã bấm nút "Đăng video".`);
-          break;
-        }
+      // Draft mode
+      log(`📱 [TikTok - ${account.name}] Đang lưu vào mục Bản Nháp (Draft)...`);
+      const draftBtn = uploadTarget.locator('button:has-text("Draft"), button:has-text("Nháp"), button:has-text("Save draft"), button:has-text("Lưu bản nháp")').first();
+      if (await draftBtn.isVisible().catch(() => false)) {
+        await draftBtn.click().catch(() => {});
+        log(`📱 [TikTok - ${account.name}] Đã bấm nút "Lưu bản nháp".`);
+      } else {
+        log(`📱 [TikTok - ${account.name}] Video đã được nạp thành công và lưu tự động vào mục Bản Nháp của TikTok Studio.`);
       }
+      await page.waitForTimeout(4000);
     }
 
-    await page.waitForTimeout(6000);
-    log(`🎉 [TikTok - ${account.name}] Đã đăng tải thành công (${postMode === 'draft' ? 'Đã lưu bản nháp' : 'Đã đăng công khai'})!`);
+    log(`🎉 [TikTok - ${account.name}] Hoàn tất đăng tải video thành công (${postMode === 'public' ? 'Đã đăng công khai' : 'Đã lưu bản nháp'})!`);
     await context.close();
     return { success: true, account: account.name };
   } catch (err) {
-    await context.close();
+    try { await context.close(); } catch {}
     throw err;
   }
 }

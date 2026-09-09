@@ -1713,6 +1713,7 @@ tiktokInputModal?.addEventListener('click', (e) => {
 
 // Custom Confirm Modal Helper
 const tiktokConfirmModal = document.querySelector('#tiktokConfirmModal');
+const tiktokConfirmModalIcon = document.querySelector('#tiktokConfirmModalIcon');
 const tiktokConfirmModalTitle = document.querySelector('#tiktokConfirmModalTitle');
 const tiktokConfirmModalDesc = document.querySelector('#tiktokConfirmModalDesc');
 const closeTikTokConfirmModalBtn = document.querySelector('#closeTikTokConfirmModalBtn');
@@ -1721,11 +1722,38 @@ const confirmTikTokConfirmModalBtn = document.querySelector('#confirmTikTokConfi
 
 let customConfirmResolver = null;
 
-function showCustomConfirm({ title = 'Xác nhận', message = 'Bạn có chắc chắn muốn thực hiện thao tác này?' } = {}) {
+function showCustomConfirm({
+  title = 'Xác Nhận',
+  message = 'Bạn có chắc chắn muốn thực hiện thao tác này?',
+  confirmText = 'Xác Nhận',
+  cancelText = 'Hủy Bỏ',
+  icon = '❓',
+  isDanger = false
+} = {}) {
   return new Promise((resolve) => {
     customConfirmResolver = resolve;
     if (tiktokConfirmModalTitle) tiktokConfirmModalTitle.textContent = title;
-    if (tiktokConfirmModalDesc) tiktokConfirmModalDesc.textContent = message;
+    if (tiktokConfirmModalIcon) tiktokConfirmModalIcon.textContent = icon;
+    if (tiktokConfirmModalDesc) {
+      if (typeof message === 'string' && (message.includes('<') || message.includes('\n'))) {
+        tiktokConfirmModalDesc.innerHTML = message.includes('<') ? message : message.replace(/\n/g, '<br>');
+      } else {
+        tiktokConfirmModalDesc.textContent = message;
+      }
+    }
+    if (cancelTikTokConfirmModalBtn) cancelTikTokConfirmModalBtn.textContent = cancelText;
+    if (confirmTikTokConfirmModalBtn) {
+      confirmTikTokConfirmModalBtn.textContent = confirmText;
+      if (isDanger) {
+        confirmTikTokConfirmModalBtn.style.background = '#ef4444';
+        confirmTikTokConfirmModalBtn.style.color = '#ffffff';
+        confirmTikTokConfirmModalBtn.style.border = '1px solid #dc2626';
+      } else {
+        confirmTikTokConfirmModalBtn.style.background = 'var(--brand-gradient, linear-gradient(135deg, #0ea5e9 0%, #10b981 100%))';
+        confirmTikTokConfirmModalBtn.style.color = '#ffffff';
+        confirmTikTokConfirmModalBtn.style.border = 'none';
+      }
+    }
     tiktokConfirmModal?.classList.remove('hidden');
   });
 }
@@ -1917,7 +1945,10 @@ function attachTikTokAccountListeners() {
       const currentName = currentCard?.querySelector('.tiktok-account-name')?.textContent || 'kênh này';
       const confirmed = await showCustomConfirm({
         title: 'Xác Nhận Xóa Kênh',
-        message: `Bạn có chắc muốn xóa "${currentName}" khỏi danh sách quản lý? Toàn bộ phiên đăng nhập của kênh này sẽ được giải phóng an toàn.`
+        message: `Bạn có chắc muốn xóa "${currentName}" khỏi danh sách quản lý? Toàn bộ phiên đăng nhập của kênh này sẽ được giải phóng an toàn.`,
+        confirmText: 'Xác Nhận Xóa',
+        icon: '🗑️',
+        isDanger: true
       });
       if (!confirmed) return;
       try {
@@ -2054,6 +2085,36 @@ async function scanWarehouse() {
 
 warehouseScanBtn?.addEventListener('click', scanWarehouse);
 
+// Realtime Warehouse Distribution Logs SSE Connection
+let warehouseEventSource = null;
+function connectWarehouseLogs() {
+  if (warehouseEventSource) {
+    try { warehouseEventSource.close(); } catch {}
+    warehouseEventSource = null;
+  }
+  try {
+    warehouseEventSource = new EventSource('/api/tiktok/warehouse/events');
+    warehouseEventSource.onmessage = (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        if (data.message === '__DONE__') {
+          if (data.ok) {
+            scanWarehouse();
+            setState('ready');
+          } else {
+            setState('error');
+          }
+          return;
+        }
+        if (data.message) {
+          appendLog(data.message, Boolean(data.isError));
+        }
+      } catch {}
+    };
+    warehouseEventSource.onerror = () => {};
+  } catch {}
+}
+
 warehouseDistributeBtn?.addEventListener('click', async () => {
   const folderPath = warehouseFolderPath?.value?.trim();
   if (!folderPath) {
@@ -2068,12 +2129,23 @@ warehouseDistributeBtn?.addEventListener('click', async () => {
   }
 
   const confirmed = await showCustomConfirm({
-    title: 'Xác Nhận Phân Bổ Kho Video',
-    message: `Hệ thống sẽ bốc ngẫu nhiên các video MỚI từ kho, tự động tạo tiêu đề AI và phân bổ 1:1 cho ${selectedCards.length} kênh TikTok đã chọn (tự động bỏ qua các video đã đăng trước đó). Bạn có muốn bắt đầu ngay?`
+    title: 'Bốc Ngẫu Nhiên & Phân Bổ Kho Video',
+    message: `Hệ thống chuẩn bị bốc ngẫu nhiên các video <b>MỚI CHƯA ĐĂNG</b> từ kho để đăng lên <b>${selectedCards.length} kênh TikTok</b> đã chọn (tự động bỏ qua các video đã đăng trước đó).<br><br>
+<div style="background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; padding: 10px 12px; margin: 4px 0; color: #6ee7b7; font-size: 0.86rem; line-height: 1.5;">
+  🛡️ <b>Cam kết bảo toàn dữ liệu 100%:</b><br>
+  Tất cả video gốc trong thư mục của bạn được <b>GIỮ NGUYÊN HOÀN TOÀN</b>, tuyệt đối không bị xóa hoặc thay đổi. Hệ thống chỉ gắn thẻ "Đã Đăng" vào sổ theo dõi để tự động bỏ qua ở các đợt tiếp theo!
+</div>`,
+    confirmText: '🚀 Bắt Đầu Đăng Ngay',
+    cancelText: 'Để Sau',
+    icon: '🎲',
+    isDanger: false
   });
   if (!confirmed) return;
 
   warehouseDistributeBtn.disabled = true;
+  setState('running');
+  connectWarehouseLogs();
+
   appendLog(`\n======================================================`);
   appendLog(`🚀 BẮT ĐẦU TIẾN TRÌNH PHÂN BỔ KHO VIDEO LÊN ${selectedCards.length} KÊNH TIKTOK...`);
 
@@ -2095,15 +2167,16 @@ warehouseDistributeBtn?.addEventListener('click', async () => {
     const data = await res.json();
     if (data.ok) {
       appendLog(`✅ ${data.message}`);
-      alert(`Đã khởi động tiến trình phân bổ kho video!\n\nTiến trình đang chạy ngầm trong máy tính. Bạn có thể theo dõi tiến độ chi tiết ở khung Terminal Log bên phải.`);
       scanWarehouse();
     } else {
       appendLog(`❌ ${data.message}`, true);
       alert(`Không thể phân bổ: ${data.message}`);
+      setState('error');
     }
   } catch (err) {
     appendLog(`❌ Lỗi phân bổ kho: ${err.message}`, true);
     alert(`Lỗi phân bổ kho: ${err.message}`);
+    setState('error');
   } finally {
     warehouseDistributeBtn.disabled = false;
   }
@@ -2178,8 +2251,11 @@ tiktokHistoryModal?.addEventListener('click', (e) => {
 
 clearTikTokHistoryBtn?.addEventListener('click', async () => {
   const confirmed = await showCustomConfirm({
-    title: 'Xác Nhận Xóa Lịch Sử Đã Đăng',
-    message: 'Bạn có chắc muốn xóa toàn bộ lịch sử đã đăng? Sau khi xóa, các video cũ trong kho sẽ có thể được bốc lại để đăng tiếp.'
+    title: 'Xác Nhận Xóa Toàn Bộ Lịch Sử',
+    message: 'Bạn có chắc muốn xóa toàn bộ lịch sử đã đăng? Sau khi xóa, các video cũ trong kho sẽ có thể được bốc lại để đăng tiếp.',
+    confirmText: 'Xác Nhận Xóa',
+    icon: '🗑️',
+    isDanger: true
   });
   if (!confirmed) return;
 

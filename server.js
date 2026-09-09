@@ -477,6 +477,32 @@ app.post('/api/tiktok/warehouse/scan', (req, res) => {
   }
 });
 
+// TikTok Local Warehouse Logs Broadcaster
+const warehouseClients = new Set();
+
+function broadcastWarehouseLog(message, isError = false, extra = {}) {
+  const payload = JSON.stringify({ message, isError, time: new Date().toLocaleTimeString('vi-VN'), ...extra });
+  for (const client of warehouseClients) {
+    try {
+      client.write(`data: ${payload}\n\n`);
+    } catch {}
+  }
+}
+
+app.get('/api/tiktok/warehouse/events', (req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  if (typeof res.flushHeaders === 'function') res.flushHeaders();
+
+  warehouseClients.add(res);
+  res.write(`data: ${JSON.stringify({ message: 'Đã kết nối luồng logs phân bổ kho video realtime.' })}\n\n`);
+
+  req.on('close', () => {
+    warehouseClients.delete(res);
+  });
+});
+
 app.post('/api/tiktok/warehouse/distribute', async (req, res) => {
   try {
     const folderPath = String(req.body?.folderPath || '').trim();
@@ -496,9 +522,15 @@ app.post('/api/tiktok/warehouse/distribute', async (req, res) => {
       geminiModel: req.body?.geminiModel || GEMINI_MODEL,
       logCallback: (msg) => {
         console.log(msg);
+        broadcastWarehouseLog(msg);
       }
+    }).then((result) => {
+      broadcastWarehouseLog(`\n🎉 ${result?.message || 'Hoàn tất phân bổ kho video!'}`);
+      broadcastWarehouseLog('__DONE__', false, { done: true, ok: true, result });
     }).catch((err) => {
       console.error('Lỗi khi phân bổ kho video:', err);
+      broadcastWarehouseLog(`❌ Lỗi khi phân bổ kho video: ${err.message}`, true);
+      broadcastWarehouseLog('__DONE__', true, { done: true, ok: false, error: err.message });
     });
   } catch (error) {
     res.status(500).json({ ok: false, message: error.message });
