@@ -20,7 +20,11 @@ import {
   checkAccountStatus,
   checkAllAccountsStatus,
   generateTikTokMetadata,
-  uploadToMultipleAccounts
+  uploadToMultipleAccounts,
+  scanWarehouseVideos,
+  distributeWarehouseVideos,
+  getPublishHistory,
+  clearPublishHistory
 } from './services/tiktokPublisher.js';
 
 const app = express();
@@ -462,6 +466,64 @@ app.post('/api/tiktok/accounts/:id/sync', async (req, res) => {
   }
 });
 
+// TikTok Local Warehouse APIs
+app.post('/api/tiktok/warehouse/scan', (req, res) => {
+  try {
+    const folderPath = String(req.body?.folderPath || '').trim();
+    const result = scanWarehouseVideos(folderPath);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ ok: false, message: error.message });
+  }
+});
+
+app.post('/api/tiktok/warehouse/distribute', async (req, res) => {
+  try {
+    const folderPath = String(req.body?.folderPath || '').trim();
+    const postMode = req.body?.postMode || 'draft';
+    const extraHashtags = String(req.body?.extraHashtags || '').trim();
+    const distributionStrategy = req.body?.distributionStrategy || 'distinct_random';
+
+    // Run async background distribution
+    res.json({ ok: true, message: 'Đã bắt đầu tiến trình phân bổ video từ kho lên các kênh TikTok!' });
+
+    distributeWarehouseVideos({
+      folderPath,
+      postMode,
+      extraHashtags,
+      distributionStrategy,
+      geminiApiKey: req.body?.geminiApiKey || GEMINI_API_KEY,
+      geminiModel: req.body?.geminiModel || GEMINI_MODEL,
+      logCallback: (msg) => {
+        console.log(msg);
+      }
+    }).catch((err) => {
+      console.error('Lỗi khi phân bổ kho video:', err);
+    });
+  } catch (error) {
+    res.status(500).json({ ok: false, message: error.message });
+  }
+});
+
+// TikTok Publish History APIs
+app.get('/api/tiktok/history', (_req, res) => {
+  try {
+    const history = getPublishHistory();
+    res.json({ ok: true, history });
+  } catch (error) {
+    res.status(500).json({ ok: false, message: error.message });
+  }
+});
+
+app.delete('/api/tiktok/history', (_req, res) => {
+  try {
+    const result = clearPublishHistory();
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ ok: false, message: error.message });
+  }
+});
+
 app.get('/health', (_req, res) => res.json({ ok: true }));
 
 app.listen(PORT, HOST, () => {
@@ -526,6 +588,8 @@ async function processJob(job, payload) {
         caption: metadata.caption,
         hashtags: metadata.hashtags,
         postMode: payload.tiktok.mode,
+        distributionStrategy: payload.tiktok.distributionStrategy || 'distinct_random',
+        skipAlreadyPublished: payload.tiktok.skipAlreadyPublished !== false,
         job,
         logCallback: (msg) => log(job, msg)
       });
@@ -675,9 +739,15 @@ function parseWatermarkOptions(body) {
 function parseTikTokOptions(body) {
   const enabled = ['on', 'true', '1', 'yes'].includes(String(body.tiktokAutoUpload || '').toLowerCase());
   const mode = ['draft', 'public', 'private'].includes(body.tiktokPostMode) ? body.tiktokPostMode : 'draft';
+  const distributionStrategy = ['distinct_random', 'broadcast'].includes(body.tiktokDistributionStrategy)
+    ? body.tiktokDistributionStrategy
+    : 'distinct_random';
+  const skipAlreadyPublished = body.tiktokSkipPublished !== 'false' && body.tiktokSkipPublished !== false;
   return {
     enabled,
     mode,
+    distributionStrategy,
+    skipAlreadyPublished,
     extraHashtags: String(body.tiktokHashtags || '').trim()
   };
 }

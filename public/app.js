@@ -941,8 +941,17 @@ function watchJob(id) {
 function buildQueueItems() {
   const links = parseLinks(linksInput?.value);
   const videoInput = form.querySelector('input[name="videos"]');
-  if (links.length <= 1 || (videoInput?.files?.length || 0) > 0) return [];
-  return links.map((link) => ({ link }));
+  const files = videoInput?.files ? Array.from(videoInput.files) : [];
+
+  // If multiple links entered
+  if (links.length > 1 && files.length === 0) {
+    return links.map((link) => ({ link, title: link }));
+  }
+  // If multiple local video files selected
+  if (files.length > 1) {
+    return files.map((file) => ({ file, title: file.name }));
+  }
+  return [];
 }
 
 async function runQueue() {
@@ -953,10 +962,19 @@ async function runQueue() {
       item.status = 'running';
       renderQueue();
       appendLog(`=========================================`);
-      appendLog(`[#${String(item.index).padStart(2, '0')}/${queuedJobs.length}] Bắt đầu xử lý: ${item.link}`);
+      const itemTitle = item.title || item.link || (item.file ? item.file.name : 'Video');
+      appendLog(`[#${String(item.index).padStart(2, '0')}/${queuedJobs.length}] Bắt đầu xử lý: ${itemTitle}`);
 
       const body = new FormData(form);
-      body.set('links', item.link);
+      if (item.link) {
+        body.set('links', item.link);
+        body.delete('videos');
+      } else if (item.file) {
+        body.delete('links');
+        body.delete('videos');
+        body.append('videos', item.file, item.file.name);
+      }
+
       try {
         const response = await fetch('/api/jobs', { method: 'POST', body });
         const data = await response.json();
@@ -1009,8 +1027,9 @@ function renderQueue() {
 
     const titleSpan = document.createElement('span');
     titleSpan.className = 'queue-item-title';
-    titleSpan.title = item.link;
-    titleSpan.textContent = getShortUrlDisplay(item.link);
+    const displayTitle = item.file ? item.file.name : getShortUrlDisplay(item.link || item.title);
+    titleSpan.title = item.title || item.link || (item.file?.name) || '';
+    titleSpan.textContent = displayTitle;
 
     const statusPill = document.createElement('span');
     statusPill.className = `queue-item-status-pill ${item.status}`;
@@ -1738,6 +1757,9 @@ document.addEventListener('keydown', (e) => {
     if (tiktokConfirmModal && !tiktokConfirmModal.classList.contains('hidden')) {
       finishCustomConfirm(false);
     }
+    if (tiktokHistoryModal && !tiktokHistoryModal.classList.contains('hidden')) {
+      closeTikTokHistoryModal();
+    }
   }
 });
 
@@ -1946,5 +1968,232 @@ tiktokRefreshBtn?.addEventListener('click', () => {
 
 // Initial load
 loadTikTokAccounts();
+
+// ==========================================================================
+// TIKTOK LOCAL WAREHOUSE & PUBLISH HISTORY INTEGRATION
+// ==========================================================================
+
+const warehouseFolderPath = document.querySelector('#warehouseFolderPath');
+const warehouseBrowseBtn = document.querySelector('#warehouseBrowseBtn');
+const warehouseScanBtn = document.querySelector('#warehouseScanBtn');
+const warehouseDistributeBtn = document.querySelector('#warehouseDistributeBtn');
+const warehouseScanStatus = document.querySelector('#warehouseScanStatus');
+const tiktokViewHistoryBtn = document.querySelector('#tiktokViewHistoryBtn');
+const tiktokHistoryModal = document.querySelector('#tiktokHistoryModal');
+const tiktokHistoryListContainer = document.querySelector('#tiktokHistoryListContainer');
+const closeTikTokHistoryModalBtn = document.querySelector('#closeTikTokHistoryModalBtn');
+const closeTikTokHistoryModalBtn2 = document.querySelector('#closeTikTokHistoryModalBtn2');
+const clearTikTokHistoryBtn = document.querySelector('#clearTikTokHistoryBtn');
+
+// Auto-sync warehouse folder with output directory if available
+if (warehouseFolderPath && outputDirInput && outputDirInput.value) {
+  warehouseFolderPath.value = outputDirInput.value;
+}
+outputDirInput?.addEventListener('input', () => {
+  if (warehouseFolderPath && (!warehouseFolderPath.value || warehouseFolderPath.value === localStorage.getItem('vietdub-output-dir'))) {
+    warehouseFolderPath.value = outputDirInput.value;
+  }
+});
+
+warehouseBrowseBtn?.addEventListener('click', async () => {
+  try {
+    warehouseBrowseBtn.disabled = true;
+    const response = await fetch('/api/system/select-folder', { method: 'POST' });
+    const data = await response.json();
+    if (data.success && !data.canceled && data.path) {
+      warehouseFolderPath.value = data.path;
+      scanWarehouse();
+    }
+  } catch (err) {
+    alert('Lỗi chọn thư mục: ' + err.message);
+  } finally {
+    warehouseBrowseBtn.disabled = false;
+  }
+});
+
+async function scanWarehouse() {
+  const folderPath = warehouseFolderPath?.value?.trim();
+  if (!folderPath) {
+    alert('Vui lòng nhập hoặc chọn đường dẫn thư mục kho video.');
+    return;
+  }
+  if (warehouseScanStatus) warehouseScanStatus.innerHTML = '⏳ Đang quét thư mục kho video...';
+  if (warehouseScanBtn) warehouseScanBtn.disabled = true;
+
+  try {
+    const res = await fetch('/api/tiktok/warehouse/scan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ folderPath })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      const { totalCount, publishedCount, freshCount } = data;
+      warehouseScanStatus.innerHTML = `
+        <span class="warehouse-stat-pill">
+          📦 Tổng: <strong>${totalCount} video</strong>
+        </span>
+        <span class="warehouse-stat-pill" style="background: rgba(16, 185, 129, 0.15); color: #34d399; border-color: rgba(16, 185, 129, 0.3);">
+          ✨ Mới chưa đăng: <strong>${freshCount} video</strong>
+        </span>
+        ${publishedCount > 0 ? `
+          <span class="warehouse-stat-pill" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; border-color: rgba(245, 158, 11, 0.3);">
+            ⏭️ Đã đăng (sẽ bỏ qua): <strong>${publishedCount} video</strong>
+          </span>
+        ` : ''}
+      `;
+    } else {
+      warehouseScanStatus.innerHTML = `<span style="color: #f87171;">⚠️ ${escapeHtml(data.message)}</span>`;
+    }
+  } catch (err) {
+    warehouseScanStatus.innerHTML = `<span style="color: #f87171;">⚠️ Lỗi quét kho: ${escapeHtml(err.message)}</span>`;
+  } finally {
+    if (warehouseScanBtn) warehouseScanBtn.disabled = false;
+  }
+}
+
+warehouseScanBtn?.addEventListener('click', scanWarehouse);
+
+warehouseDistributeBtn?.addEventListener('click', async () => {
+  const folderPath = warehouseFolderPath?.value?.trim();
+  if (!folderPath) {
+    alert('Vui lòng chọn thư mục kho video trước.');
+    return;
+  }
+
+  const selectedCards = document.querySelectorAll('.tiktok-account-card.selected');
+  if (selectedCards.length === 0) {
+    alert('Bạn chưa chọn kênh TikTok nào để đăng! Hãy tích chọn ít nhất 1 kênh trong danh sách quản lý.');
+    return;
+  }
+
+  const confirmed = await showCustomConfirm({
+    title: 'Xác Nhận Phân Bổ Kho Video',
+    message: `Hệ thống sẽ bốc ngẫu nhiên các video MỚI từ kho, tự động tạo tiêu đề AI và phân bổ 1:1 cho ${selectedCards.length} kênh TikTok đã chọn (tự động bỏ qua các video đã đăng trước đó). Bạn có muốn bắt đầu ngay?`
+  });
+  if (!confirmed) return;
+
+  warehouseDistributeBtn.disabled = true;
+  appendLog(`\n======================================================`);
+  appendLog(`🚀 BẮT ĐẦU TIẾN TRÌNH PHÂN BỔ KHO VIDEO LÊN ${selectedCards.length} KÊNH TIKTOK...`);
+
+  const postMode = document.querySelector('#tiktokPostMode')?.value || 'draft';
+  const extraHashtags = document.querySelector('#tiktokHashtags')?.value || '';
+  const distributionStrategy = document.querySelector('#tiktokDistributionStrategy')?.value || 'distinct_random';
+
+  try {
+    const res = await fetch('/api/tiktok/warehouse/distribute', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        folderPath,
+        postMode,
+        extraHashtags,
+        distributionStrategy
+      })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      appendLog(`✅ ${data.message}`);
+      alert(`Đã khởi động tiến trình phân bổ kho video!\n\nTiến trình đang chạy ngầm trong máy tính. Bạn có thể theo dõi tiến độ chi tiết ở khung Terminal Log bên phải.`);
+      scanWarehouse();
+    } else {
+      appendLog(`❌ ${data.message}`, true);
+      alert(`Không thể phân bổ: ${data.message}`);
+    }
+  } catch (err) {
+    appendLog(`❌ Lỗi phân bổ kho: ${err.message}`, true);
+    alert(`Lỗi phân bổ kho: ${err.message}`);
+  } finally {
+    warehouseDistributeBtn.disabled = false;
+  }
+});
+
+// History Modal Functions
+async function openTikTokHistoryModal() {
+  if (tiktokHistoryModal) tiktokHistoryModal.classList.remove('hidden');
+  if (tiktokHistoryListContainer) {
+    tiktokHistoryListContainer.innerHTML = '<div style="text-align: center; color: var(--muted); padding: 24px;">⏳ Đang tải lịch sử đã đăng...</div>';
+  }
+  try {
+    const res = await fetch('/api/tiktok/history');
+    const data = await res.json();
+    if (data.ok && Array.isArray(data.history) && data.history.length > 0) {
+      tiktokHistoryListContainer.innerHTML = `
+        <table class="tiktok-history-table">
+          <thead>
+            <tr>
+              <th>Video</th>
+              <th>Kênh Đăng</th>
+              <th>Tài Khoản</th>
+              <th>Thời Gian</th>
+              <th>Trạng Thái</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${data.history.map((h) => `
+              <tr>
+                <td>
+                  <strong style="color: #ffffff;">${escapeHtml(h.fileName)}</strong>
+                  ${h.caption ? `<div style="font-size: 0.75rem; color: #94a3b8; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(h.caption)}</div>` : ''}
+                </td>
+                <td>${escapeHtml(h.accountName)}</td>
+                <td><span style="color: #38bdf8;">${escapeHtml(h.accountUsername || '@tiktok')}</span></td>
+                <td style="white-space: nowrap; color: #94a3b8;">${new Date(h.publishedAt).toLocaleString('vi-VN')}</td>
+                <td>
+                  <span class="tiktok-history-badge">
+                    ${h.postMode === 'draft' ? '💾 Bản Nháp' : '🚀 Công Khai'}
+                  </span>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+    } else {
+      tiktokHistoryListContainer.innerHTML = `
+        <div style="text-align: center; color: var(--muted); padding: 36px 16px;">
+          <span style="font-size: 2rem; display: block; margin-bottom: 8px;">📭</span>
+          Chưa có video nào trong lịch sử đăng bài. Khi bạn đăng video lên các kênh TikTok, hệ thống sẽ tự động lưu vào đây để chống đăng trùng lặp nội dung.
+        </div>
+      `;
+    }
+  } catch (err) {
+    if (tiktokHistoryListContainer) {
+      tiktokHistoryListContainer.innerHTML = `<div style="color: #f87171; padding: 16px;">Lỗi tải lịch sử: ${escapeHtml(err.message)}</div>`;
+    }
+  }
+}
+
+function closeTikTokHistoryModal() {
+  if (tiktokHistoryModal) tiktokHistoryModal.classList.add('hidden');
+}
+
+tiktokViewHistoryBtn?.addEventListener('click', openTikTokHistoryModal);
+closeTikTokHistoryModalBtn?.addEventListener('click', closeTikTokHistoryModal);
+closeTikTokHistoryModalBtn2?.addEventListener('click', closeTikTokHistoryModal);
+tiktokHistoryModal?.addEventListener('click', (e) => {
+  if (e.target === tiktokHistoryModal) closeTikTokHistoryModal();
+});
+
+clearTikTokHistoryBtn?.addEventListener('click', async () => {
+  const confirmed = await showCustomConfirm({
+    title: 'Xác Nhận Xóa Lịch Sử Đã Đăng',
+    message: 'Bạn có chắc muốn xóa toàn bộ lịch sử đã đăng? Sau khi xóa, các video cũ trong kho sẽ có thể được bốc lại để đăng tiếp.'
+  });
+  if (!confirmed) return;
+
+  try {
+    const res = await fetch('/api/tiktok/history', { method: 'DELETE' });
+    const data = await res.json();
+    if (data.ok) {
+      openTikTokHistoryModal();
+      scanWarehouse();
+    }
+  } catch (err) {
+    alert('Lỗi xóa lịch sử: ' + err.message);
+  }
+});
+
 
 

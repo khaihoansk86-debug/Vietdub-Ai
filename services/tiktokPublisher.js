@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
+import crypto from 'crypto';
 import { spawn } from 'child_process';
 import { chromium } from 'playwright-core';
 
@@ -63,6 +64,111 @@ export function saveTikTokAccounts(accounts) {
     console.error('Lỗi khi lưu tiktok_accounts.json:', err);
   }
 }
+
+const PUBLISH_HISTORY_FILE = () => path.join(getDataDir(), 'tiktok_publish_history.json');
+
+export function loadPublishHistory() {
+  const file = PUBLISH_HISTORY_FILE();
+  if (fs.existsSync(file)) {
+    try {
+      const raw = fs.readFileSync(file, 'utf8');
+      const list = JSON.parse(raw);
+      if (Array.isArray(list)) return list;
+    } catch {}
+  }
+  return [];
+}
+
+export function savePublishHistory(history) {
+  try {
+    fs.writeFileSync(PUBLISH_HISTORY_FILE(), JSON.stringify(history, null, 2), 'utf8');
+  } catch (err) {
+    console.error('Lỗi khi lưu tiktok_publish_history.json:', err);
+  }
+}
+
+export function computeVideoFingerprint(filePath) {
+  try {
+    if (!fs.existsSync(filePath)) return null;
+    const stat = fs.statSync(filePath);
+    const fd = fs.openSync(filePath, 'r');
+    const headerBuf = Buffer.alloc(Math.min(65536, stat.size));
+    fs.readSync(fd, headerBuf, 0, headerBuf.length, 0);
+
+    const footerBuf = Buffer.alloc(Math.min(65536, stat.size));
+    const footerPos = Math.max(0, stat.size - footerBuf.length);
+    fs.readSync(fd, footerBuf, 0, footerBuf.length, footerPos);
+    fs.closeSync(fd);
+
+    return crypto.createHash('sha256')
+      .update(String(stat.size))
+      .update(headerBuf)
+      .update(footerBuf)
+      .digest('hex');
+  } catch {
+    return null;
+  }
+}
+
+export function isAlreadyPublished({ videoPath, accountId = null }) {
+  const history = loadPublishHistory();
+  if (!history || history.length === 0) return { published: false, entry: null };
+
+  const fileName = path.basename(videoPath);
+  const fingerprint = computeVideoFingerprint(videoPath);
+
+  for (let i = history.length - 1; i >= 0; i--) {
+    const entry = history[i];
+    if (entry.status !== 'success') continue;
+
+    // Match by fingerprint (highest confidence) or filename
+    const isFileMatch = (fingerprint && entry.fileHash && fingerprint === entry.fileHash) ||
+      (entry.fileName && entry.fileName.toLowerCase() === fileName.toLowerCase());
+
+    if (isFileMatch) {
+      if (!accountId || entry.accountId === accountId) {
+        return { published: true, entry };
+      }
+    }
+  }
+  return { published: false, entry: null };
+}
+
+export function recordPublishedVideo({ videoPath, account, caption = '', hashtags = [], postMode = 'draft', status = 'success' }) {
+  const history = loadPublishHistory();
+  const fileName = path.basename(videoPath);
+  const fileHash = computeVideoFingerprint(videoPath) || '';
+
+  const entry = {
+    id: `pub_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+    fileName,
+    fileHash,
+    videoPath,
+    accountId: account.id,
+    accountName: account.name,
+    accountUsername: account.username || '@tiktok',
+    caption: caption.slice(0, 300),
+    hashtags: Array.isArray(hashtags) ? hashtags : [],
+    postMode,
+    publishedAt: new Date().toISOString(),
+    status
+  };
+
+  history.push(entry);
+  savePublishHistory(history);
+  return entry;
+}
+
+export function getPublishHistory() {
+  const history = loadPublishHistory();
+  return history.slice().reverse();
+}
+
+export function clearPublishHistory() {
+  savePublishHistory([]);
+  return { ok: true, message: 'Đã dọn sạch toàn bộ lịch sử đăng bài TikTok.' };
+}
+
 
 export function getAccountProfileDir(account) {
   const folder = account.folder || `tiktok_profiles/${account.id}`;
@@ -500,7 +606,8 @@ export async function generateTikTokMetadata(cues = [], originalTitle = '', aiOp
   const geminiApiKey = aiOptions.geminiApiKey || process.env.GEMINI_API_KEY;
   const geminiModel = aiOptions.geminiModel || process.env.GEMINI_MODEL || 'gemini-3.8-flash';
 
-  const fullText = cues.map((c) => c.text).join(' ').slice(0, 3000);
+  const cuesText = (cues && cues.length > 0) ? cues.map((c) => c.text).join(' ').slice(0, 3000) : '';
+  const fullText = cuesText || String(originalTitle || '').trim();
   const userHashtags = String(aiOptions.extraHashtags || '').trim();
 
   if (!geminiApiKey || !fullText) {
@@ -680,24 +787,102 @@ export async function uploadSingleAccount({ account, videoPath, caption, hashtag
   }
 }
 
-export async function uploadToMultipleAccounts({ videoPath, caption, hashtags, postMode = 'draft', job, logCallback }) {
+// Session-level tracker to distribute videos 1:1 evenly across selected accounts
+const sessionUploadCounts = new Map();
+let lastDistributionTime = Date.now();
+
+export function resetDistributionSession() {
+  sessionUploadCounts.clear();
+  lastDistributionTime = Date.now();
+}
+
+export async function uploadToMultipleAccounts({
+  videoPath,
+  caption,
+  hashtags,
+  postMode = 'draft',
+  distributionStrategy = 'distinct_random',
+  skipAlreadyPublished = true,
+  job,
+  logCallback
+}) {
   const log = (msg) => {
     if (logCallback) logCallback(msg);
     if (job && typeof job.log === 'function') job.log(msg);
   };
 
   const accounts = loadTikTokAccounts();
-  const selectedAccounts = accounts.filter((a) => a.selected);
+  const selectedAccounts = accounts.filter((a) => a.selected && a.loggedIn);
 
   if (selectedAccounts.length === 0) {
-    log('📱 [TikTok] Không có tài khoản nào được chọn để đăng bài.');
+    log('📱 [TikTok] Không có tài khoản nào được kết nối và chọn để đăng bài.');
     return;
   }
 
-  log(`📱 [TikTok] Bắt đầu đăng đồng loạt lên ${selectedAccounts.length} tài khoản...`);
+  // Auto reset session if idle > 30 minutes
+  if (Date.now() - lastDistributionTime > 30 * 60 * 1000) {
+    sessionUploadCounts.clear();
+  }
+  lastDistributionTime = Date.now();
 
+  const fileName = path.basename(videoPath);
+
+  // Check anti-duplicate
+  if (skipAlreadyPublished) {
+    const { published, entry } = isAlreadyPublished({ videoPath });
+    if (published && entry) {
+      log(`⏭️ [TikTok - Chống trùng] Bỏ qua video "${fileName}" vì đã được đăng lên kênh "${entry.accountName}" (${entry.accountUsername}) vào ${new Date(entry.publishedAt).toLocaleString('vi-VN')}.`);
+      return;
+    }
+  }
+
+  if (distributionStrategy === 'distinct_random') {
+    // 🎯 SMART 1:1 RANDOM DISTRIBUTION:
+    // Pick the selected account that has received the FEWEST uploads in this session.
+    // If multiple accounts are tied, pick randomly among them.
+    const minCount = Math.min(...selectedAccounts.map((a) => sessionUploadCounts.get(a.id) || 0));
+    const candidates = selectedAccounts.filter((a) => (sessionUploadCounts.get(a.id) || 0) === minCount);
+    const chosenAccount = candidates[Math.floor(Math.random() * candidates.length)];
+
+    log(`🎯 [TikTok - Phân bổ 1:1] Bốc kênh ngẫu nhiên: Video "${fileName}" được gán riêng biệt cho kênh "${chosenAccount.name}" (${chosenAccount.username || chosenAccount.name}). Đảm bảo không trùng lặp video và nội dung!`);
+
+    try {
+      await uploadSingleAccount({
+        account: chosenAccount,
+        videoPath,
+        caption,
+        hashtags,
+        postMode,
+        log
+      });
+      sessionUploadCounts.set(chosenAccount.id, (sessionUploadCounts.get(chosenAccount.id) || 0) + 1);
+      recordPublishedVideo({
+        videoPath,
+        account: chosenAccount,
+        caption,
+        hashtags,
+        postMode,
+        status: 'success'
+      });
+      log(`✅ [TikTok] Đã hoàn tất đăng video "${fileName}" lên kênh "${chosenAccount.name}"!`);
+    } catch (err) {
+      log(`⚠️ [TikTok - ${chosenAccount.name}] Lỗi: ${err.message}`);
+    }
+    return;
+  }
+
+  // 📢 BROADCAST MODE (Post to all selected accounts):
+  log(`📢 [TikTok - Đồng loạt] Đang đăng video lên ${selectedAccounts.length} kênh đã chọn...`);
   for (let i = 0; i < selectedAccounts.length; i += 1) {
     const account = selectedAccounts[i];
+    if (skipAlreadyPublished) {
+      const { published } = isAlreadyPublished({ videoPath, accountId: account.id });
+      if (published) {
+        log(`⏭️ [TikTok - ${account.name}] Bỏ qua vì video này đã từng được đăng lên kênh này trước đó.`);
+        continue;
+      }
+    }
+
     try {
       await uploadSingleAccount({
         account,
@@ -707,16 +892,172 @@ export async function uploadToMultipleAccounts({ videoPath, caption, hashtags, p
         postMode,
         log
       });
+      recordPublishedVideo({
+        videoPath,
+        account,
+        caption,
+        hashtags,
+        postMode,
+        status: 'success'
+      });
     } catch (err) {
       log(`⚠️ [TikTok - ${account.name}] Lỗi: ${err.message}`);
     }
 
-    // Delay 6 seconds between multiple accounts to prevent spam detection
     if (i < selectedAccounts.length - 1) {
-      log('⏳ [TikTok] Đang đợi 6 giây trước khi đăng sang tài khoản tiếp theo...');
-      await new Promise((resolve) => setTimeout(resolve, 6000));
+      log('⏳ [TikTok] Đang đợi 6 giây trước khi đăng sang kênh tiếp theo...');
+      await new Promise((r) => setTimeout(r, 6000));
     }
   }
 
   log('✅ [TikTok] Hoàn thành toàn bộ quy trình đăng video lên các kênh!');
 }
+
+export function scanWarehouseVideos(folderPath) {
+  if (!folderPath || !fs.existsSync(folderPath)) {
+    return { ok: false, message: 'Thư mục không tồn tại trên máy tính.' };
+  }
+
+  const validExts = new Set(['.mp4', '.mov', '.mkv', '.webm', '.avi']);
+  const files = fs.readdirSync(folderPath);
+  const videoFiles = files.filter((f) => validExts.has(path.extname(f).toLowerCase()));
+
+  const freshVideos = [];
+  const publishedVideos = [];
+
+  for (const fileName of videoFiles) {
+    const fullPath = path.join(folderPath, fileName);
+    try {
+      const stat = fs.statSync(fullPath);
+      const { published, entry } = isAlreadyPublished({ videoPath: fullPath });
+      const item = {
+        name: fileName,
+        path: fullPath,
+        sizeMB: (stat.size / (1024 * 1024)).toFixed(1) + ' MB',
+        mtime: stat.mtime
+      };
+      if (published && entry) {
+        publishedVideos.push({
+          ...item,
+          publishedTo: entry.accountName,
+          publishedUsername: entry.accountUsername,
+          publishedAt: entry.publishedAt
+        });
+      } else {
+        freshVideos.push(item);
+      }
+    } catch {}
+  }
+
+  return {
+    ok: true,
+    folderPath,
+    totalCount: videoFiles.length,
+    publishedCount: publishedVideos.length,
+    freshCount: freshVideos.length,
+    freshVideos,
+    publishedVideos
+  };
+}
+
+export async function distributeWarehouseVideos({
+  folderPath,
+  postMode = 'draft',
+  extraHashtags = '',
+  distributionStrategy = 'distinct_random',
+  geminiApiKey = '',
+  geminiModel = 'gemini-3.8-flash',
+  logCallback
+}) {
+  const log = (msg) => {
+    if (logCallback) logCallback(msg);
+  };
+
+  const scan = scanWarehouseVideos(folderPath);
+  if (!scan.ok) return scan;
+
+  if (scan.freshCount === 0) {
+    return {
+      ok: false,
+      message: `Toàn bộ ${scan.totalCount} video trong kho đã được đăng trước đó! Không còn video mới nào để đăng. Hãy thêm video mới vào kho.`
+    };
+  }
+
+  const accounts = loadTikTokAccounts();
+  const selectedAccounts = accounts.filter((a) => a.selected && a.loggedIn);
+
+  if (selectedAccounts.length === 0) {
+    return { ok: false, message: 'Chưa có tài khoản TikTok nào đã đăng nhập và được chọn để đăng bài.' };
+  }
+
+  // Shuffle fresh videos randomly (Fisher-Yates)
+  const shuffledVideos = [...scan.freshVideos];
+  for (let i = shuffledVideos.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffledVideos[i], shuffledVideos[j]] = [shuffledVideos[j], shuffledVideos[i]];
+  }
+
+  log(`📦 [Kho Video] Tìm thấy ${scan.totalCount} video (${scan.publishedCount} đã đăng bỏ qua, ${scan.freshCount} video mới sẵn sàng).`);
+  log(`🎯 [Kho Video] Đang phân bổ ngẫu nhiên lên ${selectedAccounts.length} kênh TikTok đã chọn...`);
+
+  const results = [];
+  const limit = distributionStrategy === 'distinct_random'
+    ? Math.min(shuffledVideos.length, selectedAccounts.length)
+    : shuffledVideos.length;
+
+  for (let i = 0; i < limit; i++) {
+    const video = shuffledVideos[i];
+    const account = selectedAccounts[i % selectedAccounts.length];
+
+    log(`\n======================================================`);
+    log(`[${i + 1}/${limit}] Đang xử lý video: "${video.name}" -> Kênh: "${account.name}" (${account.username})`);
+
+    // AI Generate metadata from filename
+    const cleanTitle = path.basename(video.name, path.extname(video.name)).replace(/[-_]/g, ' ');
+    log(`🤖 [AI Gemini] Đang tạo tiêu đề & caption giật tít cho video...`);
+    const metadata = await generateTikTokMetadata([], cleanTitle, {
+      geminiApiKey: geminiApiKey || process.env.GEMINI_API_KEY,
+      geminiModel: geminiModel || process.env.GEMINI_MODEL,
+      extraHashtags
+    });
+    log(`✨ [AI Gemini] Tiêu đề: "${metadata.title}"`);
+
+    try {
+      await uploadSingleAccount({
+        account,
+        videoPath: video.path,
+        caption: metadata.caption,
+        hashtags: metadata.hashtags,
+        postMode,
+        log
+      });
+      recordPublishedVideo({
+        videoPath: video.path,
+        account,
+        caption: metadata.caption,
+        hashtags: metadata.hashtags,
+        postMode,
+        status: 'success'
+      });
+      results.push({ video: video.name, account: account.name, status: 'success' });
+      log(`🎉 Hoàn tất đăng video "${video.name}" lên kênh "${account.name}"!`);
+    } catch (err) {
+      log(`❌ Lỗi đăng video "${video.name}" lên kênh "${account.name}": ${err.message}`);
+      results.push({ video: video.name, account: account.name, status: 'error', error: err.message });
+    }
+
+    if (i < limit - 1) {
+      log('⏳ Đang đợi 6 giây trước khi chuyển sang kênh tiếp theo...');
+      await new Promise((r) => setTimeout(r, 6000));
+    }
+  }
+
+  log(`\n✅ [Kho Video] Hoàn thành phân bổ toàn bộ ${results.length} video cho các kênh!`);
+  return {
+    ok: true,
+    totalProcessed: results.length,
+    results,
+    message: `Đã hoàn tất phân bổ ${results.length} video từ kho lên các kênh TikTok!`
+  };
+}
+

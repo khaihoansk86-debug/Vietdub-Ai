@@ -366,7 +366,21 @@
                   <span><strong>Bật tự động đăng lên các kênh TikTok đã chọn</strong> ngay khi video render xong</span>
                 </label>
 
-                <div class="control-row" style="margin-top: 12px;">
+                <div class="control-row" style="margin-top: 10px;">
+                  <label class="field">
+                    <span>Quy tắc phân bổ video cho các kênh</span>
+                    <select name="tiktokDistributionStrategy" id="tiktokDistributionStrategy">
+                      <option value="distinct_random" selected>🎯 Phân bổ ngẫu nhiên 1:1 (Mỗi kênh 1 video khác nhau, không trùng lặp)</option>
+                      <option value="broadcast">📢 Đăng đồng loạt (1 video đăng lên tất cả kênh đã chọn)</option>
+                    </select>
+                  </label>
+                  <label class="check-row" style="align-self: flex-end; padding-bottom: 8px;">
+                    <input name="tiktokSkipPublished" id="tiktokSkipPublished" type="checkbox" checked>
+                    <span><strong>Chống trùng:</strong> Bỏ qua video đã đăng</span>
+                  </label>
+                </div>
+
+                <div class="control-row" style="margin-top: 10px;">
                   <label class="field">
                     <span>Chế độ đăng bài</span>
                     <select name="tiktokPostMode" id="tiktokPostMode">
@@ -381,9 +395,31 @@
                   </label>
                 </div>
                 <p class="helper-text" style="margin-top: 6px; font-size: 12px; opacity: 0.75;">
-                  💡 <em>Gợi ý: Chọn <strong>Lưu vào Bản Nháp</strong> để video được tải lên sẵn trên TikTok Studio, bạn chỉ cần mở app trên điện thoại kiểm tra lại 1 lần và bấm đăng, tuyệt đối an toàn và không lo vi phạm chính sách.</em>
+                  💡 <em>Gợi ý: Chế độ <strong>Phân bổ ngẫu nhiên 1:1</strong> đảm bảo khi có 10 video và 10 kênh, mỗi kênh sẽ nhận 1 video duy nhất với tiêu đề và caption riêng biệt do AI tạo, tránh trùng lặp nội dung tuyệt đối.</em>
                 </p>
               </fieldset>
+
+              <!-- LOCAL WAREHOUSE DISTRIBUTOR -->
+              <div class="warehouse-box" style="margin-top: 14px; padding: 14px 16px; background: rgba(255,255,255,0.03); border: 1px solid var(--line); border-radius: var(--radius-md);">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; flex-wrap: wrap; gap: 8px;">
+                  <h4 style="margin: 0; font-size: 0.95rem; display: flex; align-items: center; gap: 8px;">
+                    <span>📦</span> Phân Bổ Video Từ Kho Local Lên Các Kênh
+                  </h4>
+                  <button type="button" class="secondary tiktok-btn-sm" id="tiktokViewHistoryBtn" style="display: inline-flex; align-items: center; gap: 6px;">
+                    <span>📜</span> Lịch Sử Đã Đăng
+                  </button>
+                </div>
+                <p style="font-size: 0.8rem; color: var(--muted); margin-bottom: 10px;">
+                  Quét thư mục chứa video trên máy của bạn, tự động bỏ qua video đã đăng và bốc ngẫu nhiên các video mới chia đều cho các kênh TikTok đã chọn.
+                </p>
+                <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                  <input type="text" id="warehouseFolderPath" placeholder="Đường dẫn thư mục kho video (Ví dụ: D:\Video Export)..." style="flex: 1; min-width: 240px; padding: 8px 12px; font-size: 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--line); background: var(--bg-subtle); color: var(--text);">
+                  <button type="button" class="secondary tiktok-btn-sm" id="warehouseBrowseBtn">📁 Chọn Thư Mục</button>
+                  <button type="button" class="secondary tiktok-btn-sm" id="warehouseScanBtn">🔍 Quét Kho</button>
+                  <button type="button" class="primary tiktok-btn-sm" id="warehouseDistributeBtn" style="font-weight: 600; white-space: nowrap;">🎲 Bốc Ngẫu Nhiên & Đăng</button>
+                </div>
+                <div id="warehouseScanStatus" style="font-size: 0.8rem; margin-top: 8px; color: var(--muted);">Chưa quét thư mục kho.</div>
+              </div>
             </section>
 
             <!-- MAIN SUBMIT ACTION BAR -->
@@ -693,6 +729,33 @@
         <div class="tiktok-modal-footer" style="justify-content: flex-end; gap: 10px;">
           <button type="button" class="secondary tiktok-btn-sm" id="cancelTikTokConfirmModalBtn">Hủy</button>
           <button type="button" class="tiktok-btn-sm" id="confirmTikTokConfirmModalBtn" style="background: #ef4444; color: #ffffff; border: 1px solid #dc2626; font-weight: 600;">Xác Nhận Xóa</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TIKTOK PUBLISH HISTORY MODAL -->
+    <div id="tiktokHistoryModal" class="tiktok-modal-backdrop hidden">
+      <div class="tiktok-modal-card" style="max-width: 720px; width: 92%;">
+        <div class="tiktok-modal-header">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 1.4rem;">📜</span>
+            <div>
+              <h3 class="tiktok-modal-title">Lịch Sử Đã Đăng TikTok</h3>
+              <div class="tiktok-modal-subtitle">Ghi nhớ video đã xuất bản & Tự động chống trùng lặp nội dung</div>
+            </div>
+          </div>
+          <button type="button" id="closeTikTokHistoryModalBtn" class="tiktok-modal-close" title="Đóng">&times;</button>
+        </div>
+
+        <div class="tiktok-modal-body" style="padding: 16px 20px; max-height: 440px; overflow-y: auto;">
+          <div id="tiktokHistoryListContainer">
+            <div style="text-align: center; color: var(--muted); padding: 24px;">Đang tải lịch sử...</div>
+          </div>
+        </div>
+
+        <div class="tiktok-modal-footer" style="justify-content: space-between;">
+          <button type="button" class="secondary tiktok-btn-sm" id="clearTikTokHistoryBtn" style="color: #f87171; border-color: rgba(248, 113, 113, 0.4);">🗑️ Xóa Toàn Bộ Lịch Sử</button>
+          <button type="button" class="secondary tiktok-btn-sm" id="closeTikTokHistoryModalBtn2">Đóng</button>
         </div>
       </div>
     </div>
