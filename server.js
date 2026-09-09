@@ -479,9 +479,12 @@ app.post('/api/tiktok/warehouse/scan', (req, res) => {
 
 // TikTok Local Warehouse Logs Broadcaster
 const warehouseClients = new Set();
+const recentWarehouseLogs = [];
 
 function broadcastWarehouseLog(message, isError = false, extra = {}) {
   const payload = JSON.stringify({ message, isError, time: new Date().toLocaleTimeString('vi-VN'), ...extra });
+  recentWarehouseLogs.push(payload);
+  if (recentWarehouseLogs.length > 50) recentWarehouseLogs.shift();
   for (const client of warehouseClients) {
     try {
       client.write(`data: ${payload}\n\n`);
@@ -498,6 +501,11 @@ app.get('/api/tiktok/warehouse/events', (req, res) => {
   warehouseClients.add(res);
   res.write(`data: ${JSON.stringify({ message: 'Đã kết nối luồng logs phân bổ kho video realtime.' })}\n\n`);
 
+  // Replay recent logs so client never misses the startup logs
+  for (const logItem of recentWarehouseLogs) {
+    try { res.write(`data: ${logItem}\n\n`); } catch {}
+  }
+
   req.on('close', () => {
     warehouseClients.delete(res);
   });
@@ -505,6 +513,7 @@ app.get('/api/tiktok/warehouse/events', (req, res) => {
 
 app.post('/api/tiktok/warehouse/distribute', async (req, res) => {
   try {
+    recentWarehouseLogs.length = 0;
     const folderPath = String(req.body?.folderPath || '').trim();
     const accountIds = Array.isArray(req.body?.accountIds) ? req.body.accountIds : [];
     const postMode = req.body?.postMode || 'draft';

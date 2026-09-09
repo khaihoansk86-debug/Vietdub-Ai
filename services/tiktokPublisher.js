@@ -1358,7 +1358,7 @@ export async function distributeWarehouseVideos({
 
       log(`\n======================================================`);
       log(`[${i + 1}/${limit}] [Phân bổ 1:1] Video: "${video.name}" -> Gán độc quyền cho Kênh: "${account.name}" (${account.username || account.name})`);
-
+      const cleanTitle = path.basename(video.name, path.extname(video.name)).replace(/[-_]/g, ' ');
       let metadata;
       try {
         metadata = await generateTikTokMetadata([], cleanTitle, {
@@ -1418,7 +1418,7 @@ export async function distributeWarehouseVideos({
 
       log(`\n======================================================`);
       log(`[${i + 1}/${limit}] Video: "${video.name}" -> Kênh: "${account.name}" (${account.username || account.name})`);
-
+      const cleanTitle = path.basename(video.name, path.extname(video.name)).replace(/[-_]/g, ' ');
       let metadata;
       try {
         metadata = await generateTikTokMetadata([], cleanTitle, {
