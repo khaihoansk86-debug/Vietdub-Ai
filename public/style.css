@@ -1326,3 +1326,156 @@ button.secondary:hover:not(:disabled) {
   border-radius: var(--radius-sm);
   cursor: pointer;
 }
+
+/* TIKTOK LOGIN MODAL */
+.tiktok-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 20px;
+  animation: fadeInModal 0.2s ease-out;
+}
+
+.tiktok-modal-backdrop.hidden {
+  display: none !important;
+}
+
+@keyframes fadeInModal {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.tiktok-modal-card {
+  width: 100%;
+  max-width: 540px;
+  background: #18191f;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-lg, 14px);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  overflow: hidden;
+  animation: slideUpModal 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideUpModal {
+  from { transform: translateY(20px) scale(0.97); opacity: 0; }
+  to { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+.tiktok-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.tiktok-modal-close {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  transition: all 0.15s ease;
+}
+
+.tiktok-modal-close:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.tiktok-modal-body {
+  padding: 18px 20px;
+}
+
+.tiktok-login-options-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tiktok-login-option-btn {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  text-align: left;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: var(--radius-md, 10px);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  color: var(--ink);
+}
+
+.tiktok-login-option-btn:hover {
+  background: rgba(59, 130, 246, 0.12);
+  border-color: rgba(59, 130, 246, 0.4);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+}
+
+.tiktok-login-option-btn:active {
+  transform: translateY(0);
+}
+
+.tiktok-login-option-btn .option-icon {
+  font-size: 1.6rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  flex-shrink: 0;
+}
+
+.tiktok-login-option-btn .option-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.tiktok-login-option-btn .option-title {
+  font-weight: 600;
+  font-size: 0.92rem;
+  color: #f3f4f6;
+  margin-bottom: 2px;
+}
+
+.tiktok-login-option-btn .option-desc {
+  font-size: 0.77rem;
+  color: var(--muted, #9ca3af);
+  line-height: 1.35;
+}
+
+.tiktok-login-option-btn .option-arrow {
+  color: var(--muted);
+  font-size: 1rem;
+  transition: transform 0.2s ease, color 0.2s ease;
+  margin-left: 4px;
+}
+
+.tiktok-login-option-btn:hover .option-arrow {
+  color: var(--brand, #3b82f6);
+  transform: translateX(3px);
+}
+
+.tiktok-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.15);
+}

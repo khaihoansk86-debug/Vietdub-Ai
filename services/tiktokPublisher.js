@@ -184,12 +184,63 @@ export async function extractTikTokProfile(page) {
 // Active browsers map: accountId -> context
 const activeBrowsers = new Map();
 
-export async function openTikTokLoginWindow(accountId) {
+function getLoginUrlForMode(mode) {
+  if (mode === 'phone-or-email' || mode === 'phone' || mode === 'email') {
+    return 'https://www.tiktok.com/login/phone-or-email';
+  }
+  if (mode === 'qrcode' || mode === 'qr') {
+    return 'https://www.tiktok.com/login/qrcode';
+  }
+  return 'https://www.tiktok.com/login';
+}
+
+function getModeDescription(mode) {
+  if (mode === 'phone-or-email' || mode === 'phone' || mode === 'email') {
+    return 'Số điện thoại / Email / Mật khẩu';
+  }
+  if (mode === 'google') {
+    return 'Tài khoản Google / Gmail';
+  }
+  if (mode === 'qrcode' || mode === 'qr') {
+    return 'Quét mã QR';
+  }
+  return 'Trang đăng nhập tổng hợp';
+}
+
+async function tryTriggerGoogleLogin(page) {
+  try {
+    await page.waitForTimeout(1500);
+    const googleBtn = await page.$(
+      'div[data-e2e="channel-item"]:has-text("Google"), div[role="link"]:has-text("Google"), div:has-text("Continue with Google")'
+    );
+    if (googleBtn) {
+      await googleBtn.click();
+    }
+  } catch {}
+}
+
+export async function openTikTokLoginWindow(accountId, mode = 'all') {
   const accounts = loadTikTokAccounts();
   const account = accounts.find((a) => a.id === accountId) || accounts[0];
   if (!account) return { ok: false, message: 'Không tìm thấy tài khoản TikTok.' };
 
+  const targetUrl = getLoginUrlForMode(mode);
+
   if (activeBrowsers.has(account.id)) {
+    const context = activeBrowsers.get(account.id);
+    try {
+      const page = context.pages().find((p) => p.url().includes('tiktok.com')) || context.pages()[0];
+      if (page && !page.isClosed()) {
+        await page.goto(targetUrl, { waitUntil: 'domcontentloaded' }).catch(() => {});
+        if (mode === 'google') {
+          await tryTriggerGoogleLogin(page);
+        }
+        return {
+          ok: true,
+          message: `Đã chuyển cửa sổ Google Chrome của "${account.name}" sang chế độ: ${getModeDescription(mode)}.`
+        };
+      }
+    } catch {}
     return { ok: true, message: `Cửa sổ Google Chrome cho "${account.name}" đang được mở sẵn trên màn hình.` };
   }
 
@@ -229,43 +280,53 @@ export async function openTikTokLoginWindow(accountId) {
     });
 
     const page = context.pages().length > 0 ? context.pages()[0] : await context.newPage();
-    await page.goto('https://www.tiktok.com/login/qrcode', { waitUntil: 'domcontentloaded' });
+    await page.goto(targetUrl, { waitUntil: 'domcontentloaded' });
+
+    if (mode === 'google') {
+      await tryTriggerGoogleLogin(page);
+    }
 
     // Active watcher while window is open: check login and auto-update real channel name
     const checkInterval = setInterval(async () => {
       try {
-        if (!activeBrowsers.has(account.id) || page.isClosed()) {
+        if (!activeBrowsers.has(account.id) || context.pages().length === 0) {
           clearInterval(checkInterval);
           return;
         }
 
-        // 1. Check ALL cookies across all domains
+        // 1. Check ALL cookies across all domains and pages
         const allCookies = await context.cookies();
         const hasSession = allCookies.some((c) =>
-          (c.name === 'sessionid' || c.name === 'sessionid_ss' || c.name === 'sid_tt' || c.name === 'passport_auth_status') && c.value
+          (c.name === 'sessionid' || c.name === 'sessionid_ss' || c.name === 'sid_tt') && c.value
         );
 
+        const tiktokPage = context.pages().find((p) => p.url().includes('tiktok.com')) || context.pages()[0];
+        if (!tiktokPage || tiktokPage.isClosed()) return;
+
         // 2. Also check authenticated passport API
-        const passportData = await page.evaluate(async () => {
-          try {
-            const r = await fetch('/passport/web/account/info/', { credentials: 'include' });
-            if (r.ok) {
-              const j = await r.json();
-              if (j?.message === 'success' && j?.data) {
-                return j.data;
+        let passportData = null;
+        try {
+          passportData = await tiktokPage.evaluate(async () => {
+            try {
+              const r = await fetch('/passport/web/account/info/', { credentials: 'include' });
+              if (r.ok) {
+                const j = await r.json();
+                if (j?.message === 'success' && j?.data) {
+                  return j.data;
+                }
               }
-            }
-          } catch {}
-          return null;
-        }).catch(() => null);
+            } catch {}
+            return null;
+          });
+        } catch {}
 
         if (hasSession || passportData) {
-          // If login confirmed but still on QR/login page, automatically navigate to main site!
-          if (page.url().includes('/login')) {
-            await page.goto('https://www.tiktok.com/', { waitUntil: 'domcontentloaded', timeout: 15000 }).catch(() => {});
+          // If login confirmed but still on login/auth page, automatically navigate to main site!
+          if (tiktokPage.url().includes('/login')) {
+            await tiktokPage.goto('https://www.tiktok.com/', { waitUntil: 'domcontentloaded', timeout: 15000 }).catch(() => {});
           }
 
-          const profile = await extractTikTokProfile(page);
+          const profile = await extractTikTokProfile(tiktokPage);
           const rawUid = profile?.uniqueId || passportData?.username || passportData?.user_id;
           const rawNick = profile?.nickname || passportData?.screen_name || rawUid;
 
@@ -278,9 +339,11 @@ export async function openTikTokLoginWindow(accountId) {
               if (target.name.startsWith('Kênh TikTok') || !target.name) {
                 target.name = rawNick ? `${rawNick}` : target.username;
               }
+              target.loggedIn = true;
               saveTikTokAccounts(currentAccounts);
               account.username = target.username;
               account.name = target.name;
+              account.loggedIn = true;
             }
           }
         }
@@ -293,10 +356,18 @@ export async function openTikTokLoginWindow(accountId) {
       await updateAccountUsernameAfterClose(account);
     });
 
-    return {
-      ok: true,
-      message: `Đang mở Google Chrome hiển thị mã QR cho "${account.name}".\n\n📌 Hướng dẫn quét mã:\n1. Mở app TikTok trên điện thoại -> Vào "Hồ sơ".\n2. Bấm Menu (3 gạch góc trên phải) -> Chọn "Mã QR của tôi".\n3. Bấm icon Máy quét góc trên phải và quét mã trên màn hình.\n4. Bấm "Xác nhận đăng nhập" trên điện thoại, sau đó đóng cửa sổ Chrome lại.`
-    };
+    let message = '';
+    if (mode === 'phone-or-email' || mode === 'phone' || mode === 'email') {
+      message = `Đang mở Google Chrome tại form đăng nhập Số điện thoại & Email cho "${account.name}".\n\n📌 Bạn có thể nhập Số điện thoại (nhận mã OTP SMS hoặc mật khẩu) hoặc chuyển sang Email / Tên người dùng và mật khẩu để đăng nhập.`;
+    } else if (mode === 'google') {
+      message = `Đang mở Google Chrome và kích hoạt đăng nhập Google / Gmail cho "${account.name}".\n\n📌 Cửa sổ đăng nhập Google sẽ xuất hiện, bạn chỉ cần chọn hoặc nhập tài khoản Gmail của mình để liên kết với TikTok.`;
+    } else if (mode === 'qrcode' || mode === 'qr') {
+      message = `Đang mở Google Chrome hiển thị mã QR cho "${account.name}".\n\n📌 Quét mã bằng app TikTok trên điện thoại (Hồ sơ -> 3 gạch -> Mã QR của tôi -> Quét mã -> Xác nhận).`;
+    } else {
+      message = `Đang mở Google Chrome với đầy đủ các phương thức đăng nhập cho "${account.name}". Bạn có thể chọn Số điện thoại, Gmail, Email hoặc Mã QR tùy ý.`;
+    }
+
+    return { ok: true, message };
   } catch (error) {
     activeBrowsers.delete(account.id);
     return { ok: false, message: `Lỗi mở Google Chrome: ${error.message}` };
@@ -349,7 +420,7 @@ export async function checkAccountStatus(accountId) {
     try {
       const allCookies = await context.cookies();
       const hasSession = allCookies.some((c) =>
-        (c.name === 'sessionid' || c.name === 'sessionid_ss' || c.name === 'sid_tt' || c.name === 'passport_auth_status') && c.value
+        (c.name === 'sessionid' || c.name === 'sessionid_ss' || c.name === 'sid_tt') && c.value
       );
       if (hasSession) {
         const latestAcc = loadTikTokAccounts().find((a) => a.id === accountId) || account;
@@ -360,7 +431,7 @@ export async function checkAccountStatus(accountId) {
           message: 'Đã kết nối thành công.'
         };
       }
-      return { loggedIn: false, message: 'Đang mở cửa sổ đăng nhập Google Chrome... Vui lòng quét mã QR trên màn hình.' };
+      return { loggedIn: false, message: 'Đang mở cửa sổ đăng nhập Google Chrome... Vui lòng hoàn tất đăng nhập trên trình duyệt.' };
     } catch {
       return { loggedIn: false, message: 'Đang kết nối...' };
     }

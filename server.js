@@ -435,7 +435,8 @@ app.put('/api/tiktok/accounts/:id/rename', (req, res) => {
 
 app.post('/api/tiktok/accounts/:id/login', async (req, res) => {
   try {
-    const result = await openTikTokLoginWindow(req.params.id);
+    const mode = req.body?.mode || req.query?.mode || 'all';
+    const result = await openTikTokLoginWindow(req.params.id, mode);
     res.json(result);
   } catch (error) {
     res.status(500).json({ ok: false, message: error.message });

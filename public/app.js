@@ -1580,9 +1580,18 @@ async function loadTikTokAccounts() {
             </div>
           </div>
           <div class="tiktok-account-actions">
-            <button class="secondary tiktok-btn-sm tiktok-login-btn" type="button" data-id="${acc.id}">
-              🔑 ${isConnected ? 'Mở TikTok Studio (Chrome)' : 'Đăng Nhập (Chrome)'}
-            </button>
+            ${isConnected ? `
+              <button class="secondary tiktok-btn-sm tiktok-studio-btn" type="button" data-id="${acc.id}" title="Mở TikTok Studio trên Chrome">
+                🌐 Mở Studio
+              </button>
+              <button class="secondary tiktok-btn-sm tiktok-relogin-btn" type="button" data-id="${acc.id}" data-name="${escapeHtml(acc.name)}" title="Đăng nhập lại bằng Gmail, SĐT hoặc QR">
+                🔄 Đổi đăng nhập
+              </button>
+            ` : `
+              <button class="secondary tiktok-btn-sm tiktok-login-btn" type="button" data-id="${acc.id}" data-name="${escapeHtml(acc.name)}" style="border-color: var(--brand-border); color: var(--brand);">
+                🔑 Đăng Nhập (Chrome)
+              </button>
+            `}
             <button class="secondary tiktok-btn-sm tiktok-delete-btn" type="button" data-id="${acc.id}" style="color: #f87171;" title="Xóa kênh này">
               🗑️ Xóa
             </button>
@@ -1594,6 +1603,73 @@ async function loadTikTokAccounts() {
     attachTikTokAccountListeners();
   } catch (err) {
     tiktokAccountsContainer.innerHTML = `<div style="color: #f87171; padding: 8px;">Lỗi tải danh sách kênh: ${escapeHtml(err.message)}</div>`;
+  }
+}
+
+let currentLoginAccountId = null;
+const tiktokLoginModal = document.querySelector('#tiktokLoginModal');
+const modalAccountName = document.querySelector('#modalAccountName');
+const closeTikTokModalBtn = document.querySelector('#closeTikTokModalBtn');
+const cancelTikTokModalBtn = document.querySelector('#cancelTikTokModalBtn');
+
+function openTikTokLoginModal(accountId, accountName) {
+  currentLoginAccountId = accountId;
+  if (modalAccountName) modalAccountName.textContent = accountName || 'Kênh TikTok';
+  if (tiktokLoginModal) tiktokLoginModal.classList.remove('hidden');
+}
+
+function closeTikTokLoginModal() {
+  if (tiktokLoginModal) tiktokLoginModal.classList.add('hidden');
+  currentLoginAccountId = null;
+}
+
+closeTikTokModalBtn?.addEventListener('click', closeTikTokLoginModal);
+cancelTikTokModalBtn?.addEventListener('click', closeTikTokLoginModal);
+tiktokLoginModal?.addEventListener('click', (e) => {
+  if (e.target === tiktokLoginModal) closeTikTokLoginModal();
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && tiktokLoginModal && !tiktokLoginModal.classList.contains('hidden')) {
+    closeTikTokLoginModal();
+  }
+});
+
+// Modal option buttons
+document.querySelectorAll('.tiktok-login-option-btn').forEach((btn) => {
+  btn.addEventListener('click', async () => {
+    const mode = btn.dataset.mode || 'all';
+    const accId = currentLoginAccountId;
+    closeTikTokLoginModal();
+    if (accId) {
+      await executeTikTokLogin(accId, mode);
+    }
+  });
+});
+
+async function executeTikTokLogin(id, mode = 'all') {
+  try {
+    const res = await fetch(`/api/tiktok/accounts/${id}/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode })
+    });
+    const data = await res.json();
+    alert(data.message || 'Đang mở Google Chrome. Bạn hãy hoàn tất đăng nhập trên trình duyệt. Tên kênh sẽ được tự động đồng bộ ngay sau khi đăng nhập thành công!');
+
+    let attempts = 0;
+    const interval = setInterval(async () => {
+      attempts += 1;
+      try {
+        const statusRes = await fetch(`/api/tiktok/accounts/${id}/status`);
+        const statusData = await statusRes.json();
+        if (statusData.loggedIn || attempts > 30) {
+          clearInterval(interval);
+          loadTikTokAccounts();
+        }
+      } catch {}
+    }, 2500);
+  } catch (err) {
+    alert(`Lỗi đăng nhập: ${err.message}`);
   }
 }
 
@@ -1646,33 +1722,29 @@ function attachTikTokAccountListeners() {
     });
   });
 
-  // Login button
+  // Login button -> Opens modal
   tiktokAccountsContainer.querySelectorAll('.tiktok-login-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.id;
+      const name = btn.dataset.name || 'Kênh TikTok';
+      openTikTokLoginModal(id, name);
+    });
+  });
+
+  // Relogin button -> Opens modal
+  tiktokAccountsContainer.querySelectorAll('.tiktok-relogin-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.id;
+      const name = btn.dataset.name || 'Kênh TikTok';
+      openTikTokLoginModal(id, name);
+    });
+  });
+
+  // Open TikTok Studio directly
+  tiktokAccountsContainer.querySelectorAll('.tiktok-studio-btn').forEach((btn) => {
     btn.addEventListener('click', async () => {
       const id = btn.dataset.id;
-      btn.disabled = true;
-      try {
-        const res = await fetch(`/api/tiktok/accounts/${id}/login`, { method: 'POST' });
-        const data = await res.json();
-        alert(data.message || 'Đang mở Google Chrome. Bạn hãy đăng nhập tài khoản TikTok (khuyên dùng "Sử dụng mã QR" hoặc "Tiếp tục với Google"). Tên kênh sẽ được tự động cập nhật sau khi đăng nhập thành công!');
-
-        let attempts = 0;
-        const interval = setInterval(async () => {
-          attempts += 1;
-          try {
-            const statusRes = await fetch(`/api/tiktok/accounts/${id}/status`);
-            const statusData = await statusRes.json();
-            if (statusData.loggedIn || attempts > 25) {
-              clearInterval(interval);
-              loadTikTokAccounts();
-            }
-          } catch {}
-        }, 3000);
-      } catch (err) {
-        alert(`Lỗi đăng nhập: ${err.message}`);
-      } finally {
-        btn.disabled = false;
-      }
+      await executeTikTokLogin(id, 'all');
     });
   });
 
