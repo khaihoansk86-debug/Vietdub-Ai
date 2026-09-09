@@ -1,6 +1,18 @@
 const form = document.querySelector('#jobForm');
 const logs = document.querySelector('#logs');
 const state = document.querySelector('#state');
+
+function setState(status, customText) {
+  if (!state) return;
+  state.dataset.status = status;
+  if (customText) {
+    state.textContent = customText;
+  } else if (typeof i18n !== 'undefined' && typeof currentLang !== 'undefined' && i18n[currentLang] && i18n[currentLang][status]) {
+    state.textContent = i18n[currentLang][status];
+  } else {
+    state.textContent = status === 'running' ? 'Đang chạy' : status === 'error' ? 'Lỗi' : 'Sẵn sàng';
+  }
+}
 const result = document.querySelector('#result');
 const cleanupBtn = document.querySelector('#cleanupBtn');
 const themeToggle = document.querySelector('#themeToggle');

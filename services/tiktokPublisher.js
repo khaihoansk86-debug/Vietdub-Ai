@@ -718,7 +718,8 @@ export async function uploadSingleAccount({ account, videoPath, caption, hashtag
       '--start-maximized',
       '--disable-infobars',
       '--no-default-browser-check',
-      '--no-first-run'
+      '--no-first-run',
+      '--disable-backgrounding-occluded-windows'
     ]
   });
 
@@ -739,6 +740,10 @@ export async function uploadSingleAccount({ account, videoPath, caption, hashtag
   });
 
   const page = context.pages().length > 0 ? context.pages()[0] : await context.newPage();
+  try {
+    await page.bringToFront();
+  } catch {}
+  log(`📱 [TikTok - ${account.name}] Đã mở cửa sổ Chrome của kênh lên màn hình.`);
 
   try {
     log(`📱 [TikTok - ${account.name}] Đang mở TikTok Studio Upload...`);
