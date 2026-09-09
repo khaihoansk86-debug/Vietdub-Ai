@@ -200,6 +200,52 @@ export function getSystemBrowserPath() {
   return null;
 }
 
+export function extractUsernameFromProfile(profileDir) {
+  const historyPath = path.join(profileDir, 'Default', 'History');
+  if (!fs.existsSync(historyPath)) return null;
+
+  try {
+    const tmp = path.join(os.tmpdir(), `history_probe_${Date.now()}_${Math.random().toString(36).substring(2)}.db`);
+    try {
+      fs.copyFileSync(historyPath, tmp);
+    } catch {}
+    const target = fs.existsSync(tmp) ? tmp : historyPath;
+    const buf = fs.readFileSync(target);
+    try { if (fs.existsSync(tmp)) fs.unlinkSync(tmp); } catch {}
+
+    const text = buf.toString('utf8');
+
+    // Strategy 1: Title pattern: 'nickname (@username) | TikTok'
+    const titleMatch = text.match(/\(@([a-zA-Z0-9._]+)\)\s*\|\s*TikTok/);
+    if (titleMatch) {
+      const u = titleMatch[1];
+      const endIdx = titleMatch.index;
+      const prefix = text.slice(Math.max(0, endIdx - 80), endIdx).trim();
+      let nick = u;
+      if (prefix.endsWith(u)) {
+        nick = u;
+      } else {
+        const cleaned = prefix.split(/[?&=/\\<>\x00-\x1F]/).pop().trim();
+        nick = cleaned || u;
+      }
+      return { username: `@${u}`, nickname: nick };
+    }
+
+    // Strategy 2: URL pattern tiktok.com/@username
+    const urlMatches = [...text.matchAll(/tiktok\.com\/@([a-zA-Z0-9._]+)/g)];
+    const ignored = new Set(['explore', 'foryou', 'live', 'tag', 'music', 'upload', 'login', 'signup', 'feedback', 'messages', 'following']);
+    for (let i = urlMatches.length - 1; i >= 0; i--) {
+      const u = urlMatches[i][1];
+      if (!ignored.has(u.toLowerCase()) && u.length >= 2) {
+        return { username: `@${u}`, nickname: u };
+      }
+    }
+  } catch (err) {
+    console.warn('Lỗi đọc username từ History:', err.message);
+  }
+  return null;
+}
+
 export function checkProfileHasSession(profileDir) {
   const cookiePath = path.join(profileDir, 'Default', 'Network', 'Cookies');
   if (!fs.existsSync(cookiePath)) return false;
@@ -207,11 +253,16 @@ export function checkProfileHasSession(profileDir) {
     const stat = fs.statSync(cookiePath);
     if (stat.size < 500) return false;
     const tmp = path.join(os.tmpdir(), `check_cookie_${Date.now()}_${Math.random().toString(36).substring(2)}.db`);
-    fs.copyFileSync(cookiePath, tmp);
+    try {
+      fs.copyFileSync(cookiePath, tmp);
+    } catch {
+      // If locked by Chrome, size > 2KB indicates an active profile with cookies
+      return stat.size > 2000;
+    }
     const buf = fs.readFileSync(tmp);
     try { fs.unlinkSync(tmp); } catch {}
     // Checks for sessionid or sessionid_ss or sid_tt
-    return buf.includes(Buffer.from('sessionid')) || buf.includes(Buffer.from('sid_tt'));
+    return buf.includes(Buffer.from('sessionid')) || buf.includes(Buffer.from('sid_tt')) || stat.size > 15000;
   } catch {
     return false;
   }
@@ -314,8 +365,18 @@ export async function syncAccountProfile(accountId) {
   if (!account) return { ok: false, message: 'Tài khoản không tồn tại.' };
 
   const profileDir = getAccountProfileDir(account);
-  if (!checkProfileHasSession(profileDir)) {
+  const hasSession = checkProfileHasSession(profileDir);
+  if (!hasSession && !account.loggedIn) {
     return { ok: false, message: 'Chưa phát hiện phiên đăng nhập trong trình duyệt.' };
+  }
+
+  // 1. Direct profile history extraction (Fast, non-blocking, reliable)
+  const directProfile = extractUsernameFromProfile(profileDir);
+  if (directProfile && directProfile.username) {
+    account.username = directProfile.username;
+    if (account.name.startsWith('Kênh TikTok') || !account.name) {
+      account.name = directProfile.nickname || directProfile.username;
+    }
   }
 
   // If native Chrome is still open, close it so profile directory is not locked
@@ -325,33 +386,36 @@ export async function syncAccountProfile(accountId) {
       if (child && child.pid) process.kill(child.pid);
     } catch {}
     nativeBrowsers.delete(account.id);
-    await new Promise((r) => setTimeout(r, 1200));
+    await new Promise((r) => setTimeout(r, 1000));
   }
 
-  try {
-    const channel = await detectBrowserChannel();
-    const probeContext = await chromium.launchPersistentContext(profileDir, {
-      channel,
-      headless: true,
-      ignoreDefaultArgs: ['--no-sandbox', '--enable-automation'],
-      args: ['--no-default-browser-check', '--no-first-run']
-    });
-
+  // 2. Playwright headless probe (only if username not found yet)
+  if (!account.username || account.username === '@tiktok') {
     try {
-      const page = probeContext.pages()[0] || await probeContext.newPage();
-      await page.goto('https://www.tiktok.com/', { waitUntil: 'domcontentloaded', timeout: 12000 }).catch(() => {});
-      const profile = await extractTikTokProfile(page);
-      if (profile && profile.uniqueId) {
-        account.username = `@${profile.uniqueId.replace(/^@/, '')}`;
-        if (account.name.startsWith('Kênh TikTok') || !account.name) {
-          account.name = profile.nickname || account.username;
+      const channel = await detectBrowserChannel();
+      const probeContext = await chromium.launchPersistentContext(profileDir, {
+        channel,
+        headless: true,
+        ignoreDefaultArgs: ['--no-sandbox', '--enable-automation'],
+        args: ['--no-default-browser-check', '--no-first-run']
+      });
+
+      try {
+        const page = probeContext.pages()[0] || await probeContext.newPage();
+        await page.goto('https://www.tiktok.com/', { waitUntil: 'domcontentloaded', timeout: 12000 }).catch(() => {});
+        const profile = await extractTikTokProfile(page);
+        if (profile && profile.uniqueId) {
+          account.username = `@${profile.uniqueId.replace(/^@/, '')}`;
+          if (account.name.startsWith('Kênh TikTok') || !account.name) {
+            account.name = profile.nickname || account.username;
+          }
         }
+      } finally {
+        await probeContext.close();
       }
-    } finally {
-      await probeContext.close();
+    } catch (err) {
+      console.warn('Sync profile warning:', err.message);
     }
-  } catch (err) {
-    console.warn('Sync profile warning:', err.message);
   }
 
   account.loggedIn = true;
@@ -360,7 +424,7 @@ export async function syncAccountProfile(accountId) {
     ok: true,
     channelName: account.name,
     username: account.username || 'TikTok Creator',
-    message: `Đã lưu thành công kênh "${account.name}" (${account.username})!`
+    message: `Đã lưu thành công kênh "${account.name}" (${account.username || 'TikTok'})!`
   };
 }
 
@@ -377,7 +441,22 @@ export async function checkAccountStatus(accountId) {
   const isBrowserRunning = nativeBrowsers.has(account.id);
   const hasSession = checkProfileHasSession(profileDir);
 
-  if (hasSession) {
+  // Auto-scan username from History if not set
+  if (!account.username || account.username === '@tiktok' || account.name.startsWith('Kênh TikTok')) {
+    const extracted = extractUsernameFromProfile(profileDir);
+    if (extracted && extracted.username) {
+      account.username = extracted.username;
+      if (account.name.startsWith('Kênh TikTok') && extracted.nickname) {
+        account.name = extracted.nickname;
+      }
+      saveTikTokAccounts(accounts);
+    }
+  }
+
+  // SESSION STICKINESS:
+  // Once marked as logged in, retain loggedIn = true unless profile directory is deleted.
+  // This prevents transient Windows file lock errors or Chrome WAL flushes from flipping state to logged out.
+  if (hasSession || account.loggedIn) {
     if (!account.loggedIn) {
       account.loggedIn = true;
       saveTikTokAccounts(accounts);
@@ -388,7 +467,7 @@ export async function checkAccountStatus(accountId) {
       username: account.username || 'TikTok Creator',
       isBrowserRunning,
       message: isBrowserRunning
-        ? 'Đã nhận diện phiên đăng nhập thành công! Hãy đóng cửa sổ Chrome để đồng bộ tên kênh.'
+        ? 'Đã nhận diện phiên đăng nhập! Hãy đóng Chrome lại sau khi hoàn tất.'
         : 'Đã kết nối thành công.'
     };
   }

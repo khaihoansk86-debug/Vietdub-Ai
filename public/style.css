@@ -1505,3 +1505,22 @@ button.secondary:hover:not(:disabled) {
   border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
   background: #0b1120 !important;
 }
+
+.tiktok-modal-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px 14px;
+  background: #1e293b !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  border-radius: var(--radius-sm, 8px);
+  color: #ffffff !important;
+  font-size: 0.95rem;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.tiktok-modal-input:focus {
+  border-color: #38bdf8 !important;
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.25);
+}
+

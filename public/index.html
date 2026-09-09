@@ -644,6 +644,59 @@
       </div>
     </div>
 
+    <!-- TIKTOK CUSTOM INPUT / PROMPT MODAL (ADD & RENAME) -->
+    <div id="tiktokInputModal" class="tiktok-modal-backdrop hidden">
+      <div class="tiktok-modal-card" style="max-width: 480px;">
+        <div class="tiktok-modal-header">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span id="tiktokInputModalIcon" style="font-size: 1.4rem;">➕</span>
+            <div>
+              <h3 id="tiktokInputModalTitle" class="tiktok-modal-title">Thêm Kênh TikTok Mới</h3>
+            </div>
+          </div>
+          <button type="button" id="closeTikTokInputModalBtn" class="tiktok-modal-close" title="Đóng">&times;</button>
+        </div>
+
+        <div class="tiktok-modal-body" style="padding: 20px 22px;">
+          <label id="tiktokInputModalLabel" for="tiktokInputModalField" style="display: block; font-size: 0.86rem; color: #cbd5e1; margin-bottom: 8px;">
+            Nhập tên gợi nhớ cho kênh (Ví dụ: Kênh Chính, Kênh 2, Kênh Review):
+          </label>
+          <input type="text" id="tiktokInputModalField" class="tiktok-modal-input" placeholder="Nhập tên kênh..." autocomplete="off">
+        </div>
+
+        <div class="tiktok-modal-footer" style="justify-content: flex-end; gap: 10px;">
+          <button type="button" class="secondary tiktok-btn-sm" id="cancelTikTokInputModalBtn">Hủy</button>
+          <button type="button" class="primary tiktok-btn-sm" id="confirmTikTokInputModalBtn" style="font-weight: 600;">Xác Nhận</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TIKTOK CUSTOM CONFIRM MODAL (DELETE) -->
+    <div id="tiktokConfirmModal" class="tiktok-modal-backdrop hidden">
+      <div class="tiktok-modal-card" style="max-width: 440px;">
+        <div class="tiktok-modal-header">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 1.4rem;">🗑️</span>
+            <div>
+              <h3 id="tiktokConfirmModalTitle" class="tiktok-modal-title">Xác Nhận Xóa Kênh</h3>
+            </div>
+          </div>
+          <button type="button" id="closeTikTokConfirmModalBtn" class="tiktok-modal-close" title="Đóng">&times;</button>
+        </div>
+
+        <div class="tiktok-modal-body" style="padding: 20px 22px;">
+          <p id="tiktokConfirmModalDesc" style="color: #e2e8f0; font-size: 0.9rem; line-height: 1.5; margin: 0;">
+            Bạn có chắc chắn muốn xóa kênh TikTok này khỏi danh sách quản lý?
+          </p>
+        </div>
+
+        <div class="tiktok-modal-footer" style="justify-content: flex-end; gap: 10px;">
+          <button type="button" class="secondary tiktok-btn-sm" id="cancelTikTokConfirmModalBtn">Hủy</button>
+          <button type="button" class="tiktok-btn-sm" id="confirmTikTokConfirmModalBtn" style="background: #ef4444; color: #ffffff; border: 1px solid #dc2626; font-weight: 600;">Xác Nhận Xóa</button>
+        </div>
+      </div>
+    </div>
+
     <script src="/app.js"></script>
   </body>
 </html>

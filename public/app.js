@@ -1634,9 +1634,110 @@ cancelTikTokModalBtn?.addEventListener('click', closeTikTokLoginModal);
 tiktokLoginModal?.addEventListener('click', (e) => {
   if (e.target === tiktokLoginModal) closeTikTokLoginModal();
 });
+
+// Custom Prompt Modal Helper
+const tiktokInputModal = document.querySelector('#tiktokInputModal');
+const tiktokInputModalTitle = document.querySelector('#tiktokInputModalTitle');
+const tiktokInputModalIcon = document.querySelector('#tiktokInputModalIcon');
+const tiktokInputModalLabel = document.querySelector('#tiktokInputModalLabel');
+const tiktokInputModalField = document.querySelector('#tiktokInputModalField');
+const closeTikTokInputModalBtn = document.querySelector('#closeTikTokInputModalBtn');
+const cancelTikTokInputModalBtn = document.querySelector('#cancelTikTokInputModalBtn');
+const confirmTikTokInputModalBtn = document.querySelector('#confirmTikTokInputModalBtn');
+
+let customPromptResolver = null;
+
+function showCustomPrompt({ title = 'Nhập thông tin', label = 'Nội dung:', defaultValue = '', placeholder = '', icon = '✏️' } = {}) {
+  return new Promise((resolve) => {
+    customPromptResolver = resolve;
+    if (tiktokInputModalTitle) tiktokInputModalTitle.textContent = title;
+    if (tiktokInputModalIcon) tiktokInputModalIcon.textContent = icon;
+    if (tiktokInputModalLabel) tiktokInputModalLabel.textContent = label;
+    if (tiktokInputModalField) {
+      tiktokInputModalField.value = defaultValue;
+      tiktokInputModalField.placeholder = placeholder || defaultValue;
+    }
+    tiktokInputModal?.classList.remove('hidden');
+    setTimeout(() => {
+      tiktokInputModalField?.focus();
+      tiktokInputModalField?.select();
+    }, 50);
+  });
+}
+
+function finishCustomPrompt(val) {
+  if (tiktokInputModal) tiktokInputModal.classList.add('hidden');
+  if (customPromptResolver) {
+    const fn = customPromptResolver;
+    customPromptResolver = null;
+    fn(val);
+  }
+}
+
+closeTikTokInputModalBtn?.addEventListener('click', () => finishCustomPrompt(null));
+cancelTikTokInputModalBtn?.addEventListener('click', () => finishCustomPrompt(null));
+confirmTikTokInputModalBtn?.addEventListener('click', () => finishCustomPrompt(tiktokInputModalField?.value ?? ''));
+
+tiktokInputModalField?.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    finishCustomPrompt(tiktokInputModalField.value);
+  } else if (e.key === 'Escape') {
+    e.preventDefault();
+    finishCustomPrompt(null);
+  }
+});
+
+tiktokInputModal?.addEventListener('click', (e) => {
+  if (e.target === tiktokInputModal) finishCustomPrompt(null);
+});
+
+// Custom Confirm Modal Helper
+const tiktokConfirmModal = document.querySelector('#tiktokConfirmModal');
+const tiktokConfirmModalTitle = document.querySelector('#tiktokConfirmModalTitle');
+const tiktokConfirmModalDesc = document.querySelector('#tiktokConfirmModalDesc');
+const closeTikTokConfirmModalBtn = document.querySelector('#closeTikTokConfirmModalBtn');
+const cancelTikTokConfirmModalBtn = document.querySelector('#cancelTikTokConfirmModalBtn');
+const confirmTikTokConfirmModalBtn = document.querySelector('#confirmTikTokConfirmModalBtn');
+
+let customConfirmResolver = null;
+
+function showCustomConfirm({ title = 'Xác nhận', message = 'Bạn có chắc chắn muốn thực hiện thao tác này?' } = {}) {
+  return new Promise((resolve) => {
+    customConfirmResolver = resolve;
+    if (tiktokConfirmModalTitle) tiktokConfirmModalTitle.textContent = title;
+    if (tiktokConfirmModalDesc) tiktokConfirmModalDesc.textContent = message;
+    tiktokConfirmModal?.classList.remove('hidden');
+  });
+}
+
+function finishCustomConfirm(val) {
+  if (tiktokConfirmModal) tiktokConfirmModal.classList.add('hidden');
+  if (customConfirmResolver) {
+    const fn = customConfirmResolver;
+    customConfirmResolver = null;
+    fn(Boolean(val));
+  }
+}
+
+closeTikTokConfirmModalBtn?.addEventListener('click', () => finishCustomConfirm(false));
+cancelTikTokConfirmModalBtn?.addEventListener('click', () => finishCustomConfirm(false));
+confirmTikTokConfirmModalBtn?.addEventListener('click', () => finishCustomConfirm(true));
+tiktokConfirmModal?.addEventListener('click', (e) => {
+  if (e.target === tiktokConfirmModal) finishCustomConfirm(false);
+});
+
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && tiktokLoginModal && !tiktokLoginModal.classList.contains('hidden')) {
-    closeTikTokLoginModal();
+  if (e.key === 'Escape') {
+    if (tiktokLoginModal && !tiktokLoginModal.classList.contains('hidden')) {
+      closeTikTokLoginModal();
+    }
+    if (tiktokInputModal && !tiktokInputModal.classList.contains('hidden')) {
+      finishCustomPrompt(null);
+    }
+    if (tiktokConfirmModal && !tiktokConfirmModal.classList.contains('hidden')) {
+      finishCustomConfirm(false);
+    }
   }
 });
 
@@ -1708,7 +1809,13 @@ function attachTikTokAccountListeners() {
       const id = btn.dataset.id;
       const currentCard = btn.closest('.tiktok-account-card');
       const currentName = currentCard?.querySelector('.tiktok-account-name')?.textContent || '';
-      const newName = prompt('Nhập tên hiển thị mới cho kênh này:', currentName);
+      const newName = await showCustomPrompt({
+        title: 'Đổi Tên Kênh TikTok',
+        icon: '✏️',
+        label: 'Nhập tên hiển thị mới cho kênh này để dễ phân biệt:',
+        defaultValue: currentName,
+        placeholder: 'Tên kênh...'
+      });
       if (!newName || !newName.trim() || newName.trim() === currentName) return;
       try {
         const res = await fetch(`/api/tiktok/accounts/${id}/rename`, {
@@ -1784,7 +1891,13 @@ function attachTikTokAccountListeners() {
   tiktokAccountsContainer.querySelectorAll('.tiktok-delete-btn').forEach((btn) => {
     btn.addEventListener('click', async () => {
       const id = btn.dataset.id;
-      if (!confirm('Bạn có chắc muốn xóa kênh TikTok này khỏi danh sách quản lý?')) return;
+      const currentCard = btn.closest('.tiktok-account-card');
+      const currentName = currentCard?.querySelector('.tiktok-account-name')?.textContent || 'kênh này';
+      const confirmed = await showCustomConfirm({
+        title: 'Xác Nhận Xóa Kênh',
+        message: `Bạn có chắc muốn xóa "${currentName}" khỏi danh sách quản lý? Toàn bộ phiên đăng nhập của kênh này sẽ được giải phóng an toàn.`
+      });
+      if (!confirmed) return;
       try {
         await fetch(`/api/tiktok/accounts/${id}`, { method: 'DELETE' });
         loadTikTokAccounts();
@@ -1797,8 +1910,18 @@ function attachTikTokAccountListeners() {
 
 // Add account
 tiktokAddAccountBtn?.addEventListener('click', async () => {
-  const name = prompt('Nhập tên gợi nhớ cho kênh TikTok mới (Ví dụ: Kênh Chính, Kênh Review 2, Kênh Phim):');
+  const cards = tiktokAccountsContainer ? tiktokAccountsContainer.querySelectorAll('.tiktok-account-card') : [];
+  const nextNum = cards.length + 1;
+  const suggestedName = `Kênh TikTok ${nextNum}`;
+  const name = await showCustomPrompt({
+    title: 'Thêm Kênh TikTok Mới',
+    icon: '➕',
+    label: 'Nhập tên gợi nhớ cho kênh TikTok mới (Ví dụ: Kênh Chính, Kênh Phim, Review 2):',
+    defaultValue: suggestedName,
+    placeholder: suggestedName
+  });
   if (!name || !name.trim()) return;
+
   try {
     const res = await fetch('/api/tiktok/accounts', {
       method: 'POST',
@@ -1823,4 +1946,5 @@ tiktokRefreshBtn?.addEventListener('click', () => {
 
 // Initial load
 loadTikTokAccounts();
+
 
