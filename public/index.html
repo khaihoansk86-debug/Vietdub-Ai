@@ -335,38 +335,35 @@
               </fieldset>
             </section>
 
-            <!-- TIKTOK AUTO PUBLISHER -->
+            <!-- TIKTOK AUTO PUBLISHER (MULTI-ACCOUNT) -->
             <section class="form-section tiktok-section" style="margin-top: 14px;">
               <div class="section-head">
                 <div>
-                  <h2><span>📱</span> Tự Động Đăng Lên Kênh TikTok</h2>
-                  <p>AI tự động tạo tiêu đề, caption giật tít, hashtags và tự động đăng video lên kênh TikTok của bạn.</p>
+                  <h2><span>📱</span> Quản Lý Đa Kênh & Tự Động Đăng TikTok</h2>
+                  <p>AI tự động tạo tiêu đề, caption giật tít, hashtags và tự động đăng đồng loạt lên các kênh TikTok bạn chọn.</p>
                 </div>
-                <div id="tiktokStatusBadge" class="status-badge" style="display: inline-flex; align-items: center; gap: 6px; font-size: 13px; padding: 4px 12px; border-radius: 20px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15);">
-                  <span id="tiktokStatusDot" style="width: 8px; height: 8px; border-radius: 50%; background: #94a3b8;"></span>
-                  <span id="tiktokStatusText">Đang kiểm tra...</span>
+                <div style="display: flex; gap: 8px;">
+                  <button class="secondary tiktok-btn-sm" id="tiktokAddAccountBtn" type="button" style="display: inline-flex; align-items: center; gap: 6px;">
+                    <span>➕</span> Thêm Kênh Mới
+                  </button>
+                  <button class="secondary tiktok-btn-sm" id="tiktokRefreshBtn" type="button" style="display: inline-flex; align-items: center; gap: 6px;">
+                    <span>🔄</span> Làm mới
+                  </button>
                 </div>
               </div>
 
-              <div class="control-row" style="align-items: center; margin-bottom: 12px; gap: 12px;">
-                <button class="secondary" id="tiktokLoginBtn" type="button" style="display: inline-flex; align-items: center; gap: 8px;">
-                  <span>🔑</span>
-                  <span id="tiktokLoginBtnText">Kết Nối Kênh TikTok (Đăng Nhập)</span>
-                </button>
-                <button class="secondary" id="tiktokCheckBtn" type="button" style="display: inline-flex; align-items: center; gap: 6px;">
-                  <span>🔄</span>
-                  <span>Kiểm tra lại</span>
-                </button>
-                <button class="btn-link" id="tiktokLogoutBtn" type="button" style="display: none; color: #f87171; text-decoration: underline; background: none; border: none; cursor: pointer; font-size: 13px;">
-                  Đăng xuất
-                </button>
+              <!-- Danh sách các kênh TikTok -->
+              <div id="tiktokAccountsContainer" class="tiktok-accounts-list">
+                <div style="padding: 12px; text-align: center; color: var(--muted); font-size: 0.85rem;">
+                  Đang tải danh sách kênh TikTok...
+                </div>
               </div>
 
               <fieldset class="settings-group compact">
                 <legend>⚙️ Cấu Hình Tự Động Đăng Bài</legend>
                 <label class="check-row">
                   <input name="tiktokAutoUpload" id="tiktokAutoUpload" type="checkbox">
-                  <span><strong>Bật tự động đăng lên TikTok</strong> ngay khi video render xong</span>
+                  <span><strong>Bật tự động đăng lên các kênh TikTok đã chọn</strong> ngay khi video render xong</span>
                 </label>
 
                 <div class="control-row" style="margin-top: 12px;">

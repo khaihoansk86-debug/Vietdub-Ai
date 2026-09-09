@@ -1529,76 +1529,164 @@ document.querySelector('#kokoroRetryBtn')?.addEventListener('click', async () =>
 setInterval(checkKokoroStatus, 4000);
 checkKokoroStatus();
 
-// TikTok Auto-Publisher Integration
-const tiktokLoginBtn = document.querySelector('#tiktokLoginBtn');
-const tiktokLoginBtnText = document.querySelector('#tiktokLoginBtnText');
-const tiktokCheckBtn = document.querySelector('#tiktokCheckBtn');
-const tiktokLogoutBtn = document.querySelector('#tiktokLogoutBtn');
-const tiktokStatusDot = document.querySelector('#tiktokStatusDot');
-const tiktokStatusText = document.querySelector('#tiktokStatusText');
+// TikTok Multi-Account Manager Integration
+const tiktokAccountsContainer = document.querySelector('#tiktokAccountsContainer');
+const tiktokAddAccountBtn = document.querySelector('#tiktokAddAccountBtn');
+const tiktokRefreshBtn = document.querySelector('#tiktokRefreshBtn');
 
-async function checkTikTokStatus() {
-  if (!tiktokStatusText) return;
+function escapeHtml(str) {
+  return String(str || '').replace(/[&<>"']/g, (m) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  }[m]));
+}
+
+async function loadTikTokAccounts() {
+  if (!tiktokAccountsContainer) return;
   try {
-    tiktokStatusText.textContent = 'Đang kiểm tra...';
-    if (tiktokStatusDot) tiktokStatusDot.style.background = '#94a3b8';
-    const res = await fetch('/api/tiktok/status');
+    const res = await fetch('/api/tiktok/accounts');
     const data = await res.json();
-    if (data.loggedIn) {
-      if (tiktokStatusDot) tiktokStatusDot.style.background = '#22c55e';
-      tiktokStatusText.textContent = `Đã kết nối (${data.username || 'TikTok Creator'})`;
-      if (tiktokLoginBtnText) tiktokLoginBtnText.textContent = 'Mở lại TikTok Studio';
-      if (tiktokLogoutBtn) tiktokLogoutBtn.style.display = 'inline-block';
-    } else {
-      if (tiktokStatusDot) tiktokStatusDot.style.background = '#f87171';
-      tiktokStatusText.textContent = 'Chưa kết nối';
-      if (tiktokLoginBtnText) tiktokLoginBtnText.textContent = 'Kết Nối Kênh TikTok (Đăng Nhập)';
-      if (tiktokLogoutBtn) tiktokLogoutBtn.style.display = 'none';
+    if (!data.success || !data.accounts || data.accounts.length === 0) {
+      tiktokAccountsContainer.innerHTML = `
+        <div style="padding: 16px; text-align: center; color: var(--muted); font-size: 0.85rem; border: 1px dashed var(--line); border-radius: var(--radius-md);">
+          Chưa có kênh TikTok nào được kết nối. Bấm <strong>"➕ Thêm Kênh Mới"</strong> ở trên để thêm kênh và đăng nhập.
+        </div>
+      `;
+      return;
     }
-  } catch {
-    if (tiktokStatusDot) tiktokStatusDot.style.background = '#f87171';
-    if (tiktokStatusText) tiktokStatusText.textContent = 'Chưa kết nối';
+
+    tiktokAccountsContainer.innerHTML = data.accounts.map((acc) => {
+      const isConnected = Boolean(acc.loggedIn);
+      const isSelected = Boolean(acc.selected);
+      const badgeClass = isConnected ? 'connected' : 'disconnected';
+      const badgeText = isConnected ? `Đã kết nối (${acc.username || '@tiktok'})` : 'Chưa đăng nhập';
+      const cardSelectedClass = isSelected ? 'selected' : '';
+
+      return `
+        <div class="tiktok-account-card ${cardSelectedClass}" data-id="${acc.id}">
+          <div class="tiktok-account-info">
+            <input type="checkbox" class="tiktok-account-select" data-id="${acc.id}" ${isSelected ? 'checked' : ''} title="Chọn để tự động đăng lên kênh này">
+            <div>
+              <div class="tiktok-account-name">${escapeHtml(acc.name)}</div>
+              <div class="tiktok-account-user">
+                <span class="tiktok-account-badge ${badgeClass}">${badgeText}</span>
+              </div>
+            </div>
+          </div>
+          <div class="tiktok-account-actions">
+            <button class="secondary tiktok-btn-sm tiktok-login-btn" type="button" data-id="${acc.id}">
+              🔑 ${isConnected ? 'Mở TikTok Studio' : 'Đăng Nhập QR'}
+            </button>
+            <button class="secondary tiktok-btn-sm tiktok-delete-btn" type="button" data-id="${acc.id}" style="color: #f87171;" title="Xóa kênh này">
+              🗑️ Xóa
+            </button>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    attachTikTokAccountListeners();
+  } catch (err) {
+    tiktokAccountsContainer.innerHTML = `<div style="color: #f87171; padding: 8px;">Lỗi tải danh sách kênh: ${escapeHtml(err.message)}</div>`;
   }
 }
 
-async function loginTikTok() {
-  try {
-    if (tiktokLoginBtn) tiktokLoginBtn.disabled = true;
-    const res = await fetch('/api/tiktok/login', { method: 'POST' });
-    const data = await res.json();
-    alert(data.message || 'Đang mở trình duyệt. Bạn hãy quét mã QR hoặc đăng nhập tài khoản TikTok của mình, sau đó đóng cửa sổ lại.');
-    let attempts = 0;
-    const interval = setInterval(async () => {
-      attempts += 1;
+function attachTikTokAccountListeners() {
+  if (!tiktokAccountsContainer) return;
+
+  // Checkbox toggle
+  tiktokAccountsContainer.querySelectorAll('.tiktok-account-select').forEach((cb) => {
+    cb.addEventListener('change', async (e) => {
+      const id = e.target.dataset.id;
+      const card = e.target.closest('.tiktok-account-card');
+      const selected = e.target.checked;
+      card?.classList.toggle('selected', selected);
       try {
-        const statusRes = await fetch('/api/tiktok/status');
-        const statusData = await statusRes.json();
-        if (statusData.loggedIn || attempts > 20) {
-          clearInterval(interval);
-          checkTikTokStatus();
-        }
-      } catch {}
-    }, 4000);
-  } catch (err) {
-    alert(`Lỗi: ${err.message}`);
-  } finally {
-    if (tiktokLoginBtn) tiktokLoginBtn.disabled = false;
-  }
+        await fetch(`/api/tiktok/accounts/${id}/select`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ selected })
+        });
+      } catch (err) {
+        console.error('Lỗi lưu trạng thái chọn kênh:', err);
+      }
+    });
+  });
+
+  // Login button
+  tiktokAccountsContainer.querySelectorAll('.tiktok-login-btn').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const id = btn.dataset.id;
+      btn.disabled = true;
+      try {
+        const res = await fetch(`/api/tiktok/accounts/${id}/login`, { method: 'POST' });
+        const data = await res.json();
+        alert(data.message || 'Đang mở trình duyệt. Bạn hãy quét mã QR hoặc đăng nhập tài khoản TikTok của mình, sau đó đóng cửa sổ lại.');
+
+        let attempts = 0;
+        const interval = setInterval(async () => {
+          attempts += 1;
+          try {
+            const statusRes = await fetch(`/api/tiktok/accounts/${id}/status`);
+            const statusData = await statusRes.json();
+            if (statusData.loggedIn || attempts > 20) {
+              clearInterval(interval);
+              loadTikTokAccounts();
+            }
+          } catch {}
+        }, 4000);
+      } catch (err) {
+        alert(`Lỗi đăng nhập: ${err.message}`);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  });
+
+  // Delete button
+  tiktokAccountsContainer.querySelectorAll('.tiktok-delete-btn').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const id = btn.dataset.id;
+      if (!confirm('Bạn có chắc muốn xóa kênh TikTok này khỏi danh sách quản lý?')) return;
+      try {
+        await fetch(`/api/tiktok/accounts/${id}`, { method: 'DELETE' });
+        loadTikTokAccounts();
+      } catch (err) {
+        alert(`Lỗi xóa kênh: ${err.message}`);
+      }
+    });
+  });
 }
 
-async function logoutTikTok() {
-  if (!confirm('Bạn có chắc chắn muốn đăng xuất và xóa phiên đăng nhập TikTok trên máy này?')) return;
+// Add account
+tiktokAddAccountBtn?.addEventListener('click', async () => {
+  const name = prompt('Nhập tên gợi nhớ cho kênh TikTok mới (Ví dụ: Kênh Chính, Kênh Review 2, Kênh Phim):');
+  if (!name || !name.trim()) return;
   try {
-    await fetch('/api/tiktok/logout', { method: 'POST' });
-    await checkTikTokStatus();
+    const res = await fetch('/api/tiktok/accounts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: name.trim() })
+    });
+    const data = await res.json();
+    if (data.success) {
+      loadTikTokAccounts();
+    } else {
+      alert(`Không thể tạo kênh: ${data.error || 'Lỗi không xác định'}`);
+    }
   } catch (err) {
-    alert(`Lỗi đăng xuất: ${err.message}`);
+    alert(`Lỗi tạo kênh: ${err.message}`);
   }
-}
+});
 
-tiktokLoginBtn?.addEventListener('click', loginTikTok);
-tiktokCheckBtn?.addEventListener('click', checkTikTokStatus);
-tiktokLogoutBtn?.addEventListener('click', logoutTikTok);
+// Refresh button
+tiktokRefreshBtn?.addEventListener('click', () => {
+  loadTikTokAccounts();
+});
 
-checkTikTokStatus();
+// Initial load
+loadTikTokAccounts();
 

@@ -1244,3 +1244,85 @@ button.secondary:hover:not(:disabled) {
 .hidden {
   display: none !important;
 }
+
+/* TIKTOK MULTI-ACCOUNT MANAGER */
+.tiktok-accounts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.tiktok-account-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--line);
+  transition: all 0.2s ease;
+}
+
+.tiktok-account-card:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.tiktok-account-card.selected {
+  border-color: var(--brand-border);
+  background: rgba(59, 130, 246, 0.08);
+}
+
+.tiktok-account-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.tiktok-account-name {
+  font-weight: 600;
+  font-size: 0.88rem;
+  color: var(--ink);
+}
+
+.tiktok-account-user {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.tiktok-account-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.tiktok-account-badge.connected {
+  background: var(--success-soft);
+  color: var(--success);
+  border: 1px solid var(--success-border);
+}
+
+.tiktok-account-badge.disconnected {
+  background: var(--danger-soft);
+  color: var(--danger);
+  border: 1px solid var(--danger-border);
+}
+
+.tiktok-account-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tiktok-btn-sm {
+  padding: 5px 12px;
+  font-size: 0.78rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}

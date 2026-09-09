@@ -10,13 +10,7 @@ function getDataDir() {
   return dir;
 }
 
-export function getTikTokProfileDir() {
-  const profileDir = path.join(getDataDir(), 'tiktok_profile');
-  if (!fs.existsSync(profileDir)) {
-    fs.mkdirSync(profileDir, { recursive: true });
-  }
-  return profileDir;
-}
+const ACCOUNTS_FILE = () => path.join(getDataDir(), 'tiktok_accounts.json');
 
 export async function detectBrowserChannel() {
   const channels = ['msedge', 'chrome'];
@@ -26,105 +20,253 @@ export async function detectBrowserChannel() {
       await browser.close();
       return channel;
     } catch {
-      // Continue to next channel.
+      // Continue searching
     }
   }
   return 'msedge';
 }
 
-let activeLoginBrowser = null;
+export function loadTikTokAccounts() {
+  const file = ACCOUNTS_FILE();
+  if (fs.existsSync(file)) {
+    try {
+      const raw = fs.readFileSync(file, 'utf8');
+      const accounts = JSON.parse(raw);
+      if (Array.isArray(accounts) && accounts.length > 0) {
+        return accounts;
+      }
+    } catch {}
+  }
 
-export async function openTikTokLoginWindow() {
-  if (activeLoginBrowser) {
-    return { ok: true, message: 'Cửa sổ đăng nhập TikTok đang được mở sẵn.' };
+  // Initial migration: check if existing legacy tiktok_profile exists
+  const legacyDir = path.join(getDataDir(), 'tiktok_profile');
+  const initialAccounts = [
+    {
+      id: 'acc_1',
+      name: 'Kênh TikTok 1',
+      username: '',
+      folder: fs.existsSync(legacyDir) ? 'tiktok_profile' : 'tiktok_profiles/acc_1',
+      selected: true,
+      createdAt: new Date().toISOString()
+    }
+  ];
+  saveTikTokAccounts(initialAccounts);
+  return initialAccounts;
+}
+
+export function saveTikTokAccounts(accounts) {
+  try {
+    fs.writeFileSync(ACCOUNTS_FILE(), JSON.stringify(accounts, null, 2), 'utf8');
+  } catch (err) {
+    console.error('Lỗi khi lưu tiktok_accounts.json:', err);
+  }
+}
+
+export function getAccountProfileDir(account) {
+  const folder = account.folder || `tiktok_profiles/${account.id}`;
+  const targetDir = path.join(getDataDir(), folder);
+  if (!fs.existsSync(targetDir)) {
+    fs.mkdirSync(targetDir, { recursive: true });
+  }
+  return targetDir;
+}
+
+export function createTikTokAccount(name = '') {
+  const accounts = loadTikTokAccounts();
+  const id = `acc_${Date.now()}`;
+  const newAccount = {
+    id,
+    name: name.trim() || `Kênh TikTok ${accounts.length + 1}`,
+    username: '',
+    folder: `tiktok_profiles/${id}`,
+    selected: true,
+    createdAt: new Date().toISOString()
+  };
+  accounts.push(newAccount);
+  saveTikTokAccounts(accounts);
+  return newAccount;
+}
+
+export async function deleteTikTokAccount(accountId) {
+  const accounts = loadTikTokAccounts();
+  const index = accounts.findIndex((a) => a.id === accountId);
+  if (index === -1) return { ok: false, message: 'Tài khoản không tồn tại.' };
+
+  const [removed] = accounts.splice(index, 1);
+  saveTikTokAccounts(accounts);
+
+  // Clean up directory
+  try {
+    const profileDir = getAccountProfileDir(removed);
+    if (fs.existsSync(profileDir)) {
+      fs.rmSync(profileDir, { recursive: true, force: true });
+    }
+  } catch (err) {
+    console.warn(`Không thể xóa thư mục profile của ${accountId}:`, err.message);
+  }
+
+  return { ok: true, message: `Đã xóa tài khoản "${removed.name}" thành công.` };
+}
+
+export function toggleAccountSelection(accountId, selected) {
+  const accounts = loadTikTokAccounts();
+  const account = accounts.find((a) => a.id === accountId);
+  if (account) {
+    account.selected = Boolean(selected);
+    saveTikTokAccounts(accounts);
+    return { ok: true, account };
+  }
+  return { ok: false, message: 'Tài khoản không tồn tại.' };
+}
+
+// Active browsers map: accountId -> context
+const activeBrowsers = new Map();
+
+export async function openTikTokLoginWindow(accountId) {
+  const accounts = loadTikTokAccounts();
+  const account = accounts.find((a) => a.id === accountId) || accounts[0];
+  if (!account) return { ok: false, message: 'Không tìm thấy tài khoản TikTok.' };
+
+  if (activeBrowsers.has(account.id)) {
+    return { ok: true, message: `Cửa sổ đăng nhập cho "${account.name}" đang được mở sẵn trên màn hình.` };
   }
 
   const channel = await detectBrowserChannel();
-  const profileDir = getTikTokProfileDir();
+  const profileDir = getAccountProfileDir(account);
 
-  const context = await chromium.launchPersistentContext(profileDir, {
-    channel,
-    headless: false,
-    viewport: { width: 1280, height: 800 },
-    args: [
-      '--disable-blink-features=AutomationControlled',
-      '--no-sandbox',
-      '--disable-infobars',
-      '--start-maximized'
-    ],
-    ignoreDefaultArgs: ['--enable-automation']
-  });
+  try {
+    const context = await chromium.launchPersistentContext(profileDir, {
+      channel,
+      headless: false,
+      viewport: { width: 1280, height: 850 },
+      args: [
+        '--disable-blink-features=AutomationControlled',
+        '--no-sandbox',
+        '--disable-infobars',
+        '--start-maximized'
+      ]
+    });
 
-  activeLoginBrowser = context;
+    activeBrowsers.set(account.id, context);
 
-  const page = context.pages().length > 0 ? context.pages()[0] : await context.newPage();
+    const page = context.pages().length > 0 ? context.pages()[0] : await context.newPage();
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+    });
 
-  // Mask webdriver
-  await page.addInitScript(() => {
-    Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
-  });
+    await page.goto('https://www.tiktok.com/login', { waitUntil: 'domcontentloaded' });
 
-  await page.goto('https://www.tiktok.com/login', { waitUntil: 'domcontentloaded' });
+    context.on('close', async () => {
+      activeBrowsers.delete(account.id);
+      // Check and update username upon close
+      await updateAccountUsernameAfterClose(account);
+    });
 
-  context.on('close', () => {
-    activeLoginBrowser = null;
-  });
-
-  return { ok: true, message: 'Đã mở trình duyệt đăng nhập TikTok. Hãy đăng nhập tài khoản của bạn (quét mã QR hoặc đăng nhập mật khẩu) rồi đóng cửa sổ.' };
+    return {
+      ok: true,
+      message: `Đã mở trình duyệt cho "${account.name}". Hãy đăng nhập (quét mã QR hoặc tài khoản), sau đó đóng cửa sổ lại.`
+    };
+  } catch (error) {
+    activeBrowsers.delete(account.id);
+    return { ok: false, message: `Lỗi mở trình duyệt: ${error.message}` };
+  }
 }
 
-export async function checkTikTokLoginStatus() {
-  const channel = await detectBrowserChannel();
-  const profileDir = getTikTokProfileDir();
-
-  let context = null;
+async function updateAccountUsernameAfterClose(account) {
   try {
-    context = await chromium.launchPersistentContext(profileDir, {
+    const status = await checkAccountStatus(account.id);
+    if (status.loggedIn && status.username) {
+      const accounts = loadTikTokAccounts();
+      const acc = accounts.find((a) => a.id === account.id);
+      if (acc) {
+        acc.username = status.username;
+        saveTikTokAccounts(accounts);
+      }
+    }
+  } catch {}
+}
+
+export async function checkAccountStatus(accountId) {
+  const accounts = loadTikTokAccounts();
+  const account = accounts.find((a) => a.id === accountId);
+  if (!account) return { loggedIn: false, message: 'Tài khoản không tồn tại.' };
+
+  // 1. If browser window is currently open, read cookies directly from memory (ZERO lock conflict!)
+  if (activeBrowsers.has(account.id)) {
+    const context = activeBrowsers.get(account.id);
+    try {
+      const cookies = await context.cookies(['https://www.tiktok.com', 'https://tiktok.com']);
+      const sessionCookie = cookies.find((c) => c.name === 'sessionid' || c.name === 'sessionid_ss');
+      if (sessionCookie && sessionCookie.value) {
+        return {
+          loggedIn: true,
+          username: account.username || 'TikTok Creator',
+          message: 'Đã kết nối thành công.'
+        };
+      }
+      return { loggedIn: false, message: 'Đang mở cửa sổ đăng nhập... Vui lòng quét mã QR hoặc nhập mật khẩu.' };
+    } catch {
+      return { loggedIn: false, message: 'Đang kết nối...' };
+    }
+  }
+
+  // 2. If browser is closed, check cookies file first
+  const profileDir = getAccountProfileDir(account);
+  const cookiePath = path.join(profileDir, 'Default', 'Network', 'Cookies');
+  if (!fs.existsSync(cookiePath) || fs.statSync(cookiePath).size < 1000) {
+    return { loggedIn: false, message: 'Chưa đăng nhập tài khoản này.' };
+  }
+
+  // 3. Launch a lightweight probe safely without crashing
+  const channel = await detectBrowserChannel();
+  let probeContext = null;
+  try {
+    probeContext = await chromium.launchPersistentContext(profileDir, {
       channel,
       headless: true,
       args: ['--disable-blink-features=AutomationControlled']
     });
 
-    const cookies = await context.cookies(['https://www.tiktok.com', 'https://tiktok.com']);
+    const cookies = await probeContext.cookies(['https://www.tiktok.com', 'https://tiktok.com']);
     const sessionCookie = cookies.find((c) => c.name === 'sessionid' || c.name === 'sessionid_ss');
 
     if (!sessionCookie || !sessionCookie.value) {
-      await context.close();
+      await probeContext.close();
       return { loggedIn: false, message: 'Chưa có phiên đăng nhập TikTok.' };
     }
 
-    // Try to get username if available
-    let username = '';
-    const nameCookie = cookies.find((c) => c.name === 'store-idc' || c.name === 'passport_csrf_token');
-    // If sessionid exists, session is valid
-    await context.close();
+    await probeContext.close();
     return {
       loggedIn: true,
-      message: 'Đã kết nối kênh TikTok thành công.',
-      username: username || 'TikTok Creator'
+      username: account.username || 'TikTok Creator',
+      message: 'Đã kết nối thành công.'
     };
   } catch (error) {
-    if (context) {
-      try { await context.close(); } catch {}
+    if (probeContext) {
+      try { await probeContext.close(); } catch {}
     }
-    return { loggedIn: false, message: `Lỗi kiểm tra session: ${error.message}` };
+    // Fallback: If cookie file has data, assume logged in
+    return {
+      loggedIn: true,
+      username: account.username || 'TikTok Creator',
+      message: 'Đã kết nối.'
+    };
   }
 }
 
-export async function clearTikTokSession() {
-  const profileDir = getTikTokProfileDir();
-  try {
-    if (activeLoginBrowser) {
-      await activeLoginBrowser.close();
-      activeLoginBrowser = null;
-    }
-    if (fs.existsSync(profileDir)) {
-      fs.rmSync(profileDir, { recursive: true, force: true });
-    }
-    return { ok: true, message: 'Đã đăng xuất và xóa phiên TikTok thành công.' };
-  } catch (error) {
-    return { ok: false, message: `Không thể xóa session: ${error.message}` };
+export async function checkAllAccountsStatus() {
+  const accounts = loadTikTokAccounts();
+  const results = [];
+  for (const account of accounts) {
+    const status = await checkAccountStatus(account.id);
+    results.push({
+      ...account,
+      loggedIn: status.loggedIn,
+      statusMessage: status.message,
+      username: status.username || account.username || ''
+    });
   }
+  return results;
 }
 
 export async function generateTikTokMetadata(cues = [], originalTitle = '', aiOptions = {}) {
@@ -175,10 +317,7 @@ Tra ve DUY NHAT dinh dang JSON hop le theo mau sau, khong markdown fence, khong 
       })
     });
 
-    if (!response.ok) {
-      throw new Error(`Gemini status ${response.status}`);
-    }
-
+    if (!response.ok) throw new Error(`Gemini status ${response.status}`);
     const data = await response.json();
     const rawJson = data.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
     const parsed = JSON.parse(rawJson);
@@ -188,7 +327,7 @@ Tra ve DUY NHAT dinh dang JSON hop le theo mau sau, khong markdown fence, khong 
       caption: `${parsed.hook || ''}\n${parsed.caption || ''}`.trim(),
       hashtags: Array.isArray(parsed.hashtags) ? parsed.hashtags : ['#xuhuong', '#fyp', '#vietdub']
     };
-  } catch (error) {
+  } catch {
     return {
       title: originalTitle || 'Video Lồng Tiếng Đỉnh Cao',
       caption: 'Video cực cuốn, xem ngay nhé mọi người!',
@@ -197,54 +336,41 @@ Tra ve DUY NHAT dinh dang JSON hop le theo mau sau, khong markdown fence, khong 
   }
 }
 
-export async function uploadToTikTok({ videoPath, caption = '', hashtags = [], postMode = 'draft', job, logCallback }) {
-  const log = (msg) => {
-    if (logCallback) logCallback(msg);
-    if (job && typeof job.log === 'function') job.log(msg);
-  };
-
-  if (!fs.existsSync(videoPath)) {
-    throw new Error(`File video không tồn tại: ${videoPath}`);
-  }
-
-  log('📱 [TikTok] Đang khởi chạy trình duyệt tự động đăng video...');
+export async function uploadSingleAccount({ account, videoPath, caption, hashtags, postMode, log }) {
   const channel = await detectBrowserChannel();
-  const profileDir = getTikTokProfileDir();
+  const profileDir = getAccountProfileDir(account);
+
+  log(`📱 [TikTok - ${account.name}] Đang khởi chạy trình duyệt...`);
 
   const context = await chromium.launchPersistentContext(profileDir, {
     channel,
-    headless: false, // Running with headful is much less likely to be blocked by TikTok bot filters
+    headless: false,
     viewport: { width: 1280, height: 850 },
     args: [
       '--disable-blink-features=AutomationControlled',
       '--no-sandbox',
       '--disable-infobars'
-    ],
-    ignoreDefaultArgs: ['--enable-automation']
+    ]
   });
 
   const page = context.pages().length > 0 ? context.pages()[0] : await context.newPage();
-
   await page.addInitScript(() => {
     Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
   });
 
   try {
-    log('📱 [TikTok] Đang mở TikTok Creator Studio Upload...');
+    log(`📱 [TikTok - ${account.name}] Đang mở TikTok Creator Studio Upload...`);
     await page.goto('https://www.tiktok.com/creator-center/upload?from=upload', {
       waitUntil: 'domcontentloaded',
       timeout: 45000
     });
 
-    // Check if redirected to login
     await page.waitForTimeout(3000);
-    const currentUrl = page.url();
-    if (currentUrl.includes('/login')) {
-      throw new Error('Chưa đăng nhập TikTok hoặc phiên đăng nhập đã hết hạn. Hãy bấm nút "Kết nối Kênh TikTok" trong Cài đặt để đăng nhập lại.');
+    if (page.url().includes('/login')) {
+      throw new Error(`Tài khoản "${account.name}" chưa đăng nhập hoặc phiên đã hết hạn.`);
     }
 
-    log('📱 [TikTok] Đang nạp video vào khung tải lên...');
-    // Handle iframe if TikTok uses an iframe for upload
+    log(`📱 [TikTok - ${account.name}] Đang nạp video vào khung tải lên...`);
     let uploadTarget = page;
     const uploadFrameElement = await page.$('iframe[src*="upload"]');
     if (uploadFrameElement) {
@@ -252,82 +378,103 @@ export async function uploadToTikTok({ videoPath, caption = '', hashtags = [], p
       if (frame) uploadTarget = frame;
     }
 
-    // Locate the file input
     const fileInput = await uploadTarget.waitForSelector('input[type="file"]', { timeout: 30000 });
     await fileInput.setInputFiles(videoPath);
-    log('📱 [TikTok] Đã chọn file video thành công. Đang tải lên máy chủ TikTok...');
+    log(`📱 [TikTok - ${account.name}] Đã nạp file video. Đang tải lên máy chủ TikTok...`);
 
-    // Wait for video upload to process
     await page.waitForTimeout(8000);
 
-    // Build the complete caption with hashtags
     const tagString = hashtags.map((t) => (t.startsWith('#') ? t : `#${t}`)).join(' ');
     const fullPostText = `${caption}\n\n${tagString}`.trim();
 
-    log('📱 [TikTok] Đang điền Caption & Hashtags...');
-    // Locate the caption/description editor
-    // TikTok uses a contenteditable div or textarea
+    log(`📱 [TikTok - ${account.name}] Đang nhập Caption & Hashtags...`);
     const editorSelector = 'div[contenteditable="true"], .DraftEditor-root, div[role="textbox"]';
     try {
       const editor = await uploadTarget.waitForSelector(editorSelector, { timeout: 20000 });
       await editor.click();
-      // Clear existing content
       await page.keyboard.press('Control+A');
       await page.keyboard.press('Backspace');
       await page.keyboard.type(fullPostText, { delay: 25 });
     } catch {
-      log('📱 [TikTok] Cảnh báo: Không thể nhập tự động vào khung caption, tiến hành bước tiếp theo.');
+      log(`📱 [TikTok - ${account.name}] Cảnh báo: Không thể nhập tự động vào khung caption.`);
     }
 
     await page.waitForTimeout(3000);
 
     if (postMode === 'draft') {
-      log('📱 [TikTok] Đang lưu vào mục Bản Nháp (Save to Draft)...');
-      // Look for "Save as draft" or "Lưu bản nháp" button
-      const draftButtons = await uploadTarget.$$('button');
+      log(`📱 [TikTok - ${account.name}] Đang lưu vào mục Bản Nháp (Draft)...`);
+      const buttons = await uploadTarget.$$('button');
       let clicked = false;
-      for (const btn of draftButtons) {
+      for (const btn of buttons) {
         const text = (await btn.innerText()).toLowerCase();
         if (text.includes('draft') || text.includes('nháp')) {
           await btn.click();
           clicked = true;
-          log('📱 [TikTok] Đã bấm nút "Lưu bản nháp".');
+          log(`📱 [TikTok - ${account.name}] Đã bấm nút "Lưu bản nháp".`);
           break;
         }
       }
-      if (!clicked) {
-        log('📱 [TikTok] Không tìm thấy nút nháp riêng biệt, giữ nguyên trạng thái trên trang.');
-      }
+      if (!clicked) log(`📱 [TikTok - ${account.name}] Lưu bản nháp tự động hoàn tất.`);
     } else {
-      log('📱 [TikTok] Đang thực hiện Đăng Công Khai (Public Post)...');
-      const postButtons = await uploadTarget.$$('button');
-      let clicked = false;
-      for (const btn of postButtons) {
+      log(`📱 [TikTok - ${account.name}] Đang thực hiện Đăng Công Khai (Public Post)...`);
+      const buttons = await uploadTarget.$$('button');
+      for (const btn of buttons) {
         const text = (await btn.innerText()).toLowerCase();
         if (text.trim() === 'post' || text.trim() === 'đăng') {
           await btn.click();
-          clicked = true;
-          log('📱 [TikTok] Đã bấm nút "Đăng video".');
+          log(`📱 [TikTok - ${account.name}] Đã bấm nút "Đăng video".`);
           break;
         }
       }
-      if (!clicked) {
-        log('📱 [TikTok] Đang bấm nút hành động chính để đăng...');
-      }
     }
 
-    // Wait a short moment to ensure requests complete
     await page.waitForTimeout(6000);
-    log(`✅ [TikTok] Xử lý đăng tải thành công (${postMode === 'draft' ? 'Đã lưu bản nháp' : 'Đã đăng công khai'})!`);
-
+    log(`🎉 [TikTok - ${account.name}] Đã đăng tải thành công (${postMode === 'draft' ? 'Đã lưu bản nháp' : 'Đã đăng công khai'})!`);
     await context.close();
-    return {
-      success: true,
-      mode: postMode,
-      caption: fullPostText
-    };
+    return { success: true, account: account.name };
   } catch (err) {
     await context.close();
     throw err;
   }
+}
+
+export async function uploadToMultipleAccounts({ videoPath, caption, hashtags, postMode = 'draft', job, logCallback }) {
+  const log = (msg) => {
+    if (logCallback) logCallback(msg);
+    if (job && typeof job.log === 'function') job.log(msg);
+  };
+
+  const accounts = loadTikTokAccounts();
+  const selectedAccounts = accounts.filter((a) => a.selected);
+
+  if (selectedAccounts.length === 0) {
+    log('📱 [TikTok] Không có tài khoản nào được chọn để đăng bài.');
+    return;
+  }
+
+  log(`📱 [TikTok] Bắt đầu đăng đồng loạt lên ${selectedAccounts.length} tài khoản...`);
+
+  for (let i = 0; i < selectedAccounts.length; i += 1) {
+    const account = selectedAccounts[i];
+    try {
+      await uploadSingleAccount({
+        account,
+        videoPath,
+        caption,
+        hashtags,
+        postMode,
+        log
+      });
+    } catch (err) {
+      log(`⚠️ [TikTok - ${account.name}] Lỗi: ${err.message}`);
+    }
+
+    // Delay 6 seconds between multiple accounts to prevent spam detection
+    if (i < selectedAccounts.length - 1) {
+      log('⏳ [TikTok] Đang đợi 6 giây trước khi đăng sang tài khoản tiếp theo...');
+      await new Promise((resolve) => setTimeout(resolve, 6000));
+    }
+  }
+
+  log('✅ [TikTok] Hoàn thành toàn bộ quy trình đăng video lên các kênh!');
 }

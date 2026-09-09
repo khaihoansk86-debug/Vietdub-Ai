@@ -10,11 +10,15 @@ import { spawn } from 'child_process';
 import ffmpegStatic from 'ffmpeg-static';
 import WebSocket from 'ws';
 import {
+  loadTikTokAccounts,
+  createTikTokAccount,
+  deleteTikTokAccount,
+  toggleAccountSelection,
   openTikTokLoginWindow,
-  checkTikTokLoginStatus,
-  clearTikTokSession,
+  checkAccountStatus,
+  checkAllAccountsStatus,
   generateTikTokMetadata,
-  uploadToTikTok
+  uploadToMultipleAccounts
 } from './services/tiktokPublisher.js';
 
 const app = express();
@@ -383,30 +387,57 @@ app.post('/api/kokoro/retry', (_req, res) => {
   res.json({ success: true });
 });
 
-app.get('/api/tiktok/status', async (_req, res) => {
+app.get('/api/tiktok/accounts', async (_req, res) => {
   try {
-    const status = await checkTikTokLoginStatus();
+    const accounts = await checkAllAccountsStatus();
+    res.json({ success: true, accounts });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.post('/api/tiktok/accounts', (req, res) => {
+  try {
+    const account = createTikTokAccount(req.body.name || '');
+    res.json({ success: true, account });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.delete('/api/tiktok/accounts/:id', async (req, res) => {
+  try {
+    const result = await deleteTikTokAccount(req.params.id);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+app.post('/api/tiktok/accounts/:id/select', (req, res) => {
+  try {
+    const result = toggleAccountSelection(req.params.id, req.body.selected);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+app.post('/api/tiktok/accounts/:id/login', async (req, res) => {
+  try {
+    const result = await openTikTokLoginWindow(req.params.id);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ ok: false, message: error.message });
+  }
+});
+
+app.get('/api/tiktok/accounts/:id/status', async (req, res) => {
+  try {
+    const status = await checkAccountStatus(req.params.id);
     res.json(status);
   } catch (error) {
     res.status(500).json({ loggedIn: false, message: error.message });
-  }
-});
-
-app.post('/api/tiktok/login', async (_req, res) => {
-  try {
-    const result = await openTikTokLoginWindow();
-    res.json(result);
-  } catch (error) {
-    res.status(500).json({ ok: false, message: error.message });
-  }
-});
-
-app.post('/api/tiktok/logout', async (_req, res) => {
-  try {
-    const result = await clearTikTokSession();
-    res.json(result);
-  } catch (error) {
-    res.status(500).json({ ok: false, message: error.message });
   }
 });
 
@@ -469,7 +500,7 @@ async function processJob(job, payload) {
         extraHashtags: payload.tiktok.extraHashtags
       });
       log(job, `📱 [TikTok] AI đã tạo tiêu đề: "${metadata.title}"`);
-      await uploadToTikTok({
+      await uploadToMultipleAccounts({
         videoPath: finalVideo,
         caption: metadata.caption,
         hashtags: metadata.hashtags,
@@ -477,7 +508,7 @@ async function processJob(job, payload) {
         job,
         logCallback: (msg) => log(job, msg)
       });
-      log(job, `🎉 [TikTok] Đã đăng tải lên TikTok thành công (${payload.tiktok.mode === 'draft' ? 'Đã lưu bản nháp Draft' : 'Đã đăng công khai'})!`);
+      log(job, `🎉 [TikTok] Hoàn tất tiến trình xử lý đăng bài TikTok!`);
     } catch (tiktokErr) {
       log(job, `⚠️ [TikTok] Lỗi khi tự động đăng TikTok: ${tiktokErr.message}`);
     }
