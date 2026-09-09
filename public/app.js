@@ -1756,14 +1756,15 @@ function showCustomConfirm({
     if (cancelTikTokConfirmModalBtn) cancelTikTokConfirmModalBtn.textContent = cancelText;
     if (confirmTikTokConfirmModalBtn) {
       confirmTikTokConfirmModalBtn.textContent = confirmText;
+      confirmTikTokConfirmModalBtn.style.background = '';
+      confirmTikTokConfirmModalBtn.style.color = '';
+      confirmTikTokConfirmModalBtn.style.border = '';
       if (isDanger) {
-        confirmTikTokConfirmModalBtn.style.background = '#ef4444';
-        confirmTikTokConfirmModalBtn.style.color = '#ffffff';
-        confirmTikTokConfirmModalBtn.style.border = '1px solid #dc2626';
+        confirmTikTokConfirmModalBtn.classList.remove('primary');
+        confirmTikTokConfirmModalBtn.classList.add('danger');
       } else {
-        confirmTikTokConfirmModalBtn.style.background = 'var(--brand-gradient, linear-gradient(135deg, #0ea5e9 0%, #10b981 100%))';
-        confirmTikTokConfirmModalBtn.style.color = '#ffffff';
-        confirmTikTokConfirmModalBtn.style.border = 'none';
+        confirmTikTokConfirmModalBtn.classList.remove('danger');
+        confirmTikTokConfirmModalBtn.classList.add('primary');
       }
     }
     tiktokConfirmModal?.classList.remove('hidden');
@@ -2367,6 +2368,269 @@ tiktokDoClearHistoryBtn?.addEventListener('click', async () => {
     tiktokDoClearHistoryBtn.innerHTML = originalText;
   }
 });
+
+// ============================================================================
+// ACCORDION / COLLAPSIBLE FORM SECTIONS
+// ============================================================================
+const SECTION_COLLAPSE_STORAGE_KEY = 'vietdub-collapsed-sections';
+
+function getCollapsedSections() {
+  try {
+    return JSON.parse(localStorage.getItem(SECTION_COLLAPSE_STORAGE_KEY) || '[]');
+  } catch {
+    return [];
+  }
+}
+
+function saveCollapsedSections(list) {
+  try {
+    localStorage.setItem(SECTION_COLLAPSE_STORAGE_KEY, JSON.stringify(list));
+  } catch {}
+}
+
+function initCollapsibleSections() {
+  const sections = document.querySelectorAll('.form-section[data-section-id]');
+  const collapsedList = getCollapsedSections();
+
+  sections.forEach((section) => {
+    const secId = section.getAttribute('data-section-id');
+    if (collapsedList.includes(secId)) {
+      section.classList.add('is-collapsed');
+    }
+
+    const head = section.querySelector('.section-head');
+    if (!head) return;
+
+    head.addEventListener('click', (e) => {
+      // Don't toggle if clicking on an interactive element inside head (buttons, inputs, links)
+      if (e.target.closest('button:not(.section-collapse-btn), input, select, a, textarea')) {
+        return;
+      }
+      toggleSection(section);
+    });
+  });
+
+  const expandAllBtn = document.querySelector('#expandAllSectionsBtn');
+  const collapseAllBtn = document.querySelector('#collapseAllSectionsBtn');
+
+  expandAllBtn?.addEventListener('click', () => {
+    sections.forEach((s) => s.classList.remove('is-collapsed'));
+    saveCollapsedSections([]);
+  });
+
+  collapseAllBtn?.addEventListener('click', () => {
+    const allIds = [];
+    sections.forEach((s) => {
+      s.classList.add('is-collapsed');
+      const id = s.getAttribute('data-section-id');
+      if (id) allIds.push(id);
+    });
+    saveCollapsedSections(allIds);
+  });
+}
+
+function toggleSection(section) {
+  const isCollapsed = section.classList.toggle('is-collapsed');
+  const secId = section.getAttribute('data-section-id');
+  if (!secId) return;
+
+  const list = getCollapsedSections();
+  const index = list.indexOf(secId);
+  if (isCollapsed && index === -1) {
+    list.push(secId);
+  } else if (!isCollapsed && index !== -1) {
+    list.splice(index, 1);
+  }
+  saveCollapsedSections(list);
+}
+
+// ============================================================================
+// TIKTOK PROMPT PRESETS MANAGER (CRUD)
+// ============================================================================
+const PROMPT_PRESETS_STORAGE_KEY = 'vietdub-tiktok-prompt-presets';
+const PROMPT_ACTIVE_PRESET_KEY = 'vietdub-tiktok-active-preset';
+
+const DEFAULT_PROMPT_PRESETS = {
+  viral_sales: {
+    id: 'viral_sales',
+    name: '🎯 Bán Hàng & Giật Tít Viral (Mặc định)',
+    prompt: 'Viết tiêu đề ngắn giật tít và caption TikTok hấp dẫn, kích thích tương tác cao (thả tim, bình luận), tò mò xem hết video. Tóm tắt nội dung chính gọn gàng dưới 120 ký tự, kết thúc bằng 1 câu Call-to-Action (kêu gọi hành động) mạnh mẽ và 4-6 hashtags thịnh hành phù hợp.'
+  },
+  storytelling: {
+    id: 'storytelling',
+    name: '📖 Kể Chuyện Cuốn Hút (Storytelling Hook)',
+    prompt: 'Mở đầu bằng một câu hook bất ngờ hoặc gây tranh cãi nhẹ để giữ chân người xem trong 3 giây đầu. Kể lại bài học hoặc tình huống kịch tính nhất của video bằng lời văn cuốn hút, gần gũi, dưới 140 ký tự kèm hashtags #k粹 #story #chuyencuocsong.'
+  },
+  review: {
+    id: 'review',
+    name: '🔍 Review & Đánh Giá Chuyên Sâu (Khách Quan)',
+    prompt: 'Viết caption dạng review ngắn gọn: Nêu bật ưu điểm vượt trội và lưu ý quan trọng của sản phẩm/chủ đề trong video. Giọng văn chân thực, đáng tin cậy, kích thích người xem comment hỏi thêm hoặc chia sẻ trải nghiệm.'
+  },
+  humor: {
+    id: 'humor',
+    name: '😂 Hài Hước - Bắt Trend Gen Z',
+    prompt: 'Viết caption phong cách hài hước hóm hỉnh, bắt trend, dí dỏm, sử dụng từ ngữ giới trẻ tự nhiên, tạo cảm giác giải trí cực cao, thúc đẩy người xem tag bạn bè vào bình luận.'
+  }
+};
+
+function getPromptPresets() {
+  try {
+    const raw = localStorage.getItem(PROMPT_PRESETS_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object' && Object.keys(parsed).length > 0) return parsed;
+    }
+  } catch {}
+  return { ...DEFAULT_PROMPT_PRESETS };
+}
+
+function savePromptPresets(presets) {
+  try {
+    localStorage.setItem(PROMPT_PRESETS_STORAGE_KEY, JSON.stringify(presets));
+  } catch {}
+}
+
+function initTikTokPromptPresets() {
+  const select = document.querySelector('#tiktokPromptPresetSelect');
+  const textarea = document.querySelector('#tiktokCaptionPrompt');
+  const saveBtn = document.querySelector('#tiktokSavePromptPresetBtn');
+  const addBtn = document.querySelector('#tiktokAddPromptPresetBtn');
+  const renameBtn = document.querySelector('#tiktokRenamePromptPresetBtn');
+  const deleteBtn = document.querySelector('#tiktokDeletePromptPresetBtn');
+
+  if (!select || !textarea) return;
+
+  function renderOptions(activeId) {
+    const presets = getPromptPresets();
+    select.innerHTML = '';
+    const keys = Object.keys(presets);
+    if (keys.length === 0) {
+      presets['viral_sales'] = { ...DEFAULT_PROMPT_PRESETS.viral_sales };
+      savePromptPresets(presets);
+    }
+
+    let targetId = activeId || localStorage.getItem(PROMPT_ACTIVE_PRESET_KEY);
+    if (!presets[targetId]) {
+      targetId = Object.keys(presets)[0];
+    }
+
+    Object.values(presets).forEach((p) => {
+      const opt = document.createElement('option');
+      opt.value = p.id;
+      opt.textContent = p.name;
+      if (p.id === targetId) opt.selected = true;
+      select.appendChild(opt);
+    });
+
+    localStorage.setItem(PROMPT_ACTIVE_PRESET_KEY, targetId);
+    if (presets[targetId]) {
+      textarea.value = presets[targetId].prompt || '';
+    }
+  }
+
+  renderOptions();
+
+  // Change preset
+  select.addEventListener('change', () => {
+    const selectedId = select.value;
+    const presets = getPromptPresets();
+    if (presets[selectedId]) {
+      textarea.value = presets[selectedId].prompt || '';
+      localStorage.setItem(PROMPT_ACTIVE_PRESET_KEY, selectedId);
+    }
+  });
+
+  // Save current prompt into selected preset
+  saveBtn?.addEventListener('click', () => {
+    const selectedId = select.value;
+    const presets = getPromptPresets();
+    if (!presets[selectedId]) return;
+    presets[selectedId].prompt = textarea.value.trim();
+    savePromptPresets(presets);
+    const origHtml = saveBtn.innerHTML;
+    saveBtn.innerHTML = '<span>✅</span> Đã Lưu!';
+    setTimeout(() => { saveBtn.innerHTML = origHtml; }, 1600);
+  });
+
+  // Add new preset
+  addBtn?.addEventListener('click', async () => {
+    const newName = await showCustomPrompt({
+      title: 'Tạo Mẫu Prompt Mới',
+      label: 'Nhập tên cho mẫu Prompt mới (Ví dụ: Giới thiệu sản phẩm, Minigame):',
+      placeholder: 'Ví dụ: Kênh Chia Sẻ Kinh Nghiệm...',
+      defaultValue: '',
+      icon: '➕'
+    });
+    if (!newName || !newName.trim()) return;
+
+    const newId = 'preset_' + Date.now();
+    const presets = getPromptPresets();
+    presets[newId] = {
+      id: newId,
+      name: newName.trim(),
+      prompt: textarea.value.trim() || DEFAULT_PROMPT_PRESETS.viral_sales.prompt
+    };
+    savePromptPresets(presets);
+    renderOptions(newId);
+  });
+
+  // Rename preset
+  renameBtn?.addEventListener('click', async () => {
+    const selectedId = select.value;
+    const presets = getPromptPresets();
+    if (!presets[selectedId]) return;
+
+    const updatedName = await showCustomPrompt({
+      title: 'Đổi Tên Mẫu Prompt',
+      label: 'Nhập tên mới cho mẫu prompt:',
+      placeholder: 'Tên mẫu prompt...',
+      defaultValue: presets[selectedId].name,
+      icon: '✏️'
+    });
+    if (!updatedName || !updatedName.trim()) return;
+
+    presets[selectedId].name = updatedName.trim();
+    savePromptPresets(presets);
+    renderOptions(selectedId);
+  });
+
+  // Delete preset
+  deleteBtn?.addEventListener('click', async () => {
+    const selectedId = select.value;
+    const presets = getPromptPresets();
+    if (!presets[selectedId]) return;
+
+    if (Object.keys(presets).length <= 1) {
+      alert('Bạn không thể xóa mẫu Prompt cuối cùng. Hệ thống cần ít nhất 1 mẫu prompt để hoạt động!');
+      return;
+    }
+
+    const confirmed = await showCustomConfirm({
+      title: 'Xóa Mẫu Prompt',
+      message: `Bạn có chắc chắn muốn xóa mẫu prompt <b>"${escapeHtml(presets[selectedId].name)}"</b> không?`,
+      confirmText: 'Xóa Mẫu Này',
+      cancelText: 'Hủy Bỏ',
+      icon: '🗑️',
+      isDanger: true
+    });
+    if (!confirmed) return;
+
+    delete presets[selectedId];
+    savePromptPresets(presets);
+    renderOptions();
+  });
+}
+
+// Khởi chạy khi DOM sẵn sàng
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => {
+    initCollapsibleSections();
+    initTikTokPromptPresets();
+  });
+} else {
+  initCollapsibleSections();
+  initTikTokPromptPresets();
+}
 
 
 

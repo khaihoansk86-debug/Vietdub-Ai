@@ -51,13 +51,32 @@
         <form id="jobForm" class="panel">
           <!-- TAB 1: WORKFLOW & PROCESSING -->
           <div id="viewProcess" class="view-panel-tab">
+            <!-- MASTER EXPAND / COLLAPSE TOOLBAR -->
+            <div class="sections-global-toggle-bar">
+              <div class="global-toggle-title">
+                <span>📑</span>
+                <span>Bố cục giao diện các khu vực chức năng</span>
+              </div>
+              <div class="global-toggle-actions">
+                <button type="button" class="global-toggle-btn" id="expandAllSectionsBtn" title="Mở rộng toàn bộ các mục">
+                  <span>⤢</span> Mở Rộng Tất Cả
+                </button>
+                <button type="button" class="global-toggle-btn" id="collapseAllSectionsBtn" title="Thu gọn toàn bộ các mục">
+                  <span>⤡</span> Thu Gọn Tất Cả
+                </button>
+              </div>
+            </div>
+
             <!-- QUICK PRESETS -->
-            <section class="form-section quick-presets">
-              <div class="section-head">
+            <section class="form-section quick-presets" data-section-id="quick-presets">
+              <div class="section-head" title="Nhấp để thu gọn / mở rộng mục này">
                 <div>
                   <h2><span>🚀</span> Preset Thiết Lập Nhanh</h2>
                   <p>Chọn nhanh cấu hình tối ưu cho từng nền tảng trước khi xuất video.</p>
                 </div>
+                <button type="button" class="section-collapse-btn" title="Thu gọn / Mở rộng" aria-label="Toggle section">
+                  <span class="collapse-icon">▾</span>
+                </button>
               </div>
               <div class="preset-row">
                 <button class="preset-btn active" type="button" data-preset="none">Mặc định</button>
@@ -70,12 +89,15 @@
             </section>
 
             <!-- SOURCE SECTION & NUMBERED BATCH INSPECTOR -->
-            <section class="form-section source-section">
-              <div class="section-head">
+            <section class="form-section source-section" data-section-id="source-section">
+              <div class="section-head" title="Nhấp để thu gọn / mở rộng mục này">
                 <div>
                   <h2><span>📥</span> Nguồn Video Đầu Vào</h2>
                   <p>Dán danh sách nhiều link video để tải hàng loạt, hoặc tải tệp video trực tiếp từ máy tính.</p>
                 </div>
+                <button type="button" class="section-collapse-btn" title="Thu gọn / Mở rộng" aria-label="Toggle section">
+                  <span class="collapse-icon">▾</span>
+                </button>
               </div>
 
               <label class="field">
@@ -124,12 +146,15 @@
             </section>
 
             <!-- SETUP SECTION & TTS ENGINE -->
-            <section class="form-section setup-section">
-              <div class="section-head">
+            <section class="form-section setup-section" data-section-id="setup-section">
+              <div class="section-head" title="Nhấp để thu gọn / mở rộng mục này">
                 <div>
                   <h2><span>⚙️</span> Thiết Lập Xử Lý & Âm Thanh</h2>
                   <p>Tùy chỉnh chế độ xuất video, tỷ lệ khung hình và giọng đọc AI.</p>
                 </div>
+                <button type="button" class="section-collapse-btn" title="Thu gọn / Mở rộng" aria-label="Toggle section">
+                  <span class="collapse-icon">▾</span>
+                </button>
               </div>
 
               <fieldset class="segmented">
@@ -221,12 +246,15 @@
             </section>
 
             <!-- DISPLAY & SUBTITLE DESIGNER -->
-            <section class="form-section display-section">
-              <div class="section-head">
+            <section class="form-section display-section" data-section-id="display-section">
+              <div class="section-head" title="Nhấp để thu gọn / mở rộng mục này">
                 <div>
                   <h2><span>🎨</span> Tùy Chỉnh Phụ Đề & Watermark</h2>
                   <p>Tinh chỉnh phông chữ, màu sắc, vị trí hiển thị và xem trước thời gian thực.</p>
                 </div>
+                <button type="button" class="section-collapse-btn" title="Thu gọn / Mở rộng" aria-label="Toggle section">
+                  <span class="collapse-icon">▾</span>
+                </button>
               </div>
 
               <!-- LIVE PREVIEW CANVAS STAGE -->
@@ -336,8 +364,8 @@
             </section>
 
             <!-- TIKTOK AUTO PUBLISHER (MULTI-ACCOUNT) -->
-            <section class="form-section tiktok-section" style="margin-top: 14px;">
-              <div class="section-head">
+            <section class="form-section tiktok-section" data-section-id="tiktok-section" style="margin-top: 14px;">
+              <div class="section-head" title="Nhấp để thu gọn / mở rộng mục này">
                 <div>
                   <h2><span>📱</span> Quản Lý Đa Kênh & Tự Động Đăng TikTok</h2>
                   <p>AI tự động tạo tiêu đề, caption giật tít, hashtags và tự động đăng đồng loạt lên các kênh TikTok bạn chọn.</p>
@@ -348,6 +376,9 @@
                   </button>
                   <button class="secondary tiktok-btn-sm" id="tiktokRefreshBtn" type="button" style="display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; height: 38px; min-width: 140px; padding: 0 14px; font-weight: 500;">
                     <span>🔄</span> Làm Mới
+                  </button>
+                  <button type="button" class="section-collapse-btn" title="Thu gọn / Mở rộng" aria-label="Toggle section">
+                    <span class="collapse-icon">▾</span>
                   </button>
                 </div>
               </div>
@@ -402,11 +433,32 @@
                   </label>
                 </div>
 
-                <div class="control-row" style="margin-top: 10px;">
-                  <label class="field" style="width: 100%;">
-                    <span>🤖 Prompt Mẫu Cho AI Viết Bài Đăng (Caption & Tiêu Đề)</span>
-                    <textarea name="tiktokCaptionPrompt" id="tiktokCaptionPrompt" rows="2" placeholder="Ví dụ: Viết tiêu đề và caption TikTok hấp dẫn, giật tít, kích thích người xem tương tác (thả tim, bình luận) và tò mò xem hết video. Viết ngắn gọn dưới 150 ký tự kèm kêu gọi hành động..."></textarea>
-                  </label>
+                <!-- TIKTOK PROMPT PRESETS MANAGER -->
+                <div class="tiktok-prompt-manager" style="margin-top: 12px;">
+                  <div class="tiktok-prompt-manager-header" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 8px;">
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                      <span style="font-size: 0.95rem;">🤖</span>
+                      <strong style="font-size: 0.85rem; color: #f1f5f9;">Prompt Mẫu Cho AI Viết Bài Đăng (Caption & Tiêu Đề)</strong>
+                    </div>
+                    <div class="tiktok-prompt-actions" style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                      <select id="tiktokPromptPresetSelect" class="tiktok-prompt-select" style="height: 32px; padding: 0 10px; font-size: 0.8rem; background: #1e293b; border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; color: #fff; max-width: 220px; outline: none; cursor: pointer;">
+                        <!-- Options generated dynamically -->
+                      </select>
+                      <button type="button" id="tiktokSavePromptPresetBtn" class="tiktok-prompt-tool-btn" title="Lưu lại nội dung đang sửa vào prompt mẫu này" style="height: 32px; padding: 0 10px; font-size: 0.78rem; border-radius: 6px; border: 1px solid rgba(16,185,129,0.4); background: rgba(16,185,129,0.15); color: #10b981; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; font-weight: 500;">
+                        <span>💾</span> Lưu Sửa
+                      </button>
+                      <button type="button" id="tiktokAddPromptPresetBtn" class="tiktok-prompt-tool-btn" title="Tạo thêm một mẫu prompt mới" style="height: 32px; padding: 0 10px; font-size: 0.78rem; border-radius: 6px; border: 1px solid rgba(14,165,233,0.4); background: rgba(14,165,233,0.15); color: #38bdf8; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; font-weight: 500;">
+                        <span>➕</span> Thêm Mới
+                      </button>
+                      <button type="button" id="tiktokRenamePromptPresetBtn" class="tiktok-prompt-tool-btn" title="Đổi tên prompt mẫu đang chọn" style="height: 32px; padding: 0 10px; font-size: 0.78rem; border-radius: 6px; border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.06); color: #cbd5e1; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; font-weight: 500;">
+                        <span>✏️</span> Đổi Tên
+                      </button>
+                      <button type="button" id="tiktokDeletePromptPresetBtn" class="tiktok-prompt-tool-btn" title="Xóa prompt mẫu đang chọn" style="height: 32px; padding: 0 10px; font-size: 0.78rem; border-radius: 6px; border: 1px solid rgba(239,68,68,0.4); background: rgba(239,68,68,0.12); color: #f87171; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; font-weight: 500;">
+                        <span>🗑️</span> Xóa
+                      </button>
+                    </div>
+                  </div>
+                  <textarea name="tiktokCaptionPrompt" id="tiktokCaptionPrompt" rows="3" placeholder="Ví dụ: Viết tiêu đề và caption TikTok hấp dẫn, giật tít, kích thích người xem tương tác (thả tim, bình luận) và tò mò xem hết video. Viết ngắn gọn dưới 150 ký tự kèm kêu gọi hành động..." style="width: 100%; box-sizing: border-box; padding: 10px 12px; font-size: 0.86rem; line-height: 1.5; background: #0f172a; border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; color: #f8fafc; resize: vertical; outline: none;"></textarea>
                 </div>
                 <p class="helper-text" style="margin-top: 6px; font-size: 12px; opacity: 0.75;">
                   💡 <em>Gợi ý: Chế độ <strong>Phân bổ ngẫu nhiên 1:1</strong> đảm bảo khi có 10 video và 10 kênh, mỗi kênh sẽ nhận 1 video duy nhất với tiêu đề và caption riêng biệt do AI tạo, tránh trùng lặp nội dung tuyệt đối.</em>
@@ -727,16 +779,16 @@
           <input type="text" id="tiktokInputModalField" class="tiktok-modal-input" placeholder="Nhập tên kênh..." autocomplete="off">
         </div>
 
-        <div class="tiktok-modal-footer" style="justify-content: flex-end; gap: 10px;">
-          <button type="button" class="secondary tiktok-btn-sm" id="cancelTikTokInputModalBtn">Hủy</button>
-          <button type="button" class="primary tiktok-btn-sm" id="confirmTikTokInputModalBtn" style="font-weight: 600;">Xác Nhận</button>
+        <div class="tiktok-modal-footer" style="justify-content: flex-end; gap: 12px;">
+          <button type="button" class="tiktok-modal-btn secondary" id="cancelTikTokInputModalBtn">Hủy</button>
+          <button type="button" class="tiktok-modal-btn primary" id="confirmTikTokInputModalBtn">Xác Nhận</button>
         </div>
       </div>
     </div>
 
     <!-- TIKTOK CUSTOM CONFIRM MODAL -->
     <div id="tiktokConfirmModal" class="tiktok-modal-backdrop hidden">
-      <div class="tiktok-modal-card" style="max-width: 500px;">
+      <div class="tiktok-modal-card" style="max-width: 520px;">
         <div class="tiktok-modal-header">
           <div style="display: flex; align-items: center; gap: 10px;">
             <span id="tiktokConfirmModalIcon" style="font-size: 1.4rem;">❓</span>
@@ -753,9 +805,9 @@
           </div>
         </div>
 
-        <div class="tiktok-modal-footer" style="justify-content: flex-end; gap: 10px;">
-          <button type="button" class="secondary tiktok-btn-sm" id="cancelTikTokConfirmModalBtn">Hủy Bỏ</button>
-          <button type="button" class="tiktok-btn-sm" id="confirmTikTokConfirmModalBtn" style="font-weight: 600;">Xác Nhận</button>
+        <div class="tiktok-modal-footer" style="justify-content: flex-end; gap: 12px;">
+          <button type="button" class="tiktok-modal-btn secondary" id="cancelTikTokConfirmModalBtn">Hủy Bỏ</button>
+          <button type="button" class="tiktok-modal-btn primary" id="confirmTikTokConfirmModalBtn">Xác Nhận</button>
         </div>
       </div>
     </div>

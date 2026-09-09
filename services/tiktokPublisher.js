@@ -159,7 +159,7 @@ export function recordPublishedVideo({ videoPath, account, caption = '', hashtag
     accountId: account.id,
     accountName: account.name,
     accountUsername: account.username || '@tiktok',
-    caption: caption.slice(0, 300),
+    caption: String(caption || '').trim(),
     hashtags: Array.isArray(hashtags) ? hashtags : [],
     postMode,
     publishedAt: new Date().toISOString(),
@@ -980,27 +980,64 @@ export async function uploadSingleAccount({ account, videoPath, caption, hashtag
     if (postMode === 'public') {
       await handleTikTokPostSubmission(uploadTarget, page, account, log);
     } else {
-      // Draft mode
-      log(`📱 [TikTok - ${account.name}] Đang lưu vào mục Bản Nháp (Draft)...`);
-      const draftRegex = /^(Save draft|Lưu bản nháp|Draft|Nháp)$/i;
-      let draftBtn = null;
-      const roleDraft = uploadTarget.getByRole('button', { name: draftRegex, exact: true });
-      if (await roleDraft.count() > 0) {
-        draftBtn = roleDraft.first();
+      // Draft mode (Lưu vào bản nháp)
+      log(`📱 [TikTok - ${account.name}] Đang chờ video hoàn tất tải lên (100%) để kích hoạt nút Lưu Bản Nháp...`);
+      await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+      await page.waitForTimeout(1000);
+
+      // Chờ Post button sẵn sàng (dấu hiệu video đã upload xong và các nút footer đã enable)
+      const postBtnForWait = uploadTarget.getByRole('button', { name: /^(Post|Đăng)$/i, exact: true });
+      for (let w = 0; w < 60; w++) {
+        const isEnabled = await postBtnForWait.isEnabled().catch(() => false);
+        if (isEnabled) {
+          log(`📱 [TikTok - ${account.name}] Video đã tải lên hoàn tất, nút Lưu Bản Nháp đã sẵn sàng!`);
+          break;
+        }
+        await page.waitForTimeout(1000);
+      }
+
+      await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+      await page.waitForTimeout(1000);
+
+      const draftRegex = /^(Save draft|Lưu bản nháp)$/i;
+      let draftBtn = uploadTarget.getByRole('button', { name: draftRegex, exact: true });
+      if (await draftBtn.count() === 0) {
+        draftBtn = page.getByRole('button', { name: draftRegex, exact: true });
+      }
+      if (await draftBtn.count() === 0) {
+        draftBtn = uploadTarget.locator('div[class*="footer"] button, .btn-post button, footer button').filter({ hasText: draftRegex });
+      }
+
+      const actualDraftBtn = draftBtn.first();
+      let draftClicked = false;
+      try {
+        await actualDraftBtn.waitFor({ state: 'visible', timeout: 20000 });
+        await actualDraftBtn.scrollIntoViewIfNeeded().catch(() => {});
+        await actualDraftBtn.click();
+        draftClicked = true;
+        log(`📱 [TikTok - ${account.name}] Đã bấm nút "Save draft" ("Lưu bản nháp"). Đang chờ TikTok lưu trữ...`);
+      } catch (clickErr) {
+        log(`⚠️ [TikTok - ${account.name}] Thử bấm Save draft thông thường gặp lỗi, đang dùng DOM dispatch: ${clickErr.message}`);
+        draftClicked = await uploadTarget.evaluate(() => {
+          const btns = Array.from(document.querySelectorAll('button'));
+          const b = btns.find(el => /^(Save draft|Lưu bản nháp)$/i.test(el.innerText?.trim()));
+          if (b) { b.click(); return true; }
+          return false;
+        }).catch(() => false);
+      }
+
+      if (draftClicked) {
+        for (let waitDraft = 0; waitDraft < 15; waitDraft++) {
+          await page.waitForTimeout(1000);
+          if (page.url().includes('draft') || page.url().includes('/content')) {
+            log(`🎉 [TikTok - ${account.name}] Đã xác nhận: Video đã được lưu thành công vào mục Bản Nháp (Drafts) của kênh!`);
+            break;
+          }
+        }
       } else {
-        const roleDraftPage = page.getByRole('button', { name: draftRegex, exact: true });
-        if (await roleDraftPage.count() > 0) draftBtn = roleDraftPage.first();
+        log(`⚠️ [TikTok - ${account.name}] Không bấm được nút Save draft, video có thể đã được tự động lưu tạm trên TikTok Studio.`);
       }
-      if (!draftBtn) {
-        draftBtn = uploadTarget.locator('div[class*="footer"] button, .btn-post button, footer button').filter({ hasText: draftRegex }).first();
-      }
-      if (draftBtn && await draftBtn.isVisible().catch(() => false)) {
-        await draftBtn.click().catch(() => {});
-        log(`📱 [TikTok - ${account.name}] Đã bấm nút "Lưu bản nháp".`);
-      } else {
-        log(`📱 [TikTok - ${account.name}] Video đã được nạp thành công và lưu tự động vào mục Bản Nháp của TikTok Studio.`);
-      }
-      await page.waitForTimeout(4000);
+      await page.waitForTimeout(3500);
     }
 
     log(`🎉 [TikTok - ${account.name}] Hoàn tất đăng tải video thành công (${postMode === 'public' ? 'Đã đăng công khai' : 'Đã lưu bản nháp'})!`);
