@@ -201,7 +201,7 @@ export async function openTikTokLoginWindow(accountId) {
       channel,
       headless: false,
       viewport: null,
-      ignoreDefaultArgs: ['--enable-automation'],
+      ignoreDefaultArgs: ['--no-sandbox', '--enable-automation'],
       args: [
         '--disable-blink-features=AutomationControlled',
         '--start-maximized',
@@ -230,7 +230,7 @@ export async function openTikTokLoginWindow(accountId) {
     });
 
     const page = context.pages().length > 0 ? context.pages()[0] : await context.newPage();
-    await page.goto('https://www.tiktok.com/login', { waitUntil: 'domcontentloaded' });
+    await page.goto('https://www.tiktok.com/login/qrcode', { waitUntil: 'domcontentloaded' });
 
     // Active watcher while window is open: check login and auto-update real channel name
     const checkInterval = setInterval(async () => {
@@ -269,7 +269,7 @@ export async function openTikTokLoginWindow(accountId) {
 
     return {
       ok: true,
-      message: `Đang mở Google Chrome cho "${account.name}". Hãy đăng nhập (khuyên dùng "Sử dụng mã QR" hoặc "Tiếp tục với Google"), sau đó đóng cửa sổ lại.`
+      message: `Đang mở Google Chrome hiển thị mã QR cho "${account.name}".\n\n📌 Hướng dẫn quét mã:\n1. Mở app TikTok trên điện thoại -> Vào "Hồ sơ".\n2. Bấm Menu (3 gạch góc trên phải) -> Chọn "Mã QR của tôi".\n3. Bấm icon Máy quét góc trên phải và quét mã trên màn hình.\n4. Bấm "Xác nhận đăng nhập" trên điện thoại, sau đó đóng cửa sổ Chrome lại.`
     };
   } catch (error) {
     activeBrowsers.delete(account.id);
@@ -287,7 +287,7 @@ async function updateAccountUsernameAfterClose(account) {
     const probeContext = await chromium.launchPersistentContext(profileDir, {
       channel,
       headless: true,
-      ignoreDefaultArgs: ['--enable-automation'],
+      ignoreDefaultArgs: ['--no-sandbox', '--enable-automation'],
       args: ['--disable-blink-features=AutomationControlled']
     });
 
@@ -352,7 +352,7 @@ export async function checkAccountStatus(accountId) {
     probeContext = await chromium.launchPersistentContext(profileDir, {
       channel,
       headless: true,
-      ignoreDefaultArgs: ['--enable-automation'],
+      ignoreDefaultArgs: ['--no-sandbox', '--enable-automation'],
       args: ['--disable-blink-features=AutomationControlled']
     });
 
@@ -490,7 +490,7 @@ export async function uploadSingleAccount({ account, videoPath, caption, hashtag
     channel,
     headless: false,
     viewport: null,
-    ignoreDefaultArgs: ['--enable-automation'],
+    ignoreDefaultArgs: ['--no-sandbox', '--enable-automation'],
     args: [
       '--disable-blink-features=AutomationControlled',
       '--start-maximized',
