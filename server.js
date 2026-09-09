@@ -13,6 +13,7 @@ import {
   loadTikTokAccounts,
   createTikTokAccount,
   deleteTikTokAccount,
+  renameTikTokAccount,
   toggleAccountSelection,
   openTikTokLoginWindow,
   checkAccountStatus,
@@ -417,6 +418,15 @@ app.delete('/api/tiktok/accounts/:id', async (req, res) => {
 app.post('/api/tiktok/accounts/:id/select', (req, res) => {
   try {
     const result = toggleAccountSelection(req.params.id, req.body.selected);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+app.put('/api/tiktok/accounts/:id/rename', (req, res) => {
+  try {
+    const result = renameTikTokAccount(req.params.id, req.body.name || '');
     res.json(result);
   } catch (error) {
     res.status(500).json({ ok: false, error: error.message });

@@ -1570,7 +1570,10 @@ async function loadTikTokAccounts() {
           <div class="tiktok-account-info">
             <input type="checkbox" class="tiktok-account-select" data-id="${acc.id}" ${isSelected ? 'checked' : ''} title="Chọn để tự động đăng lên kênh này">
             <div>
-              <div class="tiktok-account-name">${escapeHtml(acc.name)}</div>
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <span class="tiktok-account-name">${escapeHtml(acc.name)}</span>
+                <button class="tiktok-rename-btn" type="button" data-id="${acc.id}" title="Đổi tên hiển thị" style="background: none; border: none; cursor: pointer; padding: 2px 4px; font-size: 0.8rem; opacity: 0.7;">✏️</button>
+              </div>
               <div class="tiktok-account-user">
                 <span class="tiktok-account-badge ${badgeClass}">${badgeText}</span>
               </div>
@@ -1578,7 +1581,7 @@ async function loadTikTokAccounts() {
           </div>
           <div class="tiktok-account-actions">
             <button class="secondary tiktok-btn-sm tiktok-login-btn" type="button" data-id="${acc.id}">
-              🔑 ${isConnected ? 'Mở TikTok Studio' : 'Đăng Nhập QR'}
+              🔑 ${isConnected ? 'Mở TikTok Studio (Chrome)' : 'Đăng Nhập (Chrome)'}
             </button>
             <button class="secondary tiktok-btn-sm tiktok-delete-btn" type="button" data-id="${acc.id}" style="color: #f87171;" title="Xóa kênh này">
               🗑️ Xóa
@@ -1616,6 +1619,33 @@ function attachTikTokAccountListeners() {
     });
   });
 
+  // Rename button
+  tiktokAccountsContainer.querySelectorAll('.tiktok-rename-btn').forEach((btn) => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const id = btn.dataset.id;
+      const currentCard = btn.closest('.tiktok-account-card');
+      const currentName = currentCard?.querySelector('.tiktok-account-name')?.textContent || '';
+      const newName = prompt('Nhập tên hiển thị mới cho kênh này:', currentName);
+      if (!newName || !newName.trim() || newName.trim() === currentName) return;
+      try {
+        const res = await fetch(`/api/tiktok/accounts/${id}/rename`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: newName.trim() })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          loadTikTokAccounts();
+        } else {
+          alert(`Không thể đổi tên: ${data.message || 'Lỗi'}`);
+        }
+      } catch (err) {
+        alert(`Lỗi đổi tên: ${err.message}`);
+      }
+    });
+  });
+
   // Login button
   tiktokAccountsContainer.querySelectorAll('.tiktok-login-btn').forEach((btn) => {
     btn.addEventListener('click', async () => {
@@ -1624,7 +1654,7 @@ function attachTikTokAccountListeners() {
       try {
         const res = await fetch(`/api/tiktok/accounts/${id}/login`, { method: 'POST' });
         const data = await res.json();
-        alert(data.message || 'Đang mở trình duyệt. Bạn hãy quét mã QR hoặc đăng nhập tài khoản TikTok của mình, sau đó đóng cửa sổ lại.');
+        alert(data.message || 'Đang mở Google Chrome. Bạn hãy đăng nhập tài khoản TikTok (khuyên dùng "Sử dụng mã QR" hoặc "Tiếp tục với Google"). Tên kênh sẽ được tự động cập nhật sau khi đăng nhập thành công!');
 
         let attempts = 0;
         const interval = setInterval(async () => {
@@ -1632,12 +1662,12 @@ function attachTikTokAccountListeners() {
           try {
             const statusRes = await fetch(`/api/tiktok/accounts/${id}/status`);
             const statusData = await statusRes.json();
-            if (statusData.loggedIn || attempts > 20) {
+            if (statusData.loggedIn || attempts > 25) {
               clearInterval(interval);
               loadTikTokAccounts();
             }
           } catch {}
-        }, 4000);
+        }, 3000);
       } catch (err) {
         alert(`Lỗi đăng nhập: ${err.message}`);
       } finally {
