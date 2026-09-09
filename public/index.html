@@ -581,11 +581,11 @@
     <div id="tiktokLoginModal" class="tiktok-modal-backdrop hidden">
       <div class="tiktok-modal-card">
         <div class="tiktok-modal-header">
-          <div style="display: flex; align-items: center; gap: 10px;">
-            <span style="font-size: 1.4rem;">🔑</span>
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <span style="font-size: 1.5rem;">🔑</span>
             <div>
-              <h3 style="margin: 0; font-size: 1.05rem; font-weight: 700; color: var(--ink);">Chọn Phương Thức Đăng Nhập TikTok</h3>
-              <div id="modalAccountSubtitle" style="font-size: 0.8rem; color: var(--muted); margin-top: 2px;">Kênh: <strong id="modalAccountName">Kênh TikTok 1</strong></div>
+              <h3 class="tiktok-modal-title">Chọn Phương Thức Đăng Nhập TikTok</h3>
+              <div class="tiktok-modal-subtitle">Kênh: <strong id="modalAccountName">Kênh TikTok 1</strong></div>
             </div>
           </div>
           <button type="button" id="closeTikTokModalBtn" class="tiktok-modal-close" title="Đóng">&times;</button>
@@ -593,29 +593,29 @@
 
         <div class="tiktok-modal-body">
           <div class="tiktok-login-options-grid">
-            <!-- OPTION 1: PHONE / EMAIL -->
-            <button type="button" class="tiktok-login-option-btn" data-mode="phone-or-email">
-              <span class="option-icon">📱</span>
+            <!-- OPTION 1: GOOGLE / GMAIL -->
+            <button type="button" class="tiktok-login-option-btn" data-mode="google">
+              <span class="option-icon" style="background: rgba(239, 68, 68, 0.15); color: #ef4444;">🔴</span>
               <div class="option-details">
-                <div class="option-title">Số Điện Thoại / Email / Mật Khẩu</div>
-                <div class="option-desc">Mở form nhập SĐT (nhận mã OTP hoặc mật khẩu) hoặc Email/Username trực tiếp.</div>
+                <div class="option-title">Tài Khoản Google / Gmail</div>
+                <div class="option-desc">Mở Google Chrome chuẩn để đăng nhập Gmail (100% không bị chặn bảo mật).</div>
               </div>
               <span class="option-arrow">➔</span>
             </button>
 
-            <!-- OPTION 2: GOOGLE / GMAIL -->
-            <button type="button" class="tiktok-login-option-btn" data-mode="google">
-              <span class="option-icon">🔴</span>
+            <!-- OPTION 2: PHONE / EMAIL -->
+            <button type="button" class="tiktok-login-option-btn" data-mode="phone-or-email">
+              <span class="option-icon" style="background: rgba(59, 130, 246, 0.15); color: #3b82f6;">📱</span>
               <div class="option-details">
-                <div class="option-title">Tài Khoản Google / Gmail</div>
-                <div class="option-desc">Mở cửa sổ liên kết tài khoản Google chính thức (accounts.google.com) siêu nhanh.</div>
+                <div class="option-title">Số Điện Thoại / Email / Mật Khẩu</div>
+                <div class="option-desc">Nhập số điện thoại (nhận mã OTP SMS hoặc mật khẩu) hoặc Email/Username trực tiếp.</div>
               </div>
               <span class="option-arrow">➔</span>
             </button>
 
             <!-- OPTION 3: QR CODE -->
             <button type="button" class="tiktok-login-option-btn" data-mode="qrcode">
-              <span class="option-icon">📷</span>
+              <span class="option-icon" style="background: rgba(16, 185, 129, 0.15); color: #10b981;">📷</span>
               <div class="option-details">
                 <div class="option-title">Quét Mã QR Bằng App Điện Thoại</div>
                 <div class="option-desc">Mở mã QR trên Chrome để quét xác thực từ ứng dụng TikTok trên di động.</div>
@@ -625,10 +625,10 @@
 
             <!-- OPTION 4: ALL -->
             <button type="button" class="tiktok-login-option-btn" data-mode="all">
-              <span class="option-icon">🌐</span>
+              <span class="option-icon" style="background: rgba(168, 85, 247, 0.15); color: #a855f7;">🌐</span>
               <div class="option-details">
                 <div class="option-title">Trang Đăng Nhập Đầy Đủ Tất Cả Phương Thức</div>
-                <div class="option-desc">Mở trang đăng nhập chuẩn của TikTok với mọi phương thức (Facebook, Apple, LINE...).</div>
+                <div class="option-desc">Mở trang chuẩn của TikTok với mọi phương thức (Facebook, Apple, LINE...).</div>
               </div>
               <span class="option-arrow">➔</span>
             </button>
@@ -636,8 +636,8 @@
         </div>
 
         <div class="tiktok-modal-footer">
-          <span style="font-size: 0.78rem; color: var(--muted); display: inline-flex; align-items: center; gap: 4px;">
-            💡 <em>Ứng dụng sẽ tự động nhận diện tên kênh và trạng thái đăng nhập sau khi hoàn tất.</em>
+          <span class="tiktok-modal-hint">
+            💡 <em>Sau khi đăng nhập trên Chrome xong, bạn đóng cửa sổ Chrome lại để ứng dụng hoàn tất lưu kênh.</em>
           </span>
           <button type="button" class="secondary tiktok-btn-sm" id="cancelTikTokModalBtn">Đóng</button>
         </div>

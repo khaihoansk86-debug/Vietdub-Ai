@@ -1,5 +1,7 @@
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
+import { spawn } from 'child_process';
 import { chromium } from 'playwright-core';
 
 function getDataDir() {
@@ -181,8 +183,39 @@ export async function extractTikTokProfile(page) {
   }
 }
 
-// Active browsers map: accountId -> context
-const activeBrowsers = new Map();
+// Native browser processes map: accountId -> child_process
+const nativeBrowsers = new Map();
+
+export function getSystemBrowserPath() {
+  const possiblePaths = [
+    'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+    'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+    path.join(process.env.LOCALAPPDATA || '', 'Google\\Chrome\\Application\\chrome.exe'),
+    'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
+    'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe'
+  ];
+  for (const p of possiblePaths) {
+    if (p && fs.existsSync(p)) return p;
+  }
+  return null;
+}
+
+export function checkProfileHasSession(profileDir) {
+  const cookiePath = path.join(profileDir, 'Default', 'Network', 'Cookies');
+  if (!fs.existsSync(cookiePath)) return false;
+  try {
+    const stat = fs.statSync(cookiePath);
+    if (stat.size < 500) return false;
+    const tmp = path.join(os.tmpdir(), `check_cookie_${Date.now()}_${Math.random().toString(36).substring(2)}.db`);
+    fs.copyFileSync(cookiePath, tmp);
+    const buf = fs.readFileSync(tmp);
+    try { fs.unlinkSync(tmp); } catch {}
+    // Checks for sessionid or sessionid_ss or sid_tt
+    return buf.includes(Buffer.from('sessionid')) || buf.includes(Buffer.from('sid_tt'));
+  } catch {
+    return false;
+  }
+}
 
 function getLoginUrlForMode(mode) {
   if (mode === 'phone-or-email' || mode === 'phone' || mode === 'email') {
@@ -207,179 +240,95 @@ function getModeDescription(mode) {
   return 'Trang đăng nhập tổng hợp';
 }
 
-async function tryTriggerGoogleLogin(page) {
-  try {
-    await page.waitForTimeout(1500);
-    const googleBtn = await page.$(
-      'div[data-e2e="channel-item"]:has-text("Google"), div[role="link"]:has-text("Google"), div:has-text("Continue with Google")'
-    );
-    if (googleBtn) {
-      await googleBtn.click();
-    }
-  } catch {}
-}
-
 export async function openTikTokLoginWindow(accountId, mode = 'all') {
   const accounts = loadTikTokAccounts();
   const account = accounts.find((a) => a.id === accountId) || accounts[0];
   if (!account) return { ok: false, message: 'Không tìm thấy tài khoản TikTok.' };
 
-  const targetUrl = getLoginUrlForMode(mode);
-
-  if (activeBrowsers.has(account.id)) {
-    const context = activeBrowsers.get(account.id);
-    try {
-      const page = context.pages().find((p) => p.url().includes('tiktok.com')) || context.pages()[0];
-      if (page && !page.isClosed()) {
-        await page.goto(targetUrl, { waitUntil: 'domcontentloaded' }).catch(() => {});
-        if (mode === 'google') {
-          await tryTriggerGoogleLogin(page);
-        }
-        return {
-          ok: true,
-          message: `Đã chuyển cửa sổ Google Chrome của "${account.name}" sang chế độ: ${getModeDescription(mode)}.`
-        };
-      }
-    } catch {}
-    return { ok: true, message: `Cửa sổ Google Chrome cho "${account.name}" đang được mở sẵn trên màn hình.` };
+  const browserPath = getSystemBrowserPath();
+  if (!browserPath) {
+    return { ok: false, message: 'Không tìm thấy trình duyệt Google Chrome trên máy tính của bạn.' };
   }
 
-  const channel = await detectBrowserChannel();
   const profileDir = getAccountProfileDir(account);
+  const targetUrl = getLoginUrlForMode(mode);
+
+  // If already open, close old one first to avoid duplicate window
+  if (nativeBrowsers.has(account.id)) {
+    const oldProc = nativeBrowsers.get(account.id);
+    try {
+      if (oldProc && oldProc.pid) process.kill(oldProc.pid);
+    } catch {}
+    nativeBrowsers.delete(account.id);
+    await new Promise((r) => setTimeout(r, 600));
+  }
 
   try {
-    const context = await chromium.launchPersistentContext(profileDir, {
-      channel,
-      headless: false,
-      viewport: null,
-      ignoreDefaultArgs: ['--no-sandbox', '--enable-automation'],
-      args: [
-        '--start-maximized',
-        '--disable-infobars',
-        '--no-default-browser-check',
-        '--no-first-run'
-      ]
+    // Launch genuine native Google Chrome:
+    // NO --remote-debugging-pipe, NO automation flags!
+    // Google OAuth (accounts.google.com) will NEVER block this!
+    const child = spawn(browserPath, [
+      `--user-data-dir=${profileDir}`,
+      '--start-maximized',
+      '--no-first-run',
+      '--no-default-browser-check',
+      targetUrl
+    ], {
+      detached: true,
+      stdio: 'ignore'
     });
 
-    activeBrowsers.set(account.id, context);
+    nativeBrowsers.set(account.id, child);
 
-    await context.addInitScript(() => {
-      Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
-      window.chrome = {
-        runtime: {},
-        loadTimes: function () {},
-        csi: function () {},
-        app: {}
-      };
-      Object.defineProperty(navigator, 'plugins', {
-        get: () => [1, 2, 3, 4, 5]
-      });
-      Object.defineProperty(navigator, 'languages', {
-        get: () => ['vi-VN', 'vi', 'en-US', 'en']
-      });
+    child.on('exit', async () => {
+      nativeBrowsers.delete(account.id);
+      // When user finishes and closes Chrome, automatically probe and extract channel info
+      setTimeout(() => {
+        syncAccountProfile(account.id).catch(() => {});
+      }, 1000);
     });
 
-    const page = context.pages().length > 0 ? context.pages()[0] : await context.newPage();
-    await page.goto(targetUrl, { waitUntil: 'domcontentloaded' });
-
-    if (mode === 'google') {
-      await tryTriggerGoogleLogin(page);
-    }
-
-    // Active watcher while window is open: check login and auto-update real channel name
-    const checkInterval = setInterval(async () => {
-      try {
-        if (!activeBrowsers.has(account.id) || context.pages().length === 0) {
-          clearInterval(checkInterval);
-          return;
-        }
-
-        // 1. Check ALL cookies across all domains and pages
-        const allCookies = await context.cookies();
-        const hasSession = allCookies.some((c) =>
-          (c.name === 'sessionid' || c.name === 'sessionid_ss' || c.name === 'sid_tt') && c.value
-        );
-
-        const tiktokPage = context.pages().find((p) => p.url().includes('tiktok.com')) || context.pages()[0];
-        if (!tiktokPage || tiktokPage.isClosed()) return;
-
-        // 2. Also check authenticated passport API
-        let passportData = null;
-        try {
-          passportData = await tiktokPage.evaluate(async () => {
-            try {
-              const r = await fetch('/passport/web/account/info/', { credentials: 'include' });
-              if (r.ok) {
-                const j = await r.json();
-                if (j?.message === 'success' && j?.data) {
-                  return j.data;
-                }
-              }
-            } catch {}
-            return null;
-          });
-        } catch {}
-
-        if (hasSession || passportData) {
-          // If login confirmed but still on login/auth page, automatically navigate to main site!
-          if (tiktokPage.url().includes('/login')) {
-            await tiktokPage.goto('https://www.tiktok.com/', { waitUntil: 'domcontentloaded', timeout: 15000 }).catch(() => {});
-          }
-
-          const profile = await extractTikTokProfile(tiktokPage);
-          const rawUid = profile?.uniqueId || passportData?.username || passportData?.user_id;
-          const rawNick = profile?.nickname || passportData?.screen_name || rawUid;
-
-          if (rawUid) {
-            const currentAccounts = loadTikTokAccounts();
-            const target = currentAccounts.find((a) => a.id === account.id);
-            if (target) {
-              const uId = String(rawUid).replace(/^@/, '');
-              target.username = `@${uId}`;
-              if (target.name.startsWith('Kênh TikTok') || !target.name) {
-                target.name = rawNick ? `${rawNick}` : target.username;
-              }
-              target.loggedIn = true;
-              saveTikTokAccounts(currentAccounts);
-              account.username = target.username;
-              account.name = target.name;
-              account.loggedIn = true;
-            }
-          }
-        }
-      } catch {}
-    }, 2000);
-
-    context.on('close', async () => {
-      clearInterval(checkInterval);
-      activeBrowsers.delete(account.id);
-      await updateAccountUsernameAfterClose(account);
-    });
+    child.unref();
 
     let message = '';
-    if (mode === 'phone-or-email' || mode === 'phone' || mode === 'email') {
-      message = `Đang mở Google Chrome tại form đăng nhập Số điện thoại & Email cho "${account.name}".\n\n📌 Bạn có thể nhập Số điện thoại (nhận mã OTP SMS hoặc mật khẩu) hoặc chuyển sang Email / Tên người dùng và mật khẩu để đăng nhập.`;
-    } else if (mode === 'google') {
-      message = `Đang mở Google Chrome và kích hoạt đăng nhập Google / Gmail cho "${account.name}".\n\n📌 Cửa sổ đăng nhập Google sẽ xuất hiện, bạn chỉ cần chọn hoặc nhập tài khoản Gmail của mình để liên kết với TikTok.`;
+    if (mode === 'google') {
+      message = `Đang mở Google Chrome cho "${account.name}".\n\n📌 Trình duyệt đang mở ở chế độ Chrome thông thường. Bạn hãy bấm "Tiếp tục với Google" và đăng nhập Gmail thoải mái (Google sẽ không chặn bảo mật nữa)!\n\nSau khi đăng nhập xong, bạn đóng cửa sổ Chrome lại để ứng dụng hoàn tất lưu tài khoản.`;
+    } else if (mode === 'phone-or-email' || mode === 'phone' || mode === 'email') {
+      message = `Đang mở form đăng nhập Số điện thoại & Email cho "${account.name}".\n\n📌 Nhập Số điện thoại (nhận mã OTP hoặc mật khẩu) hoặc Email và mật khẩu. Sau khi xong, hãy đóng Chrome lại để hoàn tất lưu tài khoản.`;
     } else if (mode === 'qrcode' || mode === 'qr') {
-      message = `Đang mở Google Chrome hiển thị mã QR cho "${account.name}".\n\n📌 Quét mã bằng app TikTok trên điện thoại (Hồ sơ -> 3 gạch -> Mã QR của tôi -> Quét mã -> Xác nhận).`;
+      message = `Đang mở mã QR cho "${account.name}".\n\n📌 Quét mã bằng app TikTok trên điện thoại và bấm xác nhận, sau đó đóng cửa sổ Chrome lại để lưu tài khoản.`;
     } else {
-      message = `Đang mở Google Chrome với đầy đủ các phương thức đăng nhập cho "${account.name}". Bạn có thể chọn Số điện thoại, Gmail, Email hoặc Mã QR tùy ý.`;
+      message = `Đang mở Google Chrome đầy đủ cho "${account.name}". Bạn có thể chọn bất kỳ phương thức nào (Google, SĐT, Email, QR) để đăng nhập, sau đó đóng Chrome lại để lưu tài khoản.`;
     }
 
     return { ok: true, message };
   } catch (error) {
-    activeBrowsers.delete(account.id);
+    nativeBrowsers.delete(account.id);
     return { ok: false, message: `Lỗi mở Google Chrome: ${error.message}` };
   }
 }
 
-async function updateAccountUsernameAfterClose(account) {
-  try {
-    const profileDir = getAccountProfileDir(account);
-    const cookiePath = path.join(profileDir, 'Default', 'Network', 'Cookies');
-    if (!fs.existsSync(cookiePath) || fs.statSync(cookiePath).size < 1000) return;
+export async function syncAccountProfile(accountId) {
+  const accounts = loadTikTokAccounts();
+  const account = accounts.find((a) => a.id === accountId);
+  if (!account) return { ok: false, message: 'Tài khoản không tồn tại.' };
 
+  const profileDir = getAccountProfileDir(account);
+  if (!checkProfileHasSession(profileDir)) {
+    return { ok: false, message: 'Chưa phát hiện phiên đăng nhập trong trình duyệt.' };
+  }
+
+  // If native Chrome is still open, close it so profile directory is not locked
+  if (nativeBrowsers.has(account.id)) {
+    const child = nativeBrowsers.get(account.id);
+    try {
+      if (child && child.pid) process.kill(child.pid);
+    } catch {}
+    nativeBrowsers.delete(account.id);
+    await new Promise((r) => setTimeout(r, 1200));
+  }
+
+  try {
     const channel = await detectBrowserChannel();
     const probeContext = await chromium.launchPersistentContext(profileDir, {
       channel,
@@ -393,20 +342,30 @@ async function updateAccountUsernameAfterClose(account) {
       await page.goto('https://www.tiktok.com/', { waitUntil: 'domcontentloaded', timeout: 12000 }).catch(() => {});
       const profile = await extractTikTokProfile(page);
       if (profile && profile.uniqueId) {
-        const accounts = loadTikTokAccounts();
-        const acc = accounts.find((a) => a.id === account.id);
-        if (acc) {
-          acc.username = `@${profile.uniqueId.replace(/^@/, '')}`;
-          if (acc.name.startsWith('Kênh TikTok') || !acc.name) {
-            acc.name = profile.nickname || acc.username;
-          }
-          saveTikTokAccounts(accounts);
+        account.username = `@${profile.uniqueId.replace(/^@/, '')}`;
+        if (account.name.startsWith('Kênh TikTok') || !account.name) {
+          account.name = profile.nickname || account.username;
         }
       }
     } finally {
       await probeContext.close();
     }
-  } catch {}
+  } catch (err) {
+    console.warn('Sync profile warning:', err.message);
+  }
+
+  account.loggedIn = true;
+  saveTikTokAccounts(accounts);
+  return {
+    ok: true,
+    channelName: account.name,
+    username: account.username || 'TikTok Creator',
+    message: `Đã lưu thành công kênh "${account.name}" (${account.username})!`
+  };
+}
+
+async function updateAccountUsernameAfterClose(account) {
+  await syncAccountProfile(account.id).catch(() => {});
 }
 
 export async function checkAccountStatus(accountId) {
@@ -414,89 +373,33 @@ export async function checkAccountStatus(accountId) {
   const account = accounts.find((a) => a.id === accountId);
   if (!account) return { loggedIn: false, message: 'Tài khoản không tồn tại.' };
 
-  // 1. If browser window is currently open, read cookies directly from memory (ZERO lock conflict!)
-  if (activeBrowsers.has(account.id)) {
-    const context = activeBrowsers.get(account.id);
-    try {
-      const allCookies = await context.cookies();
-      const hasSession = allCookies.some((c) =>
-        (c.name === 'sessionid' || c.name === 'sessionid_ss' || c.name === 'sid_tt') && c.value
-      );
-      if (hasSession) {
-        const latestAcc = loadTikTokAccounts().find((a) => a.id === accountId) || account;
-        return {
-          loggedIn: true,
-          channelName: latestAcc.name,
-          username: latestAcc.username || 'TikTok Creator',
-          message: 'Đã kết nối thành công.'
-        };
-      }
-      return { loggedIn: false, message: 'Đang mở cửa sổ đăng nhập Google Chrome... Vui lòng hoàn tất đăng nhập trên trình duyệt.' };
-    } catch {
-      return { loggedIn: false, message: 'Đang kết nối...' };
-    }
-  }
-
-  // 2. If browser is closed, check cookies file first
   const profileDir = getAccountProfileDir(account);
-  const cookiePath = path.join(profileDir, 'Default', 'Network', 'Cookies');
-  if (!fs.existsSync(cookiePath) || fs.statSync(cookiePath).size < 1000) {
-    return { loggedIn: false, message: 'Chưa đăng nhập tài khoản này.' };
-  }
+  const isBrowserRunning = nativeBrowsers.has(account.id);
+  const hasSession = checkProfileHasSession(profileDir);
 
-  // 3. Launch a lightweight probe safely without crashing
-  const channel = await detectBrowserChannel();
-  let probeContext = null;
-  try {
-    probeContext = await chromium.launchPersistentContext(profileDir, {
-      channel,
-      headless: true,
-      ignoreDefaultArgs: ['--no-sandbox', '--enable-automation'],
-      args: ['--no-default-browser-check', '--no-first-run']
-    });
-
-    const allCookies = await probeContext.cookies();
-    const sessionCookie = allCookies.find((c) =>
-      (c.name === 'sessionid' || c.name === 'sessionid_ss' || c.name === 'sid_tt' || c.name === 'passport_auth_status') && c.value
-    );
-
-    if (!sessionCookie || !sessionCookie.value) {
-      await probeContext.close();
-      return { loggedIn: false, message: 'Chưa có phiên đăng nhập TikTok.' };
+  if (hasSession) {
+    if (!account.loggedIn) {
+      account.loggedIn = true;
+      saveTikTokAccounts(accounts);
     }
-
-    if (!account.username) {
-      const page = probeContext.pages()[0] || await probeContext.newPage();
-      await page.goto('https://www.tiktok.com/', { waitUntil: 'domcontentloaded', timeout: 10000 }).catch(() => {});
-      const profile = await extractTikTokProfile(page);
-      if (profile && profile.uniqueId) {
-        account.username = `@${profile.uniqueId.replace(/^@/, '')}`;
-        if (account.name.startsWith('Kênh TikTok') || !account.name) {
-          account.name = profile.nickname || account.username;
-        }
-        saveTikTokAccounts(accounts);
-      }
-    }
-
-    await probeContext.close();
     return {
       loggedIn: true,
       channelName: account.name,
       username: account.username || 'TikTok Creator',
-      message: 'Đã kết nối thành công.'
-    };
-  } catch (error) {
-    if (probeContext) {
-      try { await probeContext.close(); } catch {}
-    }
-    // Fallback: If cookie file has data, assume logged in
-    return {
-      loggedIn: true,
-      channelName: account.name,
-      username: account.username || 'TikTok Creator',
-      message: 'Đã kết nối.'
+      isBrowserRunning,
+      message: isBrowserRunning
+        ? 'Đã nhận diện phiên đăng nhập thành công! Hãy đóng cửa sổ Chrome để đồng bộ tên kênh.'
+        : 'Đã kết nối thành công.'
     };
   }
+
+  return {
+    loggedIn: false,
+    isBrowserRunning,
+    message: isBrowserRunning
+      ? 'Đang mở Google Chrome... Vui lòng hoàn tất đăng nhập.'
+      : 'Chưa đăng nhập tài khoản này.'
+  };
 }
 
 export async function checkAllAccountsStatus() {

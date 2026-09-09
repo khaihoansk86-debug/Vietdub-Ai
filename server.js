@@ -16,6 +16,7 @@ import {
   renameTikTokAccount,
   toggleAccountSelection,
   openTikTokLoginWindow,
+  syncAccountProfile,
   checkAccountStatus,
   checkAllAccountsStatus,
   generateTikTokMetadata,
@@ -449,6 +450,15 @@ app.get('/api/tiktok/accounts/:id/status', async (req, res) => {
     res.json(status);
   } catch (error) {
     res.status(500).json({ loggedIn: false, message: error.message });
+  }
+});
+
+app.post('/api/tiktok/accounts/:id/sync', async (req, res) => {
+  try {
+    const result = await syncAccountProfile(req.params.id);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ ok: false, message: error.message });
   }
 });
 

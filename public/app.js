@@ -1584,12 +1584,18 @@ async function loadTikTokAccounts() {
               <button class="secondary tiktok-btn-sm tiktok-studio-btn" type="button" data-id="${acc.id}" title="Mở TikTok Studio trên Chrome">
                 🌐 Mở Studio
               </button>
+              <button class="secondary tiktok-btn-sm tiktok-sync-btn" type="button" data-id="${acc.id}" title="Đồng bộ lại thông tin kênh từ trình duyệt">
+                🔄 Đồng bộ
+              </button>
               <button class="secondary tiktok-btn-sm tiktok-relogin-btn" type="button" data-id="${acc.id}" data-name="${escapeHtml(acc.name)}" title="Đăng nhập lại bằng Gmail, SĐT hoặc QR">
-                🔄 Đổi đăng nhập
+                🔑 Đổi TK
               </button>
             ` : `
-              <button class="secondary tiktok-btn-sm tiktok-login-btn" type="button" data-id="${acc.id}" data-name="${escapeHtml(acc.name)}" style="border-color: var(--brand-border); color: var(--brand);">
+              <button class="secondary tiktok-btn-sm tiktok-login-btn" type="button" data-id="${acc.id}" data-name="${escapeHtml(acc.name)}" style="border-color: var(--brand); color: var(--brand); font-weight: 600;">
                 🔑 Đăng Nhập (Chrome)
+              </button>
+              <button class="secondary tiktok-btn-sm tiktok-sync-btn" type="button" data-id="${acc.id}" title="Đã đăng nhập trên Chrome xong? Bấm để hoàn tất lưu kênh">
+                🔄 Lưu Kênh
               </button>
             `}
             <button class="secondary tiktok-btn-sm tiktok-delete-btn" type="button" data-id="${acc.id}" style="color: #f87171;" title="Xóa kênh này">
@@ -1654,7 +1660,7 @@ async function executeTikTokLogin(id, mode = 'all') {
       body: JSON.stringify({ mode })
     });
     const data = await res.json();
-    alert(data.message || 'Đang mở Google Chrome. Bạn hãy hoàn tất đăng nhập trên trình duyệt. Tên kênh sẽ được tự động đồng bộ ngay sau khi đăng nhập thành công!');
+    alert(data.message || 'Đang mở Google Chrome. Bạn hãy hoàn tất đăng nhập tài khoản trên trình duyệt.\n\nSau khi đăng nhập thành công, hãy đóng cửa sổ Chrome lại (hoặc bấm "Lưu Kênh") để ứng dụng hoàn tất lưu tài khoản!');
 
     let attempts = 0;
     const interval = setInterval(async () => {
@@ -1662,7 +1668,7 @@ async function executeTikTokLogin(id, mode = 'all') {
       try {
         const statusRes = await fetch(`/api/tiktok/accounts/${id}/status`);
         const statusData = await statusRes.json();
-        if (statusData.loggedIn || attempts > 30) {
+        if (statusData.loggedIn || attempts > 40) {
           clearInterval(interval);
           loadTikTokAccounts();
         }
@@ -1737,6 +1743,32 @@ function attachTikTokAccountListeners() {
       const id = btn.dataset.id;
       const name = btn.dataset.name || 'Kênh TikTok';
       openTikTokLoginModal(id, name);
+    });
+  });
+
+  // Sync button -> Force sync profile from Chrome cookies
+  tiktokAccountsContainer.querySelectorAll('.tiktok-sync-btn').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const id = btn.dataset.id;
+      btn.disabled = true;
+      const oldText = btn.textContent;
+      btn.textContent = '⏳ Đang lưu...';
+      try {
+        const res = await fetch(`/api/tiktok/accounts/${id}/sync`, { method: 'POST' });
+        const data = await res.json();
+        if (data.ok) {
+          alert(data.message || 'Đã lưu và đồng bộ tài khoản thành công!');
+          loadTikTokAccounts();
+        } else {
+          alert(`Chưa lưu được: ${data.message || 'Không tìm thấy phiên đăng nhập'}`);
+        }
+      } catch (err) {
+        alert(`Lỗi đồng bộ kênh: ${err.message}`);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = oldText;
+        loadTikTokAccounts();
+      }
     });
   });
 
