@@ -342,11 +342,11 @@
                   <h2><span>📱</span> Quản Lý Đa Kênh & Tự Động Đăng TikTok</h2>
                   <p>AI tự động tạo tiêu đề, caption giật tít, hashtags và tự động đăng đồng loạt lên các kênh TikTok bạn chọn.</p>
                 </div>
-                <div class="tiktok-header-actions" style="display: flex; gap: 8px; align-items: center; flex-shrink: 0;">
-                  <button class="secondary tiktok-btn-sm" id="tiktokAddAccountBtn" type="button" style="display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap;">
+                <div class="tiktok-header-actions" style="display: flex; gap: 10px; align-items: center; flex-shrink: 0;">
+                  <button class="secondary tiktok-btn-sm" id="tiktokAddAccountBtn" type="button" style="display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; height: 38px; min-width: 140px; padding: 0 14px; font-weight: 500;">
                     <span>➕</span> Thêm Kênh Mới
                   </button>
-                  <button class="secondary tiktok-btn-sm" id="tiktokRefreshBtn" type="button" style="display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap;">
+                  <button class="secondary tiktok-btn-sm" id="tiktokRefreshBtn" type="button" style="display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; height: 38px; min-width: 140px; padding: 0 14px; font-weight: 500;">
                     <span>🔄</span> Làm Mới
                   </button>
                 </div>
@@ -414,25 +414,38 @@
               </fieldset>
 
               <!-- LOCAL WAREHOUSE DISTRIBUTOR -->
-              <div class="warehouse-box" style="margin-top: 14px; padding: 14px 16px; background: rgba(255,255,255,0.03); border: 1px solid var(--line); border-radius: var(--radius-md);">
-                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; flex-wrap: wrap; gap: 8px;">
+              <div class="warehouse-box" style="margin-top: 14px; padding: 16px 18px; background: rgba(255,255,255,0.03); border: 1px solid var(--line); border-radius: var(--radius-md);">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
                   <h4 style="margin: 0; font-size: 0.95rem; display: flex; align-items: center; gap: 8px;">
                     <span>📦</span> Phân Bổ Video Từ Kho Local Lên Các Kênh
                   </h4>
-                  <button type="button" class="secondary tiktok-btn-sm" id="tiktokViewHistoryBtn" style="display: inline-flex; align-items: center; gap: 6px;">
-                    <span>📜</span> Lịch Sử Đã Đăng
+                </div>
+                <p style="font-size: 0.8rem; color: var(--muted); margin-bottom: 12px;">
+                  Quét thư mục chứa video trên máy tính, tự động bỏ qua video đã đăng và bốc ngẫu nhiên các video mới chia đều cho các kênh TikTok đã chọn (mỗi kênh 1 video riêng biệt, không trùng lặp).
+                </p>
+
+                <!-- Hàng 1: Đường dẫn kho video & Chọn thư mục (đồng đều chiều cao 40px) -->
+                <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 10px;">
+                  <input type="text" id="warehouseFolderPath" placeholder="Đường dẫn thư mục kho video (Ví dụ: G:\My Drive\VietDubAI hoặc D:\Video Export)..." style="flex: 1; height: 40px; padding: 0 14px; font-size: 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--line); background: var(--bg-subtle); color: var(--text);">
+                  <button type="button" class="secondary tiktok-btn-sm" id="warehouseBrowseBtn" style="height: 40px; min-width: 145px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; font-weight: 500;">
+                    <span>📁</span> Chọn Thư Mục
                   </button>
                 </div>
-                <p style="font-size: 0.8rem; color: var(--muted); margin-bottom: 10px;">
-                  Quét thư mục chứa video trên máy của bạn, tự động bỏ qua video đã đăng và bốc ngẫu nhiên các video mới chia đều cho các kênh TikTok đã chọn.
-                </p>
-                <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-                  <input type="text" id="warehouseFolderPath" placeholder="Đường dẫn thư mục kho video (Ví dụ: D:\Video Export)..." style="flex: 1; min-width: 240px; padding: 8px 12px; font-size: 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--line); background: var(--bg-subtle); color: var(--text);">
-                  <button type="button" class="secondary tiktok-btn-sm" id="warehouseBrowseBtn">📁 Chọn Thư Mục</button>
-                  <button type="button" class="secondary tiktok-btn-sm" id="warehouseScanBtn">🔍 Quét Kho</button>
-                  <button type="button" class="primary tiktok-btn-sm" id="warehouseDistributeBtn" style="font-weight: 600; white-space: nowrap;">🎲 Bốc Ngẫu Nhiên & Đăng</button>
+
+                <!-- Hàng 2: Bộ 3 nút thao tác chia đều 1:1:1, cùng chiều cao 40px, cân xứng hoàn hảo -->
+                <div class="warehouse-actions-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; align-items: center;">
+                  <button type="button" class="secondary tiktok-btn-sm" id="warehouseScanBtn" style="height: 40px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; font-weight: 500;">
+                    <span>🔍</span> Quét Lại Kho
+                  </button>
+                  <button type="button" class="primary tiktok-btn-sm" id="warehouseDistributeBtn" style="height: 40px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; white-space: nowrap; font-weight: 600;">
+                    <span>🎲</span> Bốc Ngẫu Nhiên & Đăng
+                  </button>
+                  <button type="button" class="secondary tiktok-btn-sm" id="tiktokViewHistoryBtn" style="height: 40px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; font-weight: 500;">
+                    <span>📜</span> Lịch Sử Đã Đăng (0)
+                  </button>
                 </div>
-                <div id="warehouseScanStatus" style="font-size: 0.8rem; margin-top: 8px; color: var(--muted);">Chưa quét thư mục kho.</div>
+
+                <div id="warehouseScanStatus" style="font-size: 0.82rem; margin-top: 10px; color: var(--muted);">Chưa quét thư mục kho.</div>
               </div>
             </section>
 
@@ -749,7 +762,7 @@
 
     <!-- TIKTOK PUBLISH HISTORY MODAL -->
     <div id="tiktokHistoryModal" class="tiktok-modal-backdrop hidden">
-      <div class="tiktok-modal-card" style="max-width: 980px; width: 95%;">
+      <div class="tiktok-modal-card" style="max-width: 1100px; width: 95vw;">
         <div class="tiktok-modal-header">
           <div style="display: flex; align-items: center; gap: 10px;">
             <span style="font-size: 1.4rem;">📜</span>
@@ -761,21 +774,44 @@
           <button type="button" id="closeTikTokHistoryModalBtn" class="tiktok-modal-close" title="Đóng">&times;</button>
         </div>
 
-        <div class="tiktok-modal-body" style="padding: 16px 20px; max-height: 480px; overflow-y: auto; overflow-x: auto;">
-          <div id="tiktokHistoryListContainer" style="min-width: 680px;">
+        <div class="tiktok-modal-body" style="padding: 16px 20px; max-height: 560px; overflow-y: auto; overflow-x: auto;">
+          <div id="tiktokHistoryListContainer" style="min-width: 780px;">
             <div style="text-align: center; color: var(--muted); padding: 24px;">Đang tải lịch sử...</div>
           </div>
         </div>
 
-        <div class="tiktok-modal-footer" style="display: flex; justify-content: space-between; align-items: center; gap: 12px;">
-          <button type="button" class="secondary tiktok-btn-sm" id="clearTikTokHistoryBtn" style="color: #f87171; border-color: rgba(248, 113, 113, 0.4); display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;">
-            <span>🗑️</span> Xóa Toàn Bộ Lịch Sử
-          </button>
-          <button type="button" class="secondary tiktok-btn-sm" id="closeTikTokHistoryModalBtn2" style="white-space: nowrap;">Đóng</button>
+        <div class="tiktok-modal-footer" style="display: flex; flex-direction: column; gap: 12px; width: 100%;">
+          <!-- Thanh xác nhận xóa sạch lịch sử nội bộ (Inline Confirmation) chuyên nghiệp, không che khuất modal -->
+          <div id="tiktokClearHistoryConfirmBar" class="tiktok-clear-inline-box hidden" style="display: none;">
+            <div class="tiktok-clear-inline-msg" style="display: flex; align-items: center; gap: 10px;">
+              <span style="font-size: 1.3rem;">⚠️</span>
+              <div>
+                <strong style="color: #f87171; font-size: 0.9rem;">Xác nhận xóa sạch toàn bộ lịch sử đăng bài?</strong>
+                <div style="font-size: 0.8rem; color: #cbd5e1; margin-top: 2px;">
+                  Bộ nhớ chống trùng lặp sẽ được đặt lại. Các video trong kho sẽ có thể được bốc ngẫu nhiên để đăng lại bình thường.
+                </div>
+              </div>
+            </div>
+            <div class="tiktok-clear-inline-actions" style="display: flex; gap: 8px; align-items: center; flex-shrink: 0;">
+              <button type="button" id="tiktokDoClearHistoryBtn" class="tiktok-btn-danger" style="background: linear-gradient(135deg, #ef4444, #dc2626); color: #ffffff; border: none; padding: 8px 16px; border-radius: var(--radius-sm); font-size: 0.85rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 10px rgba(239, 68, 68, 0.35);">
+                <span>🗑️</span> Đồng Ý Xóa Vĩnh Viễn
+              </button>
+              <button type="button" id="tiktokCancelClearHistoryBtn" class="secondary tiktok-btn-sm" style="padding: 8px 14px; font-size: 0.85rem;">
+                Hủy
+              </button>
+            </div>
+          </div>
+
+          <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; gap: 12px;">
+            <button type="button" class="secondary tiktok-btn-sm" id="clearTikTokHistoryBtn" style="color: #f87171; border-color: rgba(248, 113, 113, 0.4); display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; height: 38px; padding: 0 14px;">
+              <span>🗑️</span> Xóa Toàn Bộ Lịch Sử
+            </button>
+            <button type="button" class="secondary tiktok-btn-sm" id="closeTikTokHistoryModalBtn2" style="white-space: nowrap; min-width: 90px; height: 38px; padding: 0 16px;">Đóng</button>
+          </div>
         </div>
       </div>
     </div>
 
-    <script src="/app.js"></script>
+    <script src="./app.js"></script>
   </body>
 </html>

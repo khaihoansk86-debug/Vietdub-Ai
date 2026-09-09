@@ -712,28 +712,26 @@ async function dismissTikTokStudioPopups(page, log) {
 async function handleTikTokPostSubmission(uploadTarget, page, account, log) {
   log(`📱 [TikTok - ${account.name}] Đang kiểm tra trạng thái video và chuẩn bị Đăng Công Khai (Post)...`);
 
-  const postBtnSelectors = [
-    'button.Button__root--type-primary:has-text("Post")',
-    'button:has-text("Post")',
-    'button.Button__root--type-primary:has-text("Đăng")',
-    'button:has-text("Đăng")'
-  ];
-
+  // Tìm nút Post chính xác: PHẢI là nút Post submit ở chân trang, KHÔNG được nhầm với menu "Posts" ở thanh bên (sidebar)
   let postBtn = null;
-  for (const sel of postBtnSelectors) {
-    const btn = uploadTarget.locator(sel).first();
-    if (await btn.isVisible().catch(() => false)) {
-      postBtn = btn;
-      break;
+  const postExactMatchRegex = /^(Post|Đăng)$/i;
+
+  // 1. Tìm bằng getByRole với tên chính xác Post/Đăng
+  const roleBtnUpload = uploadTarget.getByRole('button', { name: postExactMatchRegex, exact: true });
+  if (await roleBtnUpload.count() > 0) {
+    postBtn = roleBtnUpload.first();
+  } else {
+    const roleBtnPage = page.getByRole('button', { name: postExactMatchRegex, exact: true });
+    if (await roleBtnPage.count() > 0) {
+      postBtn = roleBtnPage.first();
     }
   }
+
+  // 2. Fallback: tìm trong footer / form-actions, tuyệt đối loại trừ aside/nav/sidebar
   if (!postBtn) {
-    for (const sel of postBtnSelectors) {
-      const btn = page.locator(sel).first();
-      if (await btn.isVisible().catch(() => false)) {
-        postBtn = btn;
-        break;
-      }
+    const footerPost = uploadTarget.locator('div[class*="footer"] button, .btn-post button, footer button').filter({ hasText: postExactMatchRegex }).first();
+    if (await footerPost.isVisible().catch(() => false)) {
+      postBtn = footerPost;
     }
   }
 
@@ -741,64 +739,89 @@ async function handleTikTokPostSubmission(uploadTarget, page, account, log) {
     throw new Error('Không tìm thấy nút "Post" / "Đăng" trên giao diện TikTok Studio.');
   }
 
-  // 1. Chờ video upload & xử lý hoàn tất để nút Post sáng lên (enabled)
+  // 1. Chờ video tải lên hoàn tất và các bước kiểm tra ban đầu (upload 100% -> nút Post được kích hoạt sáng lên)
   log(`📱 [TikTok - ${account.name}] Đang chờ video hoàn tất tải lên để kích hoạt nút Post (Đăng)...`);
   let isEnabled = false;
   for (let w = 0; w < 60; w++) {
     isEnabled = await postBtn.isEnabled().catch(() => false);
-    if (isEnabled) break;
+    if (isEnabled) {
+      log(`📱 [TikTok - ${account.name}] Video đã tải lên xong, nút Post (Đăng) đã sẵn sàng!`);
+      break;
+    }
     await page.waitForTimeout(1000);
   }
 
   if (!isEnabled) {
-    throw new Error('Nút "Post" chưa sẵn sàng (video có thể đang tải lên dở dang hoặc bị lỗi).');
+    throw new Error('Nút "Post" chưa sẵn sàng (video có thể đang tải lên dở dang hoặc bị lỗi kết nối).');
   }
 
-  // Đợi ngắn để TikTok đồng bộ kiểm tra
-  await page.waitForTimeout(1500);
+  // Cuộn nút Post vào tầm nhìn để click chuẩn xác
+  await postBtn.scrollIntoViewIfNeeded().catch(() => {});
+  await page.waitForTimeout(1000);
 
   // 2. Bấm nút Post chính
   log(`📱 [TikTok - ${account.name}] Đã bấm nút "Post" (Đăng). Đang theo dõi tiến trình kiểm duyệt & xuất bản...`);
   await postBtn.click();
   await page.waitForTimeout(1500);
 
-  // 3. Theo dõi và tự động bấm "Post now" ("Đăng ngay") nếu xuất hiện cảnh báo Continue to post
-  const postNowSelectors = [
-    'button:has-text("Post now")',
-    'button:has-text("Đăng ngay")',
-    'div[role="dialog"] button.Button__root--type-primary',
-    '.TUXModal button:has-text("Post now")',
-    '.TUXModal button:has-text("Đăng ngay")',
-    'button.Button__root--type-primary:has-text("Post now")',
-    'button.Button__root--type-primary:has-text("Đăng ngay")'
-  ];
-
+  // 3. Theo dõi và tự động bấm "Post now" ("Đăng ngay") nếu xuất hiện cảnh báo Copyright check / Content check
+  const postNowRegex = /^(Post now|Đăng ngay)$/i;
   let postNowClicked = false;
-  for (let checkLoop = 0; checkLoop < 15; checkLoop++) {
+
+  for (let checkLoop = 0; checkLoop < 20; checkLoop++) {
+    // Ưu tiên getByRole với tên chính xác Post now / Đăng ngay
     let postNowBtn = null;
-    for (const sel of postNowSelectors) {
-      const loc = uploadTarget.locator(sel).first();
-      if (await loc.isVisible().catch(() => false)) {
-        postNowBtn = loc;
-        break;
+    const pRoleBtnTarget = uploadTarget.getByRole('button', { name: postNowRegex, exact: true });
+    if (await pRoleBtnTarget.count() > 0 && await pRoleBtnTarget.first().isVisible().catch(() => false)) {
+      postNowBtn = pRoleBtnTarget.first();
+    } else {
+      const pRoleBtnPage = page.getByRole('button', { name: postNowRegex, exact: true });
+      if (await pRoleBtnPage.count() > 0 && await pRoleBtnPage.first().isVisible().catch(() => false)) {
+        postNowBtn = pRoleBtnPage.first();
       }
-      const locPage = page.locator(sel).first();
-      if (await locPage.isVisible().catch(() => false)) {
-        postNowBtn = locPage;
-        break;
+    }
+
+    // Fallback: Tìm qua các class modal của TikTok Studio (TUXButton, dialog)
+    if (!postNowBtn) {
+      const modalSelectors = [
+        'button.TUXButton--primary:has-text("Post now")',
+        'button.TUXButton--primary:has-text("Đăng ngay")',
+        'div[role="dialog"] button.TUXButton--primary',
+        'div[role="dialog"] button:has-text("Post now")',
+        'div[role="dialog"] button:has-text("Đăng ngay")',
+        '.TUXModal button:has-text("Post now")',
+        '.TUXModal button:has-text("Đăng ngay")'
+      ];
+      for (const sel of modalSelectors) {
+        const loc = uploadTarget.locator(sel).first();
+        if (await loc.isVisible().catch(() => false)) {
+          postNowBtn = loc;
+          break;
+        }
+        const locPage = page.locator(sel).first();
+        if (await locPage.isVisible().catch(() => false)) {
+          postNowBtn = locPage;
+          break;
+        }
       }
     }
 
     if (postNowBtn) {
-      log(`📱 [TikTok - ${account.name}] Phát hiện hộp thoại cảnh báo ("Continue to post?"). Tự động bấm "Post now" ("Đăng ngay")...`);
+      log(`📱 [TikTok - ${account.name}] Phát hiện hộp thoại xác nhận ("Continue to post?"). Tự động bấm "Post now" ("Đăng ngay")...`);
       await postNowBtn.click().catch(() => {});
       postNowClicked = true;
       log(`📱 [TikTok - ${account.name}] Đã bấm "Post now" ("Đăng ngay") thành công!`);
-      await page.waitForTimeout(2500);
+      await page.waitForTimeout(2000);
       break;
     }
 
-    // Kiểm tra nếu đã hoàn tất mà không cần qua modal cảnh báo
+    // Kiểm tra nếu đã hoàn tất và chuyển trang mà không cần qua modal cảnh báo
+    const currentUrl = page.url();
+    if (currentUrl.includes('/content') || currentUrl.includes('/posts') || currentUrl.includes('/manage')) {
+      log(`🎉 [TikTok - ${account.name}] Đã chuyển hướng về trang Quản Lý Nội Dung thành công!`);
+      break;
+    }
+
     const successIndicators = [
       'button:has-text("Manage your posts")',
       'button:has-text("Quản lý bài viết")',
@@ -813,7 +836,7 @@ async function handleTikTokPostSubmission(uploadTarget, page, account, log) {
         break;
       }
     }
-    if (isInstantSuccess || page.url().includes('/content') || page.url().includes('/posts') || page.url().includes('/manage')) {
+    if (isInstantSuccess) {
       log(`🎉 [TikTok - ${account.name}] Đã xuất bản video thành công!`);
       break;
     }
@@ -823,7 +846,7 @@ async function handleTikTokPostSubmission(uploadTarget, page, account, log) {
 
   // 4. Chờ xác nhận hoàn tất xuất bản từ máy chủ TikTok
   log(`📱 [TikTok - ${account.name}] Đang chờ máy chủ TikTok xác nhận lưu trữ và xuất bản video...`);
-  for (let waitSuccess = 0; waitSuccess < 20; waitSuccess++) {
+  for (let waitSuccess = 0; waitSuccess < 25; waitSuccess++) {
     const currentUrl = page.url();
     if (currentUrl.includes('/content') || currentUrl.includes('/posts') || currentUrl.includes('/manage')) {
       log(`🎉 [TikTok - ${account.name}] Trình duyệt đã chuyển hướng về trang quản lý bài viết thành công!`);
@@ -959,8 +982,19 @@ export async function uploadSingleAccount({ account, videoPath, caption, hashtag
     } else {
       // Draft mode
       log(`📱 [TikTok - ${account.name}] Đang lưu vào mục Bản Nháp (Draft)...`);
-      const draftBtn = uploadTarget.locator('button:has-text("Draft"), button:has-text("Nháp"), button:has-text("Save draft"), button:has-text("Lưu bản nháp")').first();
-      if (await draftBtn.isVisible().catch(() => false)) {
+      const draftRegex = /^(Save draft|Lưu bản nháp|Draft|Nháp)$/i;
+      let draftBtn = null;
+      const roleDraft = uploadTarget.getByRole('button', { name: draftRegex, exact: true });
+      if (await roleDraft.count() > 0) {
+        draftBtn = roleDraft.first();
+      } else {
+        const roleDraftPage = page.getByRole('button', { name: draftRegex, exact: true });
+        if (await roleDraftPage.count() > 0) draftBtn = roleDraftPage.first();
+      }
+      if (!draftBtn) {
+        draftBtn = uploadTarget.locator('div[class*="footer"] button, .btn-post button, footer button').filter({ hasText: draftRegex }).first();
+      }
+      if (draftBtn && await draftBtn.isVisible().catch(() => false)) {
         await draftBtn.click().catch(() => {});
         log(`📱 [TikTok - ${account.name}] Đã bấm nút "Lưu bản nháp".`);
       } else {

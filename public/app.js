@@ -2238,33 +2238,50 @@ async function openTikTokHistoryModal() {
       if (tiktokViewHistoryBtn) tiktokViewHistoryBtn.innerHTML = `<span>📜</span> Lịch Sử Đã Đăng (${data.history.length})`;
       tiktokHistoryListContainer.innerHTML = `
         <div style="overflow-x: auto; width: 100%;">
-          <table class="tiktok-history-table">
+          <table class="tiktok-history-table" style="width: 100%;">
             <thead>
               <tr>
-                <th style="min-width: 220px;">Video</th>
-                <th style="min-width: 140px;">Kênh Đăng</th>
-                <th style="min-width: 150px;">Tài Khoản</th>
+                <th style="min-width: 320px;">Video & Nội Dung (Caption)</th>
+                <th style="min-width: 150px;">Kênh Đăng</th>
                 <th style="min-width: 150px;">Thời Gian</th>
-                <th style="min-width: 125px; text-align: center;">Trạng Thái</th>
+                <th style="min-width: 125px; text-align: center;">Chế Độ</th>
               </tr>
             </thead>
             <tbody>
-              ${data.history.map((h) => `
+              ${data.history.map((h) => {
+                const tags = Array.isArray(h.hashtags) ? h.hashtags : [];
+                return `
                 <tr>
-                  <td>
-                    <strong style="color: #ffffff; display: block; word-break: break-all;">${escapeHtml(h.fileName)}</strong>
-                    ${h.caption ? `<div style="font-size: 0.75rem; color: #94a3b8; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 3px;" title="${escapeHtml(h.caption)}">${escapeHtml(h.caption)}</div>` : ''}
+                  <td style="max-width: 520px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                      <span style="font-size: 1.1rem;">🎬</span>
+                      <strong style="color: #ffffff; word-break: break-all; font-size: 0.9rem;">${escapeHtml(h.fileName)}</strong>
+                    </div>
+                    ${h.caption ? `
+                      <div class="tiktok-history-caption">
+                        ${escapeHtml(h.caption)}
+                      </div>
+                    ` : ''}
+                    ${tags.length > 0 ? `
+                      <div style="margin-top: 6px; display: flex; flex-wrap: wrap;">
+                        ${tags.map((t) => `<span class="tiktok-history-tag">${escapeHtml(t.startsWith('#') ? t : `#${t}`)}</span>`).join('')}
+                      </div>
+                    ` : ''}
                   </td>
-                  <td><span style="font-weight: 500; color: #e2e8f0;">${escapeHtml(h.accountName)}</span></td>
-                  <td><span style="color: #38bdf8; font-weight: 500;">${escapeHtml(h.accountUsername || '@tiktok')}</span></td>
-                  <td style="white-space: nowrap; color: #94a3b8; font-size: 0.8rem;">${new Date(h.publishedAt).toLocaleString('vi-VN')}</td>
-                  <td style="text-align: center;">
+                  <td>
+                    <div style="font-weight: 600; color: #f1f5f9; font-size: 0.88rem;">${escapeHtml(h.accountName)}</div>
+                    <div style="color: #38bdf8; font-size: 0.8rem; margin-top: 2px;">${escapeHtml(h.accountUsername || '@tiktok')}</div>
+                  </td>
+                  <td style="white-space: nowrap; color: #94a3b8; font-size: 0.82rem;">
+                    ${new Date(h.publishedAt).toLocaleString('vi-VN')}
+                  </td>
+                  <td style="text-align: center; white-space: nowrap;">
                     <span class="tiktok-history-badge">
                       ${h.postMode === 'draft' ? '💾 Bản Nháp' : '🚀 Công Khai'}
                     </span>
                   </td>
                 </tr>
-              `).join('')}
+              `;}).join('')}
             </tbody>
           </table>
         </div>
@@ -2289,7 +2306,27 @@ async function openTikTokHistoryModal() {
   }
 }
 
+const tiktokClearHistoryConfirmBar = document.querySelector('#tiktokClearHistoryConfirmBar');
+const tiktokDoClearHistoryBtn = document.querySelector('#tiktokDoClearHistoryBtn');
+const tiktokCancelClearHistoryBtn = document.querySelector('#tiktokCancelClearHistoryBtn');
+
+function hideClearConfirmBar() {
+  if (tiktokClearHistoryConfirmBar) {
+    tiktokClearHistoryConfirmBar.style.display = 'none';
+    tiktokClearHistoryConfirmBar.classList.add('hidden');
+  }
+}
+
+function showClearConfirmBar() {
+  if (tiktokClearHistoryConfirmBar) {
+    tiktokClearHistoryConfirmBar.style.display = 'flex';
+    tiktokClearHistoryConfirmBar.classList.remove('hidden');
+    tiktokClearHistoryConfirmBar.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+}
+
 function closeTikTokHistoryModal() {
+  hideClearConfirmBar();
   if (tiktokHistoryModal) tiktokHistoryModal.classList.add('hidden');
 }
 
@@ -2300,24 +2337,24 @@ tiktokHistoryModal?.addEventListener('click', (e) => {
   if (e.target === tiktokHistoryModal) closeTikTokHistoryModal();
 });
 
-clearTikTokHistoryBtn?.addEventListener('click', async () => {
-  const confirmed = await showCustomConfirm({
-    title: 'Xóa Sạch Lịch Sử Đã Đăng TikTok',
-    message: 'Bạn có chắc chắn muốn xóa toàn bộ lịch sử đã đăng không?<br><br><span style="color: #cbd5e1; font-size: 0.85rem;">Sau khi xóa, bộ nhớ chống trùng lặp sẽ được đặt lại. Các video trong kho sẽ có thể được phân bổ để đăng lại bình thường.</span>',
-    confirmText: '🗑️ Đồng Ý Xóa Hết',
-    cancelText: 'Hủy Bỏ',
-    icon: '🗑️',
-    isDanger: true
-  });
-  if (!confirmed) return;
+clearTikTokHistoryBtn?.addEventListener('click', () => {
+  showClearConfirmBar();
+});
 
-  clearTikTokHistoryBtn.disabled = true;
-  const originalText = clearTikTokHistoryBtn.innerHTML;
-  clearTikTokHistoryBtn.innerHTML = '<span>⏳</span> Đang xóa...';
+tiktokCancelClearHistoryBtn?.addEventListener('click', () => {
+  hideClearConfirmBar();
+});
+
+tiktokDoClearHistoryBtn?.addEventListener('click', async () => {
+  if (tiktokDoClearHistoryBtn.disabled) return;
+  tiktokDoClearHistoryBtn.disabled = true;
+  const originalText = tiktokDoClearHistoryBtn.innerHTML;
+  tiktokDoClearHistoryBtn.innerHTML = '<span>⏳</span> Đang xóa...';
   try {
     const res = await fetch('/api/tiktok/history', { method: 'DELETE' });
     const data = await res.json();
     if (data.ok) {
+      hideClearConfirmBar();
       openTikTokHistoryModal();
       scanWarehouse();
     } else {
@@ -2326,8 +2363,8 @@ clearTikTokHistoryBtn?.addEventListener('click', async () => {
   } catch (err) {
     alert('Lỗi xóa lịch sử: ' + err.message);
   } finally {
-    clearTikTokHistoryBtn.disabled = false;
-    clearTikTokHistoryBtn.innerHTML = originalText;
+    tiktokDoClearHistoryBtn.disabled = false;
+    tiktokDoClearHistoryBtn.innerHTML = originalText;
   }
 });
 
