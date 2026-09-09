@@ -620,14 +620,14 @@ export async function generateTikTokMetadata(cues = [], originalTitle = '', aiOp
 
   // Try extracting transcript from cues or companion .srt file
   let videoTranscript = (cues && cues.length > 0) ? cues.map((c) => c.text).join(' ').slice(0, 3500) : '';
-  if (!videoTranscript && aiOptions.videoPath && fss.existsSync(aiOptions.videoPath)) {
+  if (!videoTranscript && aiOptions.videoPath && fs.existsSync(aiOptions.videoPath)) {
     try {
       const srtCandidate = path.join(
         path.dirname(aiOptions.videoPath),
         path.basename(aiOptions.videoPath, path.extname(aiOptions.videoPath)) + '.srt'
       );
-      if (fss.existsSync(srtCandidate)) {
-        const rawSrt = fss.readFileSync(srtCandidate, 'utf-8');
+      if (fs.existsSync(srtCandidate)) {
+        const rawSrt = fs.readFileSync(srtCandidate, 'utf-8');
         videoTranscript = rawSrt
           .replace(/\d+\r?\n\d{2}:\d{2}:\d{2},\d{3} --> \d{2}:\d{2}:\d{2},\d{3}\r?\n/g, '')
           .replace(/<[^>]+>/g, '')
@@ -1359,14 +1359,23 @@ export async function distributeWarehouseVideos({
       log(`\n======================================================`);
       log(`[${i + 1}/${limit}] [Phân bổ 1:1] Video: "${video.name}" -> Gán độc quyền cho Kênh: "${account.name}" (${account.username || account.name})`);
 
-      const cleanTitle = path.basename(video.name, path.extname(video.name)).replace(/[-_]/g, ' ');
-      const metadata = await generateTikTokMetadata([], cleanTitle, {
-        geminiApiKey: geminiApiKey || process.env.GEMINI_API_KEY,
-        geminiModel: geminiModel || process.env.GEMINI_MODEL,
-        extraHashtags,
-        captionPrompt,
-        videoPath: video.path
-      }, log);
+      let metadata;
+      try {
+        metadata = await generateTikTokMetadata([], cleanTitle, {
+          geminiApiKey: geminiApiKey || process.env.GEMINI_API_KEY,
+          geminiModel: geminiModel || process.env.GEMINI_MODEL,
+          extraHashtags,
+          captionPrompt,
+          videoPath: video.path
+        }, log);
+      } catch (metaErr) {
+        log(`⚠️ Lỗi tạo metadata AI (${metaErr.message}), tự động dùng tiêu đề và prompt trực tiếp...`);
+        metadata = {
+          title: cleanTitle,
+          caption: captionPrompt ? `${cleanTitle}\n\n${captionPrompt}` : cleanTitle,
+          hashtags: extraHashtags.split(/\s+/).filter((t) => t.startsWith('#'))
+        };
+      }
 
       try {
         await uploadSingleAccount({
@@ -1410,14 +1419,23 @@ export async function distributeWarehouseVideos({
       log(`\n======================================================`);
       log(`[${i + 1}/${limit}] Video: "${video.name}" -> Kênh: "${account.name}" (${account.username || account.name})`);
 
-      const cleanTitle = path.basename(video.name, path.extname(video.name)).replace(/[-_]/g, ' ');
-      const metadata = await generateTikTokMetadata([], cleanTitle, {
-        geminiApiKey: geminiApiKey || process.env.GEMINI_API_KEY,
-        geminiModel: geminiModel || process.env.GEMINI_MODEL,
-        extraHashtags,
-        captionPrompt,
-        videoPath: video.path
-      }, log);
+      let metadata;
+      try {
+        metadata = await generateTikTokMetadata([], cleanTitle, {
+          geminiApiKey: geminiApiKey || process.env.GEMINI_API_KEY,
+          geminiModel: geminiModel || process.env.GEMINI_MODEL,
+          extraHashtags,
+          captionPrompt,
+          videoPath: video.path
+        }, log);
+      } catch (metaErr) {
+        log(`⚠️ Lỗi tạo metadata AI (${metaErr.message}), tự động dùng tiêu đề và prompt trực tiếp...`);
+        metadata = {
+          title: cleanTitle,
+          caption: captionPrompt ? `${cleanTitle}\n\n${captionPrompt}` : cleanTitle,
+          hashtags: extraHashtags.split(/\s+/).filter((t) => t.startsWith('#'))
+        };
+      }
 
       try {
         await uploadSingleAccount({

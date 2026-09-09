@@ -531,6 +531,11 @@ app.post('/api/tiktok/warehouse/distribute', async (req, res) => {
         broadcastWarehouseLog(msg);
       }
     }).then((result) => {
+      if (result && result.ok === false) {
+        broadcastWarehouseLog(`\n⚠️ ${result.message || 'Không thể phân bổ video'}`, true);
+        broadcastWarehouseLog('__DONE__', true, { done: true, ok: false, error: result.message });
+        return;
+      }
       broadcastWarehouseLog(`\n🎉 ${result?.message || 'Hoàn tất phân bổ kho video!'}`);
       broadcastWarehouseLog('__DONE__', false, { done: true, ok: true, result });
     }).catch((err) => {
