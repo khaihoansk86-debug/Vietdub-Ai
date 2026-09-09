@@ -335,6 +335,60 @@
               </fieldset>
             </section>
 
+            <!-- TIKTOK AUTO PUBLISHER -->
+            <section class="form-section tiktok-section" style="margin-top: 14px;">
+              <div class="section-head">
+                <div>
+                  <h2><span>📱</span> Tự Động Đăng Lên Kênh TikTok</h2>
+                  <p>AI tự động tạo tiêu đề, caption giật tít, hashtags và tự động đăng video lên kênh TikTok của bạn.</p>
+                </div>
+                <div id="tiktokStatusBadge" class="status-badge" style="display: inline-flex; align-items: center; gap: 6px; font-size: 13px; padding: 4px 12px; border-radius: 20px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15);">
+                  <span id="tiktokStatusDot" style="width: 8px; height: 8px; border-radius: 50%; background: #94a3b8;"></span>
+                  <span id="tiktokStatusText">Đang kiểm tra...</span>
+                </div>
+              </div>
+
+              <div class="control-row" style="align-items: center; margin-bottom: 12px; gap: 12px;">
+                <button class="secondary" id="tiktokLoginBtn" type="button" style="display: inline-flex; align-items: center; gap: 8px;">
+                  <span>🔑</span>
+                  <span id="tiktokLoginBtnText">Kết Nối Kênh TikTok (Đăng Nhập)</span>
+                </button>
+                <button class="secondary" id="tiktokCheckBtn" type="button" style="display: inline-flex; align-items: center; gap: 6px;">
+                  <span>🔄</span>
+                  <span>Kiểm tra lại</span>
+                </button>
+                <button class="btn-link" id="tiktokLogoutBtn" type="button" style="display: none; color: #f87171; text-decoration: underline; background: none; border: none; cursor: pointer; font-size: 13px;">
+                  Đăng xuất
+                </button>
+              </div>
+
+              <fieldset class="settings-group compact">
+                <legend>⚙️ Cấu Hình Tự Động Đăng Bài</legend>
+                <label class="check-row">
+                  <input name="tiktokAutoUpload" id="tiktokAutoUpload" type="checkbox">
+                  <span><strong>Bật tự động đăng lên TikTok</strong> ngay khi video render xong</span>
+                </label>
+
+                <div class="control-row" style="margin-top: 12px;">
+                  <label class="field">
+                    <span>Chế độ đăng bài</span>
+                    <select name="tiktokPostMode" id="tiktokPostMode">
+                      <option value="draft" selected>💾 Lưu vào Bản Nháp (Draft - Khuyên dùng an toàn)</option>
+                      <option value="public">🚀 Đăng Công Khai Ngay (Public Post)</option>
+                      <option value="private">🔒 Chỉ mình tôi (Private)</option>
+                    </select>
+                  </label>
+                  <label class="field">
+                    <span>Hashtags bổ sung (tùy chọn)</span>
+                    <input name="tiktokHashtags" id="tiktokHashtags" type="text" placeholder="#xuhuong #fyp #review #skincare">
+                  </label>
+                </div>
+                <p class="helper-text" style="margin-top: 6px; font-size: 12px; opacity: 0.75;">
+                  💡 <em>Gợi ý: Chọn <strong>Lưu vào Bản Nháp</strong> để video được tải lên sẵn trên TikTok Studio, bạn chỉ cần mở app trên điện thoại kiểm tra lại 1 lần và bấm đăng, tuyệt đối an toàn và không lo vi phạm chính sách.</em>
+                </p>
+              </fieldset>
+            </section>
+
             <!-- MAIN SUBMIT ACTION BAR -->
             <div class="action-bar" style="margin-top: 6px;">
               <button class="primary" id="submitBtn" type="submit">

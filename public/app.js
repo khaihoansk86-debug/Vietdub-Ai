@@ -1101,11 +1101,19 @@ function setActivePreset(name) {
 }
 
 function readConfig() {
-  const names = ['subtitleLanguageMode', 'subtitleSize', 'subtitleBottomMargin', 'subtitleBackground', 'subtitleBgOpacity', 'subtitleLineLength', 'subtitleFont', 'watermarkPosition', 'watermarkWidthPercent', 'watermarkOpacity', 'ttsProvider', 'voice', 'ttsStyle', 'ttsVolume', 'ttsSpeed', 'originalVolume', 'cleanupDelayMinutes', 'aspectRatio', 'mode'];
+  const names = [
+    'subtitleLanguageMode', 'subtitleSize', 'subtitleBottomMargin', 'subtitleBackground',
+    'subtitleBgOpacity', 'subtitleLineLength', 'subtitleFont', 'watermarkPosition',
+    'watermarkWidthPercent', 'watermarkOpacity', 'ttsProvider', 'voice', 'ttsStyle',
+    'ttsVolume', 'ttsSpeed', 'originalVolume', 'cleanupDelayMinutes', 'aspectRatio', 'mode',
+    'tiktokAutoUpload', 'tiktokPostMode', 'tiktokHashtags'
+  ];
   const config = {};
   for (const name of names) {
     const el = form.elements[name];
-    if (el) config[name] = el.value;
+    if (el) {
+      config[name] = el.type === 'checkbox' ? el.checked : el.value;
+    }
   }
   return config;
 }
@@ -1114,7 +1122,11 @@ function applyConfig(config) {
   for (const [name, value] of Object.entries(config)) {
     const el = form.elements[name];
     if (!el) continue;
-    el.value = value;
+    if (el.type === 'checkbox') {
+      el.checked = Boolean(value === true || value === 'true' || value === 'on');
+    } else {
+      el.value = value;
+    }
     el.dispatchEvent(new Event('input', { bubbles: true }));
     el.dispatchEvent(new Event('change', { bubbles: true }));
   }
@@ -1518,3 +1530,77 @@ document.querySelector('#kokoroRetryBtn')?.addEventListener('click', async () =>
 
 setInterval(checkKokoroStatus, 4000);
 checkKokoroStatus();
+
+// TikTok Auto-Publisher Integration
+const tiktokLoginBtn = document.querySelector('#tiktokLoginBtn');
+const tiktokLoginBtnText = document.querySelector('#tiktokLoginBtnText');
+const tiktokCheckBtn = document.querySelector('#tiktokCheckBtn');
+const tiktokLogoutBtn = document.querySelector('#tiktokLogoutBtn');
+const tiktokStatusDot = document.querySelector('#tiktokStatusDot');
+const tiktokStatusText = document.querySelector('#tiktokStatusText');
+
+async function checkTikTokStatus() {
+  if (!tiktokStatusText) return;
+  try {
+    tiktokStatusText.textContent = 'Đang kiểm tra...';
+    if (tiktokStatusDot) tiktokStatusDot.style.background = '#94a3b8';
+    const res = await fetch('/api/tiktok/status');
+    const data = await res.json();
+    if (data.loggedIn) {
+      if (tiktokStatusDot) tiktokStatusDot.style.background = '#22c55e';
+      tiktokStatusText.textContent = `Đã kết nối (${data.username || 'TikTok Creator'})`;
+      if (tiktokLoginBtnText) tiktokLoginBtnText.textContent = 'Mở lại TikTok Studio';
+      if (tiktokLogoutBtn) tiktokLogoutBtn.style.display = 'inline-block';
+    } else {
+      if (tiktokStatusDot) tiktokStatusDot.style.background = '#f87171';
+      tiktokStatusText.textContent = 'Chưa kết nối';
+      if (tiktokLoginBtnText) tiktokLoginBtnText.textContent = 'Kết Nối Kênh TikTok (Đăng Nhập)';
+      if (tiktokLogoutBtn) tiktokLogoutBtn.style.display = 'none';
+    }
+  } catch {
+    if (tiktokStatusDot) tiktokStatusDot.style.background = '#f87171';
+    if (tiktokStatusText) tiktokStatusText.textContent = 'Chưa kết nối';
+  }
+}
+
+async function loginTikTok() {
+  try {
+    if (tiktokLoginBtn) tiktokLoginBtn.disabled = true;
+    const res = await fetch('/api/tiktok/login', { method: 'POST' });
+    const data = await res.json();
+    alert(data.message || 'Đang mở trình duyệt. Bạn hãy quét mã QR hoặc đăng nhập tài khoản TikTok của mình, sau đó đóng cửa sổ lại.');
+    let attempts = 0;
+    const interval = setInterval(async () => {
+      attempts += 1;
+      try {
+        const statusRes = await fetch('/api/tiktok/status');
+        const statusData = await statusRes.json();
+        if (statusData.loggedIn || attempts > 20) {
+          clearInterval(interval);
+          checkTikTokStatus();
+        }
+      } catch {}
+    }, 4000);
+  } catch (err) {
+    alert(`Lỗi: ${err.message}`);
+  } finally {
+    if (tiktokLoginBtn) tiktokLoginBtn.disabled = false;
+  }
+}
+
+async function logoutTikTok() {
+  if (!confirm('Bạn có chắc chắn muốn đăng xuất và xóa phiên đăng nhập TikTok trên máy này?')) return;
+  try {
+    await fetch('/api/tiktok/logout', { method: 'POST' });
+    await checkTikTokStatus();
+  } catch (err) {
+    alert(`Lỗi đăng xuất: ${err.message}`);
+  }
+}
+
+tiktokLoginBtn?.addEventListener('click', loginTikTok);
+tiktokCheckBtn?.addEventListener('click', checkTikTokStatus);
+tiktokLogoutBtn?.addEventListener('click', logoutTikTok);
+
+checkTikTokStatus();
+

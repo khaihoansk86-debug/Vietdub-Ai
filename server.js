@@ -9,6 +9,13 @@ import crypto from 'crypto';
 import { spawn } from 'child_process';
 import ffmpegStatic from 'ffmpeg-static';
 import WebSocket from 'ws';
+import {
+  openTikTokLoginWindow,
+  checkTikTokLoginStatus,
+  clearTikTokSession,
+  generateTikTokMetadata,
+  uploadToTikTok
+} from './services/tiktokPublisher.js';
 
 const app = express();
 const PORT = Number(process.env.PORT || 3210);
@@ -164,6 +171,7 @@ app.post('/api/jobs', upload.fields([
     subtitle: parseSubtitleOptions(req.body),
     cleanup: parseCleanupOptions(req.body),
     watermark: parseWatermarkOptions(req.body),
+    tiktok: parseTikTokOptions(req.body),
     aspectRatio: String(req.body.aspectRatio || '9:16'),
     outputDir: String(req.body.outputDir || ''),
     videos: req.files?.videos || [],
@@ -375,6 +383,33 @@ app.post('/api/kokoro/retry', (_req, res) => {
   res.json({ success: true });
 });
 
+app.get('/api/tiktok/status', async (_req, res) => {
+  try {
+    const status = await checkTikTokLoginStatus();
+    res.json(status);
+  } catch (error) {
+    res.status(500).json({ loggedIn: false, message: error.message });
+  }
+});
+
+app.post('/api/tiktok/login', async (_req, res) => {
+  try {
+    const result = await openTikTokLoginWindow();
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ ok: false, message: error.message });
+  }
+});
+
+app.post('/api/tiktok/logout', async (_req, res) => {
+  try {
+    const result = await clearTikTokSession();
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ ok: false, message: error.message });
+  }
+});
+
 app.get('/health', (_req, res) => res.json({ ok: true }));
 
 app.listen(PORT, HOST, () => {
@@ -424,6 +459,30 @@ async function processJob(job, payload) {
   const finalVideo = path.join(job.dir, 'VietDub_Final.mp4');
   await renderFinal(job, merged, normalizedSrt, cues, voiceFiles, finalVideo, payload.subtitle, watermarkPath, payload.watermark, payload.tts);
   await copyToOutputDir(job, payload, finalVideo);
+
+  if (payload.tiktok?.enabled) {
+    try {
+      log(job, '📱 [TikTok] Đang kích hoạt tiến trình tự động tạo bài đăng và tải lên TikTok...');
+      const metadata = await generateTikTokMetadata(cues, job.title || '', {
+        geminiApiKey: payload.ai.geminiApiKey,
+        geminiModel: payload.ai.geminiModel,
+        extraHashtags: payload.tiktok.extraHashtags
+      });
+      log(job, `📱 [TikTok] AI đã tạo tiêu đề: "${metadata.title}"`);
+      await uploadToTikTok({
+        videoPath: finalVideo,
+        caption: metadata.caption,
+        hashtags: metadata.hashtags,
+        postMode: payload.tiktok.mode,
+        job,
+        logCallback: (msg) => log(job, msg)
+      });
+      log(job, `🎉 [TikTok] Đã đăng tải lên TikTok thành công (${payload.tiktok.mode === 'draft' ? 'Đã lưu bản nháp Draft' : 'Đã đăng công khai'})!`);
+    } catch (tiktokErr) {
+      log(job, `⚠️ [TikTok] Lỗi khi tự động đăng TikTok: ${tiktokErr.message}`);
+    }
+  }
+
   finish(job, finalVideo, 'Hoàn tất tạo phụ đề và lồng tiếng.', payload.cleanup);
 }
 
@@ -558,6 +617,16 @@ function parseWatermarkOptions(body) {
     widthPercent: clampNumber(body.watermarkWidthPercent, 5, 40, 14),
     margin: clampNumber(body.watermarkMargin, 0, 120, 24),
     opacity: clampNumber(body.watermarkOpacity, 10, 100, 85)
+  };
+}
+
+function parseTikTokOptions(body) {
+  const enabled = ['on', 'true', '1', 'yes'].includes(String(body.tiktokAutoUpload || '').toLowerCase());
+  const mode = ['draft', 'public', 'private'].includes(body.tiktokPostMode) ? body.tiktokPostMode : 'draft';
+  return {
+    enabled,
+    mode,
+    extraHashtags: String(body.tiktokHashtags || '').trim()
   };
 }
 
