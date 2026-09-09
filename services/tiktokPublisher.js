@@ -4,6 +4,62 @@ import os from 'os';
 import crypto from 'crypto';
 import { spawn } from 'child_process';
 import { chromium } from 'playwright-core';
+import ytdl from 'yt-dlp-exec';
+
+export async function resolveVideoContext(videoPath, originalTitle = '') {
+  let detectedTitle = '';
+  let detectedTranscript = '';
+
+  const filePath = videoPath || '';
+  const fileName = path.basename(filePath || originalTitle || '');
+
+  // 1. Check companion subtitle or text file (.srt, .vtt, .txt, .json)
+  if (filePath && fs.existsSync(filePath)) {
+    const dir = path.dirname(filePath);
+    const base = path.basename(filePath, path.extname(filePath));
+    for (const ext of ['.srt', '.vtt', '.txt', '.json']) {
+      const candidate = path.join(dir, base + ext);
+      if (fs.existsSync(candidate)) {
+        try {
+          const raw = fs.readFileSync(candidate, 'utf8');
+          const clean = raw
+            .replace(/\d+\r?\n\d{2}:\d{2}:\d{2},\d{3} --> \d{2}:\d{2}:\d{2},\d{3}\r?\n/g, '')
+            .replace(/<[^>]+>/g, '')
+            .replace(/\r?\n+/g, ' ')
+            .trim()
+            .slice(0, 3500);
+          if (clean.length > 20) {
+            detectedTranscript = clean;
+            break;
+          }
+        } catch {}
+      }
+    }
+  }
+
+  // 2. If filename has a YouTube ID (e.g. youtube_SYLen0gnFmc.mp4 or SYLen0gnFmc.mp4)
+  const ytMatch = fileName.match(/(?:youtube[_-])?([a-zA-Z0-9_-]{11})(?:\.[a-zA-Z0-9]+)?$/i);
+  if (ytMatch && ytMatch[1] && ytMatch[1].length === 11) {
+    const ytId = ytMatch[1];
+    try {
+      const promise = ytdl(`https://www.youtube.com/watch?v=${ytId}`, {
+        dumpSingleJson: true,
+        skipDownload: true,
+        noWarnings: true
+      });
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 4000));
+      const info = await Promise.race([promise, timeoutPromise]);
+      if (info && typeof info.title === 'string' && info.title.trim()) {
+        detectedTitle = info.title.trim();
+        if (!detectedTranscript && info.description && typeof info.description === 'string') {
+          detectedTranscript = info.description.slice(0, 500).trim();
+        }
+      }
+    } catch {}
+  }
+
+  return { detectedTitle, detectedTranscript };
+}
 
 function getDataDir() {
   if (process.env.VIETDUB_DATA_DIR) {
@@ -617,77 +673,78 @@ export async function checkAllAccountsStatus() {
 export async function generateTikTokMetadata(cues = [], originalTitle = '', aiOptions = {}, log = console.log) {
   const geminiApiKey = String(aiOptions.geminiApiKey || process.env.GEMINI_API_KEY || '').trim();
   const geminiModel = String(aiOptions.geminiModel || process.env.GEMINI_MODEL || 'gemini-3.8-flash').trim();
+  const accountName = String(aiOptions.accountName || '').trim();
+  const accountUsername = String(aiOptions.accountUsername || '').trim();
 
-  // Try extracting transcript from cues or companion .srt file
+  // 1. Resolve real video context (companion subtitles or YouTube title from yt-dlp)
+  const { detectedTitle, detectedTranscript } = await resolveVideoContext(aiOptions.videoPath, originalTitle);
+
   let videoTranscript = (cues && cues.length > 0) ? cues.map((c) => c.text).join(' ').slice(0, 3500) : '';
-  if (!videoTranscript && aiOptions.videoPath && fs.existsSync(aiOptions.videoPath)) {
-    try {
-      const srtCandidate = path.join(
-        path.dirname(aiOptions.videoPath),
-        path.basename(aiOptions.videoPath, path.extname(aiOptions.videoPath)) + '.srt'
-      );
-      if (fs.existsSync(srtCandidate)) {
-        const rawSrt = fs.readFileSync(srtCandidate, 'utf-8');
-        videoTranscript = rawSrt
-          .replace(/\d+\r?\n\d{2}:\d{2}:\d{2},\d{3} --> \d{2}:\d{2}:\d{2},\d{3}\r?\n/g, '')
-          .replace(/<[^>]+>/g, '')
-          .replace(/\r?\n+/g, ' ')
-          .trim()
-          .slice(0, 3500);
-      }
-    } catch {}
+  if (!videoTranscript && detectedTranscript) {
+    videoTranscript = detectedTranscript;
   }
 
-  const cleanTitle = String(originalTitle || '').replace(/\.[a-zA-Z0-9]+$/, '').replace(/[-_]/g, ' ').trim();
-  const fullText = videoTranscript || cleanTitle || 'Video Lồng Tiếng AI';
+  const cleanTitle = String(detectedTitle || originalTitle || '').replace(/\.[a-zA-Z0-9]+$/, '').replace(/[-_]/g, ' ').trim();
+  const effectiveTitle = detectedTitle || cleanTitle || 'Video Lồng Tiếng AI';
   const userPrompt = String(aiOptions.captionPrompt || '').trim();
 
-  // Extract mandatory hashtags from both user prompt and extraHashtags
+  // Extract mandatory hashtags
   const promptTags = Array.from(userPrompt.matchAll(/#[\p{L}\p{N}_]+/gu)).map((m) => m[0]);
   const extraTags = String(aiOptions.extraHashtags || '').split(/\s+/).filter((t) => t.startsWith('#'));
   const allMandatoryTags = Array.from(new Set([...promptTags, ...extraTags]));
 
+  const randomSalt = Math.floor(Math.random() * 1000000);
+
   if (!geminiApiKey) {
-    if (log) log(`⚠️ [AI Gemini] Không tìm thấy API Key (Vui lòng điền tại tab "Cài đặt & API"). Đang tổng hợp nội dung trực tiếp từ Prompt Mẫu...`);
-    const fallbackTitle = cleanTitle ? `Review: ${cleanTitle.slice(0, 60)}` : 'Video Lồng Tiếng Đỉnh Cao';
-    let fallbackCaption = cleanTitle;
-    if (userPrompt) {
-      // Clean instructions to leave narrative or use as hook
-      fallbackCaption = `${fallbackTitle}\n\n${userPrompt.slice(0, 180)}`;
-    } else {
-      fallbackCaption = `${fallbackTitle}\n\nXem ngay video thú vị này nhé mọi người!`;
-    }
-    const finalTags = allMandatoryTags.length > 0 ? allMandatoryTags : ['#xuhuong', '#fyp', '#vietdub', '#trending'];
+    if (log) log(`⚠️ [AI Gemini] Không tìm thấy API Key (Vui lòng điền tại tab "Cài đặt & API"). Đang tạo nội dung độc bản dự phòng...`);
+    const fallbackTemplates = [
+      {
+        hook: `🔥 Bất ngờ chưa: ${effectiveTitle.slice(0, 45)}!`,
+        caption: `Khám phá ngay điều thú vị có trong video này nhé! ${effectiveTitle}\n\n${userPrompt || 'Cùng theo dõi và chia sẻ cảm nghĩ của bạn bên dưới nha!'}`
+      },
+      {
+        hook: `👀 Không xem là tiếc: ${effectiveTitle.slice(0, 45)}!`,
+        caption: `Đoạn clip khiến dân tình bàn tán xôn xao hôm nay! ${effectiveTitle}\n\n${userPrompt || 'Xem hết video để thấy điều bất ngờ nhé!'}`
+      },
+      {
+        hook: `⚡ Xem ngay kẻo lỡ: ${effectiveTitle.slice(0, 45)}!`,
+        caption: `Tiểu phẩm siêu bánh cuốn không thể bỏ qua! ${effectiveTitle}\n\n${userPrompt || 'Bạn thấy thế nào về tình huống này? Bình luận ngay nha!'}`
+      }
+    ];
+    const picked = fallbackTemplates[Math.floor(Math.random() * fallbackTemplates.length)];
+    const finalTags = allMandatoryTags.length > 0 ? allMandatoryTags : ['#xuhuong', '#fyp', '#trending'];
     return {
-      title: fallbackTitle,
-      caption: fallbackCaption.trim(),
+      title: picked.hook,
+      caption: picked.caption.trim(),
       hashtags: finalTags
     };
   }
 
   const prompt = `BẠN LÀ MỘT CHUYÊN GIA SÁNG TẠO NỘI DUNG TIKTOK VIRAL HÀNG ĐẦU VIỆT NAM.
 THÔNG TIN VIDEO CẦN ĐĂNG:
-- Tiêu đề / Tên tệp: "${cleanTitle}"
-${videoTranscript ? `- Nội dung bản ghi lời thoại tiếng Việt của video:\n"""\n${videoTranscript}\n"""` : ''}
+- Tiêu đề / Chủ đề thực tế của video: "${effectiveTitle}"
+${videoTranscript ? `- Lời thoại / Phụ đề tiếng Việt của video:\n"""\n${videoTranscript}\n"""` : ''}
+${accountName ? `- Kênh TikTok mục tiêu: "${accountName}" (${accountUsername || accountName})` : ''}
 
-${userPrompt ? `🔴 CHỈ THỊ PROMPT MẪU TỪ NGƯỜI DÙNG (YÊU CẦU ƯU TIÊN SỐ 1, BẮT BUỘC TUÂN THỦ CHẶT CHẼ 100%):
+${userPrompt ? `🔴 CHỈ THỊ PROMPT MẪU TỪ NGƯỜI DÙNG (YÊU CẦU ƯU TIÊN SỐ 1, BẮT BUỘC BÁM SÁT):
 """
 ${userPrompt}
 """` : ''}
 
-Nhiệm vụ: Hãy đóng vai chuyên gia sáng tạo nội dung TikTok. Đọc kỹ thông tin video và BÁM SÁT CHẶT CHẼ 100% các yêu cầu về phong cách, độ dài, câu hook và lời kêu gọi trong prompt mẫu của người dùng để tạo nội dung đăng bài:
-1. "hook": 1 câu giật tít mở đầu video ngắn gọn (dưới 50 ký tự), có icon phù hợp, khơi gợi tò mò cực độ.
-2. "caption": Nội dung bài đăng video lôi cuốn, đúng văn phong và chỉ thị trong prompt mẫu của người dùng.
-3. "hashtags": Danh sách 5-8 hashtags hot nhất (#xuhuong, #fyp...), BẮT BUỘC bao gồm đầy đủ các hashtags sau nếu có: ${allMandatoryTags.join(' ')}.
+🎯 QUY TẮC BẮT BUỘC VỀ TÍNH ĐỘC BẢN (KHÔNG TRÙNG LẶP - RANDOM SEED #${randomSalt}):
+1. ĐỘC BẢN 100%: Mỗi video và mỗi kênh BẮT BUỘC phải có tiêu đề (hook), lời dẫn (caption) và cách tiếp cận hoàn toàn riêng biệt.
+2. TUYỆT ĐỐI CẤM RẬP KHUÔN: KHÔNG ĐƯỢC dùng các câu mở đầu lặp đi lặp lại giống nhau (như "Ủa alo...", "Xem quả clip mà...", "Đúng là...", "Tag ngay đứa bạn..."). Hãy sáng tạo câu hook mới mẻ, tự nhiên, kích thích sự chú ý ngay lập tức dựa đúng trên tình huống cụ thể của video này ("${effectiveTitle}")!
+3. BÁM SÁT CHỦ ĐỀ VIDEO: Viết caption lôi cuốn, phản ánh đúng tình huống của video, kết hợp với phong cách trong prompt mẫu.
+4. HASHTAGS: 5-8 hashtags chất lượng cao, BẮT BUỘC bao gồm: ${allMandatoryTags.join(' ')}.
 
-Trả về DUY NHẤT định dạng JSON hợp lệ theo cấu trúc sau (không bọc trong markdown code fence, không thêm văn bản ngoài JSON):
+Trả về DUY NHẤT định dạng JSON hợp lệ:
 {
-  "hook": "...",
-  "caption": "...",
+  "hook": "1 câu giật tít độc đáo, kích thích tò mò có icon phù hợp (dưới 55 ký tự)",
+  "caption": "Nội dung bài đăng lôi cuốn, đúng chủ đề video, câu từ tự nhiên",
   "hashtags": ["#tag1", "#tag2", ...]
 }`;
 
-  if (log) log(`🤖 [AI Gemini] Đang gửi yêu cầu tới mô hình "${geminiModel}" kèm chỉ thị Prompt Mẫu...`);
+  if (log) log(`🤖 [AI Gemini] Đang tạo nội dung độc bản cho video "${effectiveTitle.slice(0, 45)}" (Kênh: ${accountName || 'TikTok'})...`);
 
   // Try primary model, with fallback models if model is not available
   const modelsToTry = [geminiModel, 'gemini-3.5-flash', 'gemini-2.5-flash', 'gemini-flash-latest'].filter((v, i, a) => a.indexOf(v) === i);
@@ -699,7 +756,7 @@ Trả về DUY NHẤT định dạng JSON hợp lệ theo cấu trúc sau (khôn
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           generationConfig: {
-            temperature: 0.7,
+            temperature: 0.85,
             responseMimeType: 'application/json'
           },
           contents: [{ parts: [{ text: prompt }] }]
@@ -719,7 +776,7 @@ Trả về DUY NHẤT định dạng JSON hợp lệ theo cấu trúc sau (khôn
       const generatedTags = Array.isArray(parsed.hashtags) ? parsed.hashtags : [];
       const combinedTags = Array.from(new Set([...allMandatoryTags, ...generatedTags]));
 
-      const finalTitle = parsed.hook || cleanTitle || 'Video Lồng Tiếng Đỉnh Cao';
+      const finalTitle = parsed.hook || effectiveTitle || 'Video Lồng Tiếng Đỉnh Cao';
       let finalCaption = '';
       if (parsed.caption) {
         finalCaption = parsed.hook && !parsed.caption.includes(parsed.hook)
@@ -730,7 +787,7 @@ Trả về DUY NHẤT định dạng JSON hợp lệ theo cấu trúc sau (khôn
       }
 
       if (log) {
-        log(`✨ [AI Gemini] Đã tạo thành công bài đăng theo đúng Prompt Mẫu!`);
+        log(`✨ [AI Gemini] Đã tạo thành công nội dung độc bản cho kênh "${accountName || 'TikTok'}"!`);
         log(`📌 Tiêu đề: "${finalTitle}"`);
         log(`📝 Caption: "${finalCaption.replace(/\r?\n/g, ' ')}"`);
       }
@@ -747,7 +804,7 @@ Trả về DUY NHẤT định dạng JSON hợp lệ theo cấu trúc sau (khôn
 
   // Fallback if all models failed
   if (log) log(`⚠️ [AI Gemini] Không thể kết nối với Gemini. Sử dụng nội dung dựa trên Prompt Mẫu dự phòng.`);
-  const fallbackTitle = cleanTitle ? `Review: ${cleanTitle.slice(0, 60)}` : 'Video Lồng Tiếng Đỉnh Cao';
+  const fallbackTitle = effectiveTitle ? `Hot: ${effectiveTitle.slice(0, 50)}` : 'Video Lồng Tiếng Đỉnh Cao';
   const finalTags = allMandatoryTags.length > 0 ? allMandatoryTags : ['#xuhuong', '#fyp', '#vietdub', '#trending'];
   return {
     title: fallbackTitle,
@@ -782,7 +839,7 @@ async function dismissTikTokStudioPopups(page, log) {
 }
 
 // Chuyên xử lý bấm nút Post, vượt qua cảnh báo kiểm tra bản quyền / content check ("Post now") và chờ xác nhận xuất bản
-async function handleTikTokPostSubmission(uploadTarget, page, account, log) {
+async function handleTikTokPostSubmission(uploadTarget, page, account, log, videoPath = '') {
   log(`📱 [TikTok - ${account.name}] Đang kiểm tra trạng thái video và chuẩn bị Đăng Công Khai (Post)...`);
 
   // Tìm nút Post chính xác: PHẢI là nút Post submit ở chân trang, KHÔNG được nhầm với menu "Posts" ở thanh bên (sidebar)
@@ -837,109 +894,105 @@ async function handleTikTokPostSubmission(uploadTarget, page, account, log) {
   await postBtn.click();
   await page.waitForTimeout(1500);
 
-  // 3. Theo dõi và tự động bấm "Post now" ("Đăng ngay") nếu xuất hiện cảnh báo Copyright check / Content check
-  const postNowRegex = /^(Post now|Đăng ngay)$/i;
-  let postNowClicked = false;
+  // 3. Vòng lặp theo dõi xuất bản & xử lý modal cảnh báo ("Continue to post?", "Post now")
+  let isPublished = false;
 
-  for (let checkLoop = 0; checkLoop < 20; checkLoop++) {
-    // Ưu tiên getByRole với tên chính xác Post now / Đăng ngay
-    let postNowBtn = null;
-    const pRoleBtnTarget = uploadTarget.getByRole('button', { name: postNowRegex, exact: true });
-    if (await pRoleBtnTarget.count() > 0 && await pRoleBtnTarget.first().isVisible().catch(() => false)) {
-      postNowBtn = pRoleBtnTarget.first();
-    } else {
-      const pRoleBtnPage = page.getByRole('button', { name: postNowRegex, exact: true });
-      if (await pRoleBtnPage.count() > 0 && await pRoleBtnPage.first().isVisible().catch(() => false)) {
-        postNowBtn = pRoleBtnPage.first();
-      }
+  for (let loop = 0; loop < 30; loop++) {
+    // A. Kiểm tra nếu trình duyệt đã chuyển hướng sang trang quản lý nội dung
+    const currentUrl = page.url();
+    if (currentUrl.includes('/content') || currentUrl.includes('/posts') || currentUrl.includes('/manage')) {
+      log(`🎉 [TikTok - ${account.name}] Trình duyệt đã chuyển hướng về trang Quản Lý Nội Dung thành công!`);
+      isPublished = true;
+      break;
     }
 
-    // Fallback: Tìm qua các class modal của TikTok Studio (TUXButton, dialog)
-    if (!postNowBtn) {
-      const modalSelectors = [
-        'button.TUXButton--primary:has-text("Post now")',
-        'button.TUXButton--primary:has-text("Đăng ngay")',
-        'div[role="dialog"] button.TUXButton--primary',
-        'div[role="dialog"] button:has-text("Post now")',
-        'div[role="dialog"] button:has-text("Đăng ngay")',
-        '.TUXModal button:has-text("Post now")',
-        '.TUXModal button:has-text("Đăng ngay")'
-      ];
-      for (const sel of modalSelectors) {
-        const loc = uploadTarget.locator(sel).first();
-        if (await loc.isVisible().catch(() => false)) {
-          postNowBtn = loc;
-          break;
-        }
-        const locPage = page.locator(sel).first();
-        if (await locPage.isVisible().catch(() => false)) {
-          postNowBtn = locPage;
-          break;
-        }
+    // B. Kiểm tra nếu có thông báo Toast hoặc popup thành công ("Video published", "Manage your posts", "Upload another video")
+    const successIndicators = [
+      'button:has-text("Manage your posts")',
+      'button:has-text("Quản lý bài viết")',
+      'button:has-text("Upload another video")',
+      'button:has-text("Tải video khác")',
+      ':has-text("Video published")',
+      ':has-text("Đã xuất bản video")'
+    ];
+    for (const sSel of successIndicators) {
+      if (await page.locator(sSel).first().isVisible().catch(() => false) ||
+          await uploadTarget.locator(sSel).first().isVisible().catch(() => false)) {
+        log(`🎉 [TikTok - ${account.name}] Đã nhận diện tín hiệu xuất bản video thành công!`);
+        isPublished = true;
+        break;
+      }
+    }
+    if (isPublished) break;
+
+    // C. Tìm và click nút "Post now" / "Đăng ngay" trong modal xác nhận bản quyền (ví dụ: "Continue to post? The copyright check is incomplete...")
+    const modalBtnSelectors = [
+      '.common-modal button.TUXButton--primary',
+      '.TUXModal button.TUXButton--primary',
+      'div[role="dialog"] button.TUXButton--primary',
+      '.common-modal-footer button:has-text("Post now")',
+      '.common-modal-footer button:has-text("Đăng ngay")',
+      '.common-modal-footer button:last-child',
+      'button:has-text("Post now")',
+      'button:has-text("Đăng ngay")'
+    ];
+
+    let postNowBtn = null;
+    for (const mSel of modalBtnSelectors) {
+      const locPage = page.locator(mSel).first();
+      if (await locPage.isVisible().catch(() => false)) {
+        postNowBtn = locPage;
+        break;
+      }
+      const locUpload = uploadTarget.locator(mSel).first();
+      if (await locUpload.isVisible().catch(() => false)) {
+        postNowBtn = locUpload;
+        break;
       }
     }
 
     if (postNowBtn) {
       log(`📱 [TikTok - ${account.name}] Phát hiện hộp thoại xác nhận ("Continue to post?"). Tự động bấm "Post now" ("Đăng ngay")...`);
-      await postNowBtn.click().catch(() => {});
-      postNowClicked = true;
-      log(`📱 [TikTok - ${account.name}] Đã bấm "Post now" ("Đăng ngay") thành công!`);
-      await page.waitForTimeout(2000);
-      break;
-    }
-
-    // Kiểm tra nếu đã hoàn tất và chuyển trang mà không cần qua modal cảnh báo
-    const currentUrl = page.url();
-    if (currentUrl.includes('/content') || currentUrl.includes('/posts') || currentUrl.includes('/manage')) {
-      log(`🎉 [TikTok - ${account.name}] Đã chuyển hướng về trang Quản Lý Nội Dung thành công!`);
-      break;
-    }
-
-    const successIndicators = [
-      'button:has-text("Manage your posts")',
-      'button:has-text("Quản lý bài viết")',
-      'button:has-text("Upload another video")',
-      'button:has-text("Tải video khác")'
-    ];
-    let isInstantSuccess = false;
-    for (const sSel of successIndicators) {
-      if (await page.locator(sSel).first().isVisible().catch(() => false) ||
-          await uploadTarget.locator(sSel).first().isVisible().catch(() => false)) {
-        isInstantSuccess = true;
-        break;
+      try {
+        await postNowBtn.click({ timeout: 3000 });
+      } catch {
+        await postNowBtn.evaluate((el) => el.click()).catch(() => {});
       }
-    }
-    if (isInstantSuccess) {
-      log(`🎉 [TikTok - ${account.name}] Đã xuất bản video thành công!`);
-      break;
+      log(`📱 [TikTok - ${account.name}] Đã bấm "Post now" ("Đăng ngay") thành công! Đang chờ TikTok hoàn tất...`);
+      await page.waitForTimeout(2500);
+      continue;
     }
 
+    await dismissTikTokStudioPopups(page, log);
     await page.waitForTimeout(1000);
   }
 
-  // 4. Chờ xác nhận hoàn tất xuất bản từ máy chủ TikTok
-  log(`📱 [TikTok - ${account.name}] Đang chờ máy chủ TikTok xác nhận lưu trữ và xuất bản video...`);
-  for (let waitSuccess = 0; waitSuccess < 25; waitSuccess++) {
-    const currentUrl = page.url();
-    if (currentUrl.includes('/content') || currentUrl.includes('/posts') || currentUrl.includes('/manage')) {
-      log(`🎉 [TikTok - ${account.name}] Trình duyệt đã chuyển hướng về trang quản lý bài viết thành công!`);
-      break;
-    }
+  // 4. Cơ chế kiểm tra 2 lớp (Double Check): Mở trực tiếp trang Content để kiểm chứng nếu chưa chuyển trang
+  if (!isPublished) {
+    log(`🔍 [TikTok - ${account.name}] Đang kiểm tra trực tiếp trạng thái trên trang Quản Lý Bài Viết...`);
+    try {
+      await page.goto('https://www.tiktok.com/tiktokstudio/content?tab=post', {
+        waitUntil: 'domcontentloaded',
+        timeout: 25000
+      });
+      await page.waitForTimeout(4000);
 
-    const hasSuccessModal = await page.locator('button:has-text("Manage your posts"), button:has-text("Quản lý bài viết"), button:has-text("Upload another video"), button:has-text("Tải video khác")').first().isVisible().catch(() => false);
-    if (hasSuccessModal) {
-      log(`🎉 [TikTok - ${account.name}] Phát hiện thông báo: Video đã được xuất bản công khai lên kênh thành công!`);
-      break;
+      const bodyText = await page.evaluate(() => document.body.innerText).catch(() => '');
+      const cleanName = videoPath ? path.basename(videoPath, path.extname(videoPath)) : '';
+      if (cleanName && bodyText.includes(cleanName)) {
+        log(`🎉 [TikTok - ${account.name}] Đã xác nhận: Video "${cleanName}" đã xuất hiện trong danh sách bài đăng thành công!`);
+        isPublished = true;
+      } else if (bodyText.includes('Under review') || bodyText.includes('Đang xem xét') || bodyText.includes('Only me') || bodyText.includes('Everyone')) {
+        log(`🎉 [TikTok - ${account.name}] Đã xác nhận: Bài đăng mới nhất đã được ghi nhận trên hệ thống TikTok!`);
+        isPublished = true;
+      }
+    } catch (checkErr) {
+      log(`⚠️ [TikTok - ${account.name}] Lỗi khi kiểm tra trang content: ${checkErr.message}`);
     }
+  }
 
-    // Nếu nút Post ban đầu đã biến mất và modal cảnh báo cũng đã xử lý xong
-    const isPostBtnStillThere = await postBtn.isVisible().catch(() => false);
-    if (!isPostBtnStillThere && (postNowClicked || waitSuccess > 6)) {
-      log(`🎉 [TikTok - ${account.name}] Quy trình đăng video đã được TikTok tiếp nhận và xử lý thành công!`);
-      break;
-    }
-
-    await page.waitForTimeout(1000);
+  if (!isPublished) {
+    throw new Error(`Kênh "${account.name}" chưa hoàn tất xuất bản video lên TikTok Studio. Hộp thoại xác nhận hoặc mạng có thể bị gián đoạn.`);
   }
 
   // Chờ thêm 3.5 giây để đảm bảo mọi request và cookie lưu trữ ổn định
@@ -1051,7 +1104,7 @@ export async function uploadSingleAccount({ account, videoPath, caption, hashtag
     await dismissTikTokStudioPopups(page, log);
 
     if (postMode === 'public') {
-      await handleTikTokPostSubmission(uploadTarget, page, account, log);
+      await handleTikTokPostSubmission(uploadTarget, page, account, log, videoPath);
     } else {
       // Draft mode (Lưu vào bản nháp)
       log(`📱 [TikTok - ${account.name}] Đang chờ video hoàn tất tải lên (100%) để kích hoạt nút Lưu Bản Nháp...`);
@@ -1366,7 +1419,9 @@ export async function distributeWarehouseVideos({
           geminiModel: geminiModel || process.env.GEMINI_MODEL,
           extraHashtags,
           captionPrompt,
-          videoPath: video.path
+          videoPath: video.path,
+          accountName: account.name,
+          accountUsername: account.username || account.name
         }, log);
       } catch (metaErr) {
         log(`⚠️ Lỗi tạo metadata AI (${metaErr.message}), tự động dùng tiêu đề và prompt trực tiếp...`);
@@ -1426,7 +1481,9 @@ export async function distributeWarehouseVideos({
           geminiModel: geminiModel || process.env.GEMINI_MODEL,
           extraHashtags,
           captionPrompt,
-          videoPath: video.path
+          videoPath: video.path,
+          accountName: account.name,
+          accountUsername: account.username || account.name
         }, log);
       } catch (metaErr) {
         log(`⚠️ Lỗi tạo metadata AI (${metaErr.message}), tự động dùng tiêu đề và prompt trực tiếp...`);
