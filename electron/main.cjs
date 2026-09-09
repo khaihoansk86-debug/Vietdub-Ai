@@ -1,10 +1,17 @@
-const { app, BrowserWindow, shell } = require('electron');
+const { app, BrowserWindow, shell, dialog } = require('electron');
 const fs = require('fs');
 const net = require('net');
 const path = require('path');
 const { pathToFileURL } = require('url');
 
 let mainWindow;
+
+function writeLog(msg) {
+  try {
+    const logFile = path.join(app.getPath('userData'), 'electron_startup.log');
+    fs.appendFileSync(logFile, `[${new Date().toISOString()}] ${msg}\n`);
+  } catch {}
+}
 
 async function findFreePort(startPort) {
   for (let port = startPort; port < startPort + 30; port += 1) {
@@ -69,20 +76,43 @@ function createWindow(port) {
     }
   });
 
-  mainWindow.once('ready-to-show', () => mainWindow.show());
+  mainWindow.once('ready-to-show', () => {
+    writeLog('Window ready-to-show fired, showing window.');
+    mainWindow.show();
+  });
+
+  // Fallback: Ensure window becomes visible even if ready-to-show event delays
+  setTimeout(() => {
+    if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.isVisible()) {
+      writeLog('Fallback timeout: forcing mainWindow.show().');
+      mainWindow.show();
+    }
+  }, 2500);
+
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url);
     return { action: 'deny' };
   });
+
+  mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription) => {
+    writeLog(`mainWindow did-fail-load: code ${errorCode}, desc: ${errorDescription}`);
+  });
+
   mainWindow.loadURL(`http://127.0.0.1:${port}`);
 }
 
 app.whenReady().then(async () => {
+  writeLog('app.whenReady fired.');
   try {
+    writeLog('Starting local server...');
     const port = await startLocalServer();
+    writeLog(`Local server ready on port ${port}, creating window...`);
     createWindow(port);
   } catch (error) {
-    console.error(error);
+    writeLog(`FATAL STARTUP ERROR: ${error.stack || error.message}`);
+    try {
+      dialog.showErrorBox('Lỗi khởi động VietDub AI', `Không thể khởi động ứng dụng:\n\n${error.stack || error.message}\n\nXem chi tiết tại: ${path.join(app.getPath('userData'), 'electron_startup.log')}`);
+    } catch {}
     app.quit();
   }
 });
