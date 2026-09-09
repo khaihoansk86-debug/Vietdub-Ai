@@ -93,7 +93,13 @@ function restoreAiSettings() {
   if (!rememberApiKeys.checked) return;
   for (const id of apiFields) {
     const input = document.querySelector(`#${id}`);
-    if (input && saved[id]) input.value = saved[id];
+    if (input && saved[id]) {
+      if (id === 'geminiModel' && !['gemini-3.8-flash', 'gemini-3.1-pro'].includes(saved[id])) {
+        input.value = 'gemini-3.8-flash';
+      } else {
+        input.value = saved[id];
+      }
+    }
   }
 }
 
@@ -1386,19 +1392,11 @@ function updateFilePicker(input) {
 
 function translateOptions(t) {
   setOptions('#geminiModel', currentLang === 'en' ? {
-    'gemini-3.7-flash': 'Gemini 3.7 Flash - Latest (Recommended)',
-    'gemini-3.5-flash': 'Gemini 3.5 Flash',
-    'gemini-2.5-pro': 'Gemini 2.5 Pro - Most accurate',
-    'gemini-2.5-flash': 'Gemini 2.5 Flash - Fast',
-    'gemini-1.5-pro': 'Gemini 1.5 Pro',
-    'gemini-1.5-flash': 'Gemini 1.5 Flash'
+    'gemini-3.8-flash': 'Gemini 3.8 Flash - Latest (Recommended)',
+    'gemini-3.1-pro': 'Gemini 3.1 Pro - Deep Reasoning & Accuracy'
   } : {
-    'gemini-3.7-flash': 'Gemini 3.7 Flash - Mới nhất (Khuyên dùng)',
-    'gemini-3.5-flash': 'Gemini 3.5 Flash',
-    'gemini-2.5-pro': 'Gemini 2.5 Pro - Chính xác cao',
-    'gemini-2.5-flash': 'Gemini 2.5 Flash - Siêu nhanh',
-    'gemini-1.5-pro': 'Gemini 1.5 Pro',
-    'gemini-1.5-flash': 'Gemini 1.5 Flash'
+    'gemini-3.8-flash': 'Gemini 3.8 Flash - Mới nhất (Khuyên dùng)',
+    'gemini-3.1-pro': 'Gemini 3.1 Pro - Dịch thuật chuyên sâu'
   });
   setOptions('#openaiTtsModel', currentLang === 'en' ? {
     'gpt-4o-mini-tts': 'gpt-4o-mini-tts - Natural',

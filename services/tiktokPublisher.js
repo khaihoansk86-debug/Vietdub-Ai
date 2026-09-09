@@ -129,7 +129,7 @@ export async function clearTikTokSession() {
 
 export async function generateTikTokMetadata(cues = [], originalTitle = '', aiOptions = {}) {
   const geminiApiKey = aiOptions.geminiApiKey || process.env.GEMINI_API_KEY;
-  const geminiModel = aiOptions.geminiModel || process.env.GEMINI_MODEL || 'gemini-3.7-flash';
+  const geminiModel = aiOptions.geminiModel || process.env.GEMINI_MODEL || 'gemini-3.8-flash';
 
   const fullText = cues.map((c) => c.text).join(' ').slice(0, 3000);
   const userHashtags = String(aiOptions.extraHashtags || '').trim();
