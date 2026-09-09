@@ -1143,7 +1143,7 @@ function readConfig() {
     'subtitleBgOpacity', 'subtitleLineLength', 'subtitleFont', 'watermarkPosition',
     'watermarkWidthPercent', 'watermarkOpacity', 'ttsProvider', 'voice', 'ttsStyle',
     'ttsVolume', 'ttsSpeed', 'originalVolume', 'cleanupDelayMinutes', 'aspectRatio', 'mode',
-    'tiktokAutoUpload', 'tiktokPostMode', 'tiktokHashtags'
+    'tiktokAutoUpload', 'tiktokPostMode', 'tiktokHashtags', 'tiktokChannelDelay'
   ];
   const config = {};
   for (const name of names) {
@@ -2040,6 +2040,15 @@ if (tiktokCaptionPrompt) {
   });
 }
 
+const tiktokChannelDelayInput = document.querySelector('#tiktokChannelDelay');
+if (tiktokChannelDelayInput) {
+  const savedDelay = localStorage.getItem('vietdub-tiktok-channel-delay');
+  if (savedDelay) tiktokChannelDelayInput.value = savedDelay;
+  tiktokChannelDelayInput.addEventListener('input', () => {
+    localStorage.setItem('vietdub-tiktok-channel-delay', tiktokChannelDelayInput.value);
+  });
+}
+
 // Auto-sync warehouse folder with output directory if available
 if (warehouseFolderPath && outputDirInput && outputDirInput.value) {
   warehouseFolderPath.value = outputDirInput.value;
@@ -2181,6 +2190,7 @@ warehouseDistributeBtn?.addEventListener('click', async () => {
   const captionPrompt = document.querySelector('#tiktokCaptionPrompt')?.value?.trim() || '';
   const distributionStrategy = document.querySelector('#tiktokDistributionStrategy')?.value || 'distinct_random';
   const accountIds = Array.from(selectedCards).map((c) => c.dataset.id).filter(Boolean);
+  const channelDelaySeconds = Math.max(2, parseInt(document.querySelector('#tiktokChannelDelay')?.value || '6', 10));
 
   try {
     const res = await fetch('/api/tiktok/warehouse/distribute', {
@@ -2192,7 +2202,8 @@ warehouseDistributeBtn?.addEventListener('click', async () => {
         postMode,
         extraHashtags,
         captionPrompt,
-        distributionStrategy
+        distributionStrategy,
+        channelDelaySeconds
       })
     });
     const data = await res.json();
@@ -2213,13 +2224,7 @@ warehouseDistributeBtn?.addEventListener('click', async () => {
   }
 });
 
-function resetClearHistoryInline() {
-  if (clearHistoryConfirmGroup) clearHistoryConfirmGroup.classList.add('hidden');
-  if (clearHistoryNormalGroup) clearHistoryNormalGroup.classList.remove('hidden');
-}
-
 async function openTikTokHistoryModal() {
-  resetClearHistoryInline();
   if (tiktokHistoryModal) tiktokHistoryModal.classList.remove('hidden');
   if (tiktokHistoryListContainer) {
     tiktokHistoryListContainer.innerHTML = '<div style="text-align: center; color: var(--muted); padding: 24px;">⏳ Đang tải lịch sử đã đăng...</div>';
@@ -2232,43 +2237,48 @@ async function openTikTokHistoryModal() {
       if (modalTitle) modalTitle.textContent = `Lịch Sử Đã Đăng TikTok (${data.history.length})`;
       if (tiktokViewHistoryBtn) tiktokViewHistoryBtn.innerHTML = `<span>📜</span> Lịch Sử Đã Đăng (${data.history.length})`;
       tiktokHistoryListContainer.innerHTML = `
-        <table class="tiktok-history-table">
-          <thead>
-            <tr>
-              <th>Video</th>
-              <th>Kênh Đăng</th>
-              <th>Tài Khoản</th>
-              <th>Thời Gian</th>
-              <th>Trạng Thái</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${data.history.map((h) => `
+        <div style="overflow-x: auto; width: 100%;">
+          <table class="tiktok-history-table">
+            <thead>
               <tr>
-                <td>
-                  <strong style="color: #ffffff;">${escapeHtml(h.fileName)}</strong>
-                  ${h.caption ? `<div style="font-size: 0.75rem; color: #94a3b8; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(h.caption)}</div>` : ''}
-                </td>
-                <td>${escapeHtml(h.accountName)}</td>
-                <td><span style="color: #38bdf8;">${escapeHtml(h.accountUsername || '@tiktok')}</span></td>
-                <td style="white-space: nowrap; color: #94a3b8;">${new Date(h.publishedAt).toLocaleString('vi-VN')}</td>
-                <td>
-                  <span class="tiktok-history-badge">
-                    ${h.postMode === 'draft' ? '💾 Bản Nháp' : '🚀 Công Khai'}
-                  </span>
-                </td>
+                <th style="min-width: 220px;">Video</th>
+                <th style="min-width: 140px;">Kênh Đăng</th>
+                <th style="min-width: 150px;">Tài Khoản</th>
+                <th style="min-width: 150px;">Thời Gian</th>
+                <th style="min-width: 125px; text-align: center;">Trạng Thái</th>
               </tr>
-            `).join('')}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              ${data.history.map((h) => `
+                <tr>
+                  <td>
+                    <strong style="color: #ffffff; display: block; word-break: break-all;">${escapeHtml(h.fileName)}</strong>
+                    ${h.caption ? `<div style="font-size: 0.75rem; color: #94a3b8; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 3px;" title="${escapeHtml(h.caption)}">${escapeHtml(h.caption)}</div>` : ''}
+                  </td>
+                  <td><span style="font-weight: 500; color: #e2e8f0;">${escapeHtml(h.accountName)}</span></td>
+                  <td><span style="color: #38bdf8; font-weight: 500;">${escapeHtml(h.accountUsername || '@tiktok')}</span></td>
+                  <td style="white-space: nowrap; color: #94a3b8; font-size: 0.8rem;">${new Date(h.publishedAt).toLocaleString('vi-VN')}</td>
+                  <td style="text-align: center;">
+                    <span class="tiktok-history-badge">
+                      ${h.postMode === 'draft' ? '💾 Bản Nháp' : '🚀 Công Khai'}
+                    </span>
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
       `;
     } else {
       if (modalTitle) modalTitle.textContent = 'Lịch Sử Đã Đăng TikTok (0)';
       if (tiktokViewHistoryBtn) tiktokViewHistoryBtn.innerHTML = '<span>📜</span> Lịch Sử Đã Đăng (0)';
       tiktokHistoryListContainer.innerHTML = `
-        <div style="text-align: center; color: var(--muted); padding: 36px 16px;">
-          <span style="font-size: 2rem; display: block; margin-bottom: 8px;">📭</span>
-          Chưa có video nào trong lịch sử đăng bài. Khi bạn đăng video lên các kênh TikTok, hệ thống sẽ tự động lưu vào đây để chống đăng trùng lặp nội dung.
+        <div style="text-align: center; color: var(--muted); padding: 40px 16px;">
+          <span style="font-size: 2.2rem; display: block; margin-bottom: 10px;">📭</span>
+          Chưa có video nào trong lịch sử đăng bài.<br>
+          <span style="font-size: 0.82rem; color: #64748b; margin-top: 4px; display: inline-block;">
+            Khi bạn đăng video lên các kênh TikTok, hệ thống sẽ tự động lưu vào đây để chống đăng trùng lặp nội dung.
+          </span>
         </div>
       `;
     }
@@ -2280,7 +2290,6 @@ async function openTikTokHistoryModal() {
 }
 
 function closeTikTokHistoryModal() {
-  resetClearHistoryInline();
   if (tiktokHistoryModal) tiktokHistoryModal.classList.add('hidden');
 }
 
@@ -2291,23 +2300,24 @@ tiktokHistoryModal?.addEventListener('click', (e) => {
   if (e.target === tiktokHistoryModal) closeTikTokHistoryModal();
 });
 
-clearTikTokHistoryBtn?.addEventListener('click', () => {
-  if (clearHistoryNormalGroup) clearHistoryNormalGroup.classList.add('hidden');
-  if (clearHistoryConfirmGroup) clearHistoryConfirmGroup.classList.remove('hidden');
-});
+clearTikTokHistoryBtn?.addEventListener('click', async () => {
+  const confirmed = await showCustomConfirm({
+    title: 'Xóa Sạch Lịch Sử Đã Đăng TikTok',
+    message: 'Bạn có chắc chắn muốn xóa toàn bộ lịch sử đã đăng không?<br><br><span style="color: #cbd5e1; font-size: 0.85rem;">Sau khi xóa, bộ nhớ chống trùng lặp sẽ được đặt lại. Các video trong kho sẽ có thể được phân bổ để đăng lại bình thường.</span>',
+    confirmText: '🗑️ Đồng Ý Xóa Hết',
+    cancelText: 'Hủy Bỏ',
+    icon: '🗑️',
+    isDanger: true
+  });
+  if (!confirmed) return;
 
-cancelClearHistoryInlineBtn?.addEventListener('click', () => {
-  resetClearHistoryInline();
-});
-
-confirmClearHistoryInlineBtn?.addEventListener('click', async () => {
-  confirmClearHistoryInlineBtn.disabled = true;
-  confirmClearHistoryInlineBtn.textContent = '⏳ Đang xóa...';
+  clearTikTokHistoryBtn.disabled = true;
+  const originalText = clearTikTokHistoryBtn.innerHTML;
+  clearTikTokHistoryBtn.innerHTML = '<span>⏳</span> Đang xóa...';
   try {
     const res = await fetch('/api/tiktok/history', { method: 'DELETE' });
     const data = await res.json();
     if (data.ok) {
-      resetClearHistoryInline();
       openTikTokHistoryModal();
       scanWarehouse();
     } else {
@@ -2316,8 +2326,8 @@ confirmClearHistoryInlineBtn?.addEventListener('click', async () => {
   } catch (err) {
     alert('Lỗi xóa lịch sử: ' + err.message);
   } finally {
-    confirmClearHistoryInlineBtn.disabled = false;
-    confirmClearHistoryInlineBtn.textContent = '🗑️ Đồng Ý Xóa';
+    clearTikTokHistoryBtn.disabled = false;
+    clearTikTokHistoryBtn.innerHTML = originalText;
   }
 });
 

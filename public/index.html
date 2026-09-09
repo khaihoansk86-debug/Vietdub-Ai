@@ -342,12 +342,12 @@
                   <h2><span>📱</span> Quản Lý Đa Kênh & Tự Động Đăng TikTok</h2>
                   <p>AI tự động tạo tiêu đề, caption giật tít, hashtags và tự động đăng đồng loạt lên các kênh TikTok bạn chọn.</p>
                 </div>
-                <div style="display: flex; gap: 8px;">
-                  <button class="secondary tiktok-btn-sm" id="tiktokAddAccountBtn" type="button" style="display: inline-flex; align-items: center; gap: 6px;">
+                <div class="tiktok-header-actions" style="display: flex; gap: 8px; align-items: center; flex-shrink: 0;">
+                  <button class="secondary tiktok-btn-sm" id="tiktokAddAccountBtn" type="button" style="display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap;">
                     <span>➕</span> Thêm Kênh Mới
                   </button>
-                  <button class="secondary tiktok-btn-sm" id="tiktokRefreshBtn" type="button" style="display: inline-flex; align-items: center; gap: 6px;">
-                    <span>🔄</span> Làm mới
+                  <button class="secondary tiktok-btn-sm" id="tiktokRefreshBtn" type="button" style="display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap;">
+                    <span>🔄</span> Làm Mới
                   </button>
                 </div>
               </div>
@@ -390,6 +390,13 @@
                     </select>
                   </label>
                   <label class="field">
+                    <span>Thời gian chờ giữa mỗi kênh (giây)</span>
+                    <input name="tiktokChannelDelay" id="tiktokChannelDelay" type="number" min="2" max="300" value="6" placeholder="Mặc định: 6 giây">
+                  </label>
+                </div>
+
+                <div class="control-row" style="margin-top: 10px;">
+                  <label class="field" style="width: 100%;">
                     <span>Hashtags bổ sung (tùy chọn)</span>
                     <input name="tiktokHashtags" id="tiktokHashtags" type="text" placeholder="#xuhuong #fyp #review #skincare">
                   </label>
@@ -742,7 +749,7 @@
 
     <!-- TIKTOK PUBLISH HISTORY MODAL -->
     <div id="tiktokHistoryModal" class="tiktok-modal-backdrop hidden">
-      <div class="tiktok-modal-card" style="max-width: 720px; width: 92%;">
+      <div class="tiktok-modal-card" style="max-width: 980px; width: 95%;">
         <div class="tiktok-modal-header">
           <div style="display: flex; align-items: center; gap: 10px;">
             <span style="font-size: 1.4rem;">📜</span>
@@ -754,22 +761,17 @@
           <button type="button" id="closeTikTokHistoryModalBtn" class="tiktok-modal-close" title="Đóng">&times;</button>
         </div>
 
-        <div class="tiktok-modal-body" style="padding: 16px 20px; max-height: 440px; overflow-y: auto;">
-          <div id="tiktokHistoryListContainer">
+        <div class="tiktok-modal-body" style="padding: 16px 20px; max-height: 480px; overflow-y: auto; overflow-x: auto;">
+          <div id="tiktokHistoryListContainer" style="min-width: 680px;">
             <div style="text-align: center; color: var(--muted); padding: 24px;">Đang tải lịch sử...</div>
           </div>
         </div>
 
-        <div class="tiktok-modal-footer" style="justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-          <div id="clearHistoryNormalGroup">
-            <button type="button" class="secondary tiktok-btn-sm" id="clearTikTokHistoryBtn" style="color: #f87171; border-color: rgba(248, 113, 113, 0.4);">🗑️ Xóa Toàn Bộ Lịch Sử</button>
-          </div>
-          <div id="clearHistoryConfirmGroup" class="hidden" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-            <span style="font-size: 0.84rem; color: #fca5a5;">⚠️ Xác nhận xóa sạch lịch sử?</span>
-            <button type="button" class="primary tiktok-btn-sm" id="confirmClearHistoryInlineBtn" style="background: #ef4444; border-color: #dc2626; color: white;">🗑️ Đồng Ý Xóa</button>
-            <button type="button" class="secondary tiktok-btn-sm" id="cancelClearHistoryInlineBtn">Hủy</button>
-          </div>
-          <button type="button" class="secondary tiktok-btn-sm" id="closeTikTokHistoryModalBtn2">Đóng</button>
+        <div class="tiktok-modal-footer" style="display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+          <button type="button" class="secondary tiktok-btn-sm" id="clearTikTokHistoryBtn" style="color: #f87171; border-color: rgba(248, 113, 113, 0.4); display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;">
+            <span>🗑️</span> Xóa Toàn Bộ Lịch Sử
+          </button>
+          <button type="button" class="secondary tiktok-btn-sm" id="closeTikTokHistoryModalBtn2" style="white-space: nowrap;">Đóng</button>
         </div>
       </div>
     </div>

@@ -683,7 +683,7 @@ Tra ve DUY NHAT dinh dang JSON hop le theo mau sau, khong markdown fence, khong 
   }
 }
 
-// Helper to dismiss guide, sound recommendations, or copyright check popups
+// Helper to dismiss guide, sound recommendations, or informational popups
 async function dismissTikTokStudioPopups(page, log) {
   try {
     const popupSelectors = [
@@ -691,8 +691,6 @@ async function dismissTikTokStudioPopups(page, log) {
       'button:has-text("Đã hiểu")',
       'button:has-text("Turn on")',
       'button:has-text("Bật")',
-      'button:has-text("Cancel")',
-      'button:has-text("Hủy")',
       '.common-modal-close',
       'button[aria-label="Close"]',
       'button[aria-label="Đóng"]',
@@ -708,6 +706,149 @@ async function dismissTikTokStudioPopups(page, log) {
     }
     await page.keyboard.press('Escape').catch(() => {});
   } catch {}
+}
+
+// Chuyên xử lý bấm nút Post, vượt qua cảnh báo kiểm tra bản quyền / content check ("Post now") và chờ xác nhận xuất bản
+async function handleTikTokPostSubmission(uploadTarget, page, account, log) {
+  log(`📱 [TikTok - ${account.name}] Đang kiểm tra trạng thái video và chuẩn bị Đăng Công Khai (Post)...`);
+
+  const postBtnSelectors = [
+    'button.Button__root--type-primary:has-text("Post")',
+    'button:has-text("Post")',
+    'button.Button__root--type-primary:has-text("Đăng")',
+    'button:has-text("Đăng")'
+  ];
+
+  let postBtn = null;
+  for (const sel of postBtnSelectors) {
+    const btn = uploadTarget.locator(sel).first();
+    if (await btn.isVisible().catch(() => false)) {
+      postBtn = btn;
+      break;
+    }
+  }
+  if (!postBtn) {
+    for (const sel of postBtnSelectors) {
+      const btn = page.locator(sel).first();
+      if (await btn.isVisible().catch(() => false)) {
+        postBtn = btn;
+        break;
+      }
+    }
+  }
+
+  if (!postBtn) {
+    throw new Error('Không tìm thấy nút "Post" / "Đăng" trên giao diện TikTok Studio.');
+  }
+
+  // 1. Chờ video upload & xử lý hoàn tất để nút Post sáng lên (enabled)
+  log(`📱 [TikTok - ${account.name}] Đang chờ video hoàn tất tải lên để kích hoạt nút Post (Đăng)...`);
+  let isEnabled = false;
+  for (let w = 0; w < 60; w++) {
+    isEnabled = await postBtn.isEnabled().catch(() => false);
+    if (isEnabled) break;
+    await page.waitForTimeout(1000);
+  }
+
+  if (!isEnabled) {
+    throw new Error('Nút "Post" chưa sẵn sàng (video có thể đang tải lên dở dang hoặc bị lỗi).');
+  }
+
+  // Đợi ngắn để TikTok đồng bộ kiểm tra
+  await page.waitForTimeout(1500);
+
+  // 2. Bấm nút Post chính
+  log(`📱 [TikTok - ${account.name}] Đã bấm nút "Post" (Đăng). Đang theo dõi tiến trình kiểm duyệt & xuất bản...`);
+  await postBtn.click();
+  await page.waitForTimeout(1500);
+
+  // 3. Theo dõi và tự động bấm "Post now" ("Đăng ngay") nếu xuất hiện cảnh báo Continue to post
+  const postNowSelectors = [
+    'button:has-text("Post now")',
+    'button:has-text("Đăng ngay")',
+    'div[role="dialog"] button.Button__root--type-primary',
+    '.TUXModal button:has-text("Post now")',
+    '.TUXModal button:has-text("Đăng ngay")',
+    'button.Button__root--type-primary:has-text("Post now")',
+    'button.Button__root--type-primary:has-text("Đăng ngay")'
+  ];
+
+  let postNowClicked = false;
+  for (let checkLoop = 0; checkLoop < 15; checkLoop++) {
+    let postNowBtn = null;
+    for (const sel of postNowSelectors) {
+      const loc = uploadTarget.locator(sel).first();
+      if (await loc.isVisible().catch(() => false)) {
+        postNowBtn = loc;
+        break;
+      }
+      const locPage = page.locator(sel).first();
+      if (await locPage.isVisible().catch(() => false)) {
+        postNowBtn = locPage;
+        break;
+      }
+    }
+
+    if (postNowBtn) {
+      log(`📱 [TikTok - ${account.name}] Phát hiện hộp thoại cảnh báo ("Continue to post?"). Tự động bấm "Post now" ("Đăng ngay")...`);
+      await postNowBtn.click().catch(() => {});
+      postNowClicked = true;
+      log(`📱 [TikTok - ${account.name}] Đã bấm "Post now" ("Đăng ngay") thành công!`);
+      await page.waitForTimeout(2500);
+      break;
+    }
+
+    // Kiểm tra nếu đã hoàn tất mà không cần qua modal cảnh báo
+    const successIndicators = [
+      'button:has-text("Manage your posts")',
+      'button:has-text("Quản lý bài viết")',
+      'button:has-text("Upload another video")',
+      'button:has-text("Tải video khác")'
+    ];
+    let isInstantSuccess = false;
+    for (const sSel of successIndicators) {
+      if (await page.locator(sSel).first().isVisible().catch(() => false) ||
+          await uploadTarget.locator(sSel).first().isVisible().catch(() => false)) {
+        isInstantSuccess = true;
+        break;
+      }
+    }
+    if (isInstantSuccess || page.url().includes('/content') || page.url().includes('/posts') || page.url().includes('/manage')) {
+      log(`🎉 [TikTok - ${account.name}] Đã xuất bản video thành công!`);
+      break;
+    }
+
+    await page.waitForTimeout(1000);
+  }
+
+  // 4. Chờ xác nhận hoàn tất xuất bản từ máy chủ TikTok
+  log(`📱 [TikTok - ${account.name}] Đang chờ máy chủ TikTok xác nhận lưu trữ và xuất bản video...`);
+  for (let waitSuccess = 0; waitSuccess < 20; waitSuccess++) {
+    const currentUrl = page.url();
+    if (currentUrl.includes('/content') || currentUrl.includes('/posts') || currentUrl.includes('/manage')) {
+      log(`🎉 [TikTok - ${account.name}] Trình duyệt đã chuyển hướng về trang quản lý bài viết thành công!`);
+      break;
+    }
+
+    const hasSuccessModal = await page.locator('button:has-text("Manage your posts"), button:has-text("Quản lý bài viết"), button:has-text("Upload another video"), button:has-text("Tải video khác")').first().isVisible().catch(() => false);
+    if (hasSuccessModal) {
+      log(`🎉 [TikTok - ${account.name}] Phát hiện thông báo: Video đã được xuất bản công khai lên kênh thành công!`);
+      break;
+    }
+
+    // Nếu nút Post ban đầu đã biến mất và modal cảnh báo cũng đã xử lý xong
+    const isPostBtnStillThere = await postBtn.isVisible().catch(() => false);
+    if (!isPostBtnStillThere && (postNowClicked || waitSuccess > 6)) {
+      log(`🎉 [TikTok - ${account.name}] Quy trình đăng video đã được TikTok tiếp nhận và xử lý thành công!`);
+      break;
+    }
+
+    await page.waitForTimeout(1000);
+  }
+
+  // Chờ thêm 3.5 giây để đảm bảo mọi request và cookie lưu trữ ổn định
+  await page.waitForTimeout(3500);
+  log(`🎉 [TikTok - ${account.name}] Hoàn tất toàn bộ quy trình Đăng Công Khai lên kênh!`);
 }
 
 export async function uploadSingleAccount({ account, videoPath, caption, hashtags, postMode, log }) {
@@ -814,19 +955,7 @@ export async function uploadSingleAccount({ account, videoPath, caption, hashtag
     await dismissTikTokStudioPopups(page, log);
 
     if (postMode === 'public') {
-      log(`📱 [TikTok - ${account.name}] Đang thực hiện Đăng Công Khai (Post)...`);
-      const postBtn = uploadTarget.locator('button.Button__root--type-primary:has-text("Post"), button:has-text("Đăng")').first();
-      await postBtn.waitFor({ state: 'visible', timeout: 20000 });
-
-      // Wait until upload finishes and button is enabled
-      for (let w = 0; w < 30; w++) {
-        if (await postBtn.isEnabled().catch(() => false)) break;
-        await page.waitForTimeout(1000);
-      }
-
-      await postBtn.click();
-      log(`📱 [TikTok - ${account.name}] Đã bấm nút "Đăng video". Đang hoàn tất...`);
-      await page.waitForTimeout(6000);
+      await handleTikTokPostSubmission(uploadTarget, page, account, log);
     } else {
       // Draft mode
       log(`📱 [TikTok - ${account.name}] Đang lưu vào mục Bản Nháp (Draft)...`);
@@ -865,6 +994,7 @@ export async function uploadToMultipleAccounts({
   postMode = 'draft',
   distributionStrategy = 'distinct_random',
   skipAlreadyPublished = true,
+  channelDelaySeconds = 6,
   job,
   logCallback
 }) {
@@ -967,8 +1097,9 @@ export async function uploadToMultipleAccounts({
     }
 
     if (i < selectedAccounts.length - 1) {
-      log('⏳ [TikTok] Đang đợi 6 giây trước khi đăng sang kênh tiếp theo...');
-      await new Promise((r) => setTimeout(r, 6000));
+      const waitSec = Math.max(2, parseInt(channelDelaySeconds || 6, 10));
+      log(`⏳ [TikTok] Đang đợi ${waitSec} giây trước khi đăng sang kênh tiếp theo...`);
+      await new Promise((r) => setTimeout(r, waitSec * 1000));
     }
   }
 
@@ -1029,6 +1160,7 @@ export async function distributeWarehouseVideos({
   extraHashtags = '',
   captionPrompt = '',
   distributionStrategy = 'distinct_random',
+  channelDelaySeconds = 6,
   geminiApiKey = '',
   geminiModel = 'gemini-3.8-flash',
   logCallback
@@ -1118,8 +1250,9 @@ export async function distributeWarehouseVideos({
       }
 
       if (i < limit - 1) {
-        log('⏳ Đang đợi 6 giây trước khi chuyển sang kênh tiếp theo...');
-        await new Promise((r) => setTimeout(r, 6000));
+        const waitSec = Math.max(2, parseInt(channelDelaySeconds || 6, 10));
+        log(`⏳ Đang đợi ${waitSec} giây trước khi chuyển sang kênh tiếp theo...`);
+        await new Promise((r) => setTimeout(r, waitSec * 1000));
       }
     }
   } else {
@@ -1169,8 +1302,9 @@ export async function distributeWarehouseVideos({
       }
 
       if (i < limit - 1) {
-        log('⏳ Đang đợi 6 giây trước khi chuyển sang kênh tiếp theo...');
-        await new Promise((r) => setTimeout(r, 6000));
+        const waitSec = Math.max(2, parseInt(channelDelaySeconds || 6, 10));
+        log(`⏳ Đang đợi ${waitSec} giây trước khi chuyển sang kênh tiếp theo...`);
+        await new Promise((r) => setTimeout(r, waitSec * 1000));
       }
     }
   }

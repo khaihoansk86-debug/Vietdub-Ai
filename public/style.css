@@ -1333,13 +1333,43 @@ button.secondary:hover:not(:disabled) {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
 }
 
 .tiktok-btn-sm {
-  padding: 5px 12px;
-  font-size: 0.78rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  line-height: 1;
   border-radius: var(--radius-sm);
   cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.tiktok-header-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.tiktok-header-actions .tiktok-btn-sm {
+  padding: 7px 14px;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.tiktok-account-actions .tiktok-btn-sm {
+  min-width: 82px;
+  padding: 6px 10px;
+  text-align: center;
 }
 
 /* TIKTOK LOGIN MODAL */
@@ -1546,6 +1576,7 @@ button.secondary:hover:not(:disabled) {
 /* TIKTOK PUBLISH HISTORY TABLE & BADGES */
 .tiktok-history-table {
   width: 100%;
+  min-width: 680px;
   border-collapse: collapse;
   font-size: 0.82rem;
   color: #f1f5f9;
@@ -1553,7 +1584,7 @@ button.secondary:hover:not(:disabled) {
 
 .tiktok-history-table th {
   text-align: left;
-  padding: 10px 12px;
+  padding: 10px 14px;
   background: rgba(255, 255, 255, 0.05);
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   color: #94a3b8;
@@ -1561,8 +1592,15 @@ button.secondary:hover:not(:disabled) {
   white-space: nowrap;
 }
 
+.tiktok-history-table th:last-child,
+.tiktok-history-table td:last-child {
+  text-align: center;
+  min-width: 125px;
+  white-space: nowrap;
+}
+
 .tiktok-history-table td {
-  padding: 10px 12px;
+  padding: 10px 14px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
   vertical-align: middle;
 }
@@ -1574,14 +1612,16 @@ button.secondary:hover:not(:disabled) {
 .tiktok-history-badge {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 3px 8px;
+  justify-content: center;
+  gap: 5px;
+  padding: 4px 10px;
   border-radius: 6px;
-  font-size: 0.75rem;
+  font-size: 0.78rem;
   font-weight: 600;
   background: rgba(16, 185, 129, 0.15);
   color: #34d399;
   border: 1px solid rgba(16, 185, 129, 0.3);
+  white-space: nowrap;
 }
 
 .warehouse-stat-pill {

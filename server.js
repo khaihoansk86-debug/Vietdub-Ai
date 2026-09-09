@@ -511,6 +511,7 @@ app.post('/api/tiktok/warehouse/distribute', async (req, res) => {
     const extraHashtags = String(req.body?.extraHashtags || '').trim();
     const captionPrompt = String(req.body?.captionPrompt || '').trim();
     const distributionStrategy = req.body?.distributionStrategy || 'distinct_random';
+    const channelDelaySeconds = Math.max(2, parseInt(req.body?.channelDelaySeconds || 6, 10));
 
     // Run async background distribution
     res.json({ ok: true, message: 'Đã bắt đầu tiến trình phân bổ video từ kho lên các kênh TikTok!' });
@@ -522,6 +523,7 @@ app.post('/api/tiktok/warehouse/distribute', async (req, res) => {
       extraHashtags,
       captionPrompt,
       distributionStrategy,
+      channelDelaySeconds,
       geminiApiKey: req.body?.geminiApiKey || GEMINI_API_KEY,
       geminiModel: req.body?.geminiModel || GEMINI_MODEL,
       logCallback: (msg) => {
@@ -627,6 +629,7 @@ async function processJob(job, payload) {
         postMode: payload.tiktok.mode,
         distributionStrategy: payload.tiktok.distributionStrategy || 'distinct_random',
         skipAlreadyPublished: payload.tiktok.skipAlreadyPublished !== false,
+        channelDelaySeconds: Math.max(2, parseInt(payload.tiktok.channelDelaySeconds || 6, 10)),
         job,
         logCallback: (msg) => log(job, msg)
       });
@@ -786,7 +789,8 @@ function parseTikTokOptions(body) {
     distributionStrategy,
     skipAlreadyPublished,
     extraHashtags: String(body.tiktokHashtags || '').trim(),
-    captionPrompt: String(body.tiktokCaptionPrompt || '').trim()
+    captionPrompt: String(body.tiktokCaptionPrompt || '').trim(),
+    channelDelaySeconds: Math.max(2, parseInt(body.tiktokChannelDelay || 6, 10))
   };
 }
 
