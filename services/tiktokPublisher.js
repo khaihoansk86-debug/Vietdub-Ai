@@ -203,7 +203,6 @@ export async function openTikTokLoginWindow(accountId) {
       viewport: null,
       ignoreDefaultArgs: ['--no-sandbox', '--enable-automation'],
       args: [
-        '--disable-blink-features=AutomationControlled',
         '--start-maximized',
         '--disable-infobars',
         '--no-default-browser-check',
@@ -239,18 +238,45 @@ export async function openTikTokLoginWindow(accountId) {
           clearInterval(checkInterval);
           return;
         }
-        const cookies = await context.cookies(['https://www.tiktok.com', 'https://tiktok.com']);
-        const sessionCookie = cookies.find((c) => c.name === 'sessionid' || c.name === 'sessionid_ss');
-        if (sessionCookie && sessionCookie.value) {
+
+        // 1. Check ALL cookies across all domains
+        const allCookies = await context.cookies();
+        const hasSession = allCookies.some((c) =>
+          (c.name === 'sessionid' || c.name === 'sessionid_ss' || c.name === 'sid_tt' || c.name === 'passport_auth_status') && c.value
+        );
+
+        // 2. Also check authenticated passport API
+        const passportData = await page.evaluate(async () => {
+          try {
+            const r = await fetch('/passport/web/account/info/', { credentials: 'include' });
+            if (r.ok) {
+              const j = await r.json();
+              if (j?.message === 'success' && j?.data) {
+                return j.data;
+              }
+            }
+          } catch {}
+          return null;
+        }).catch(() => null);
+
+        if (hasSession || passportData) {
+          // If login confirmed but still on QR/login page, automatically navigate to main site!
+          if (page.url().includes('/login')) {
+            await page.goto('https://www.tiktok.com/', { waitUntil: 'domcontentloaded', timeout: 15000 }).catch(() => {});
+          }
+
           const profile = await extractTikTokProfile(page);
-          if (profile && profile.uniqueId) {
+          const rawUid = profile?.uniqueId || passportData?.username || passportData?.user_id;
+          const rawNick = profile?.nickname || passportData?.screen_name || rawUid;
+
+          if (rawUid) {
             const currentAccounts = loadTikTokAccounts();
             const target = currentAccounts.find((a) => a.id === account.id);
             if (target) {
-              const uId = profile.uniqueId.replace(/^@/, '');
+              const uId = String(rawUid).replace(/^@/, '');
               target.username = `@${uId}`;
               if (target.name.startsWith('Kênh TikTok') || !target.name) {
-                target.name = profile.nickname || target.username;
+                target.name = rawNick ? `${rawNick}` : target.username;
               }
               saveTikTokAccounts(currentAccounts);
               account.username = target.username;
@@ -259,7 +285,7 @@ export async function openTikTokLoginWindow(accountId) {
           }
         }
       } catch {}
-    }, 2500);
+    }, 2000);
 
     context.on('close', async () => {
       clearInterval(checkInterval);
@@ -288,7 +314,7 @@ async function updateAccountUsernameAfterClose(account) {
       channel,
       headless: true,
       ignoreDefaultArgs: ['--no-sandbox', '--enable-automation'],
-      args: ['--disable-blink-features=AutomationControlled']
+      args: ['--no-default-browser-check', '--no-first-run']
     });
 
     try {
@@ -321,9 +347,11 @@ export async function checkAccountStatus(accountId) {
   if (activeBrowsers.has(account.id)) {
     const context = activeBrowsers.get(account.id);
     try {
-      const cookies = await context.cookies(['https://www.tiktok.com', 'https://tiktok.com']);
-      const sessionCookie = cookies.find((c) => c.name === 'sessionid' || c.name === 'sessionid_ss');
-      if (sessionCookie && sessionCookie.value) {
+      const allCookies = await context.cookies();
+      const hasSession = allCookies.some((c) =>
+        (c.name === 'sessionid' || c.name === 'sessionid_ss' || c.name === 'sid_tt' || c.name === 'passport_auth_status') && c.value
+      );
+      if (hasSession) {
         const latestAcc = loadTikTokAccounts().find((a) => a.id === accountId) || account;
         return {
           loggedIn: true,
@@ -332,7 +360,7 @@ export async function checkAccountStatus(accountId) {
           message: 'Đã kết nối thành công.'
         };
       }
-      return { loggedIn: false, message: 'Đang mở cửa sổ đăng nhập Google Chrome... Vui lòng quét mã QR hoặc đăng nhập tài khoản.' };
+      return { loggedIn: false, message: 'Đang mở cửa sổ đăng nhập Google Chrome... Vui lòng quét mã QR trên màn hình.' };
     } catch {
       return { loggedIn: false, message: 'Đang kết nối...' };
     }
@@ -353,11 +381,13 @@ export async function checkAccountStatus(accountId) {
       channel,
       headless: true,
       ignoreDefaultArgs: ['--no-sandbox', '--enable-automation'],
-      args: ['--disable-blink-features=AutomationControlled']
+      args: ['--no-default-browser-check', '--no-first-run']
     });
 
-    const cookies = await probeContext.cookies(['https://www.tiktok.com', 'https://tiktok.com']);
-    const sessionCookie = cookies.find((c) => c.name === 'sessionid' || c.name === 'sessionid_ss');
+    const allCookies = await probeContext.cookies();
+    const sessionCookie = allCookies.find((c) =>
+      (c.name === 'sessionid' || c.name === 'sessionid_ss' || c.name === 'sid_tt' || c.name === 'passport_auth_status') && c.value
+    );
 
     if (!sessionCookie || !sessionCookie.value) {
       await probeContext.close();
@@ -492,7 +522,6 @@ export async function uploadSingleAccount({ account, videoPath, caption, hashtag
     viewport: null,
     ignoreDefaultArgs: ['--no-sandbox', '--enable-automation'],
     args: [
-      '--disable-blink-features=AutomationControlled',
       '--start-maximized',
       '--disable-infobars',
       '--no-default-browser-check',
