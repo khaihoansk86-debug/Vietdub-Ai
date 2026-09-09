@@ -2138,6 +2138,9 @@ function connectWarehouseLogs() {
           if (data.ok) {
             scanWarehouse();
             setState('ready');
+            if (data.extra?.result) {
+              showPublishCompleteModal(data.extra.result);
+            }
           } else {
             setState('error');
           }
@@ -2193,6 +2196,15 @@ warehouseDistributeBtn?.addEventListener('click', async () => {
   const accountIds = Array.from(selectedCards).map((c) => c.dataset.id).filter(Boolean);
   const channelDelaySeconds = Math.max(2, parseInt(document.querySelector('#tiktokChannelDelay')?.value || '6', 10));
 
+  let geminiApiKey = document.querySelector('#geminiApiKey')?.value?.trim() || '';
+  if (!geminiApiKey) {
+    try {
+      const savedAiSettings = JSON.parse(localStorage.getItem('vietdub-ai-settings') || '{}');
+      geminiApiKey = savedAiSettings.geminiApiKey || '';
+    } catch {}
+  }
+  const geminiModel = document.querySelector('#geminiModel')?.value || 'gemini-3.8-flash';
+
   try {
     const res = await fetch('/api/tiktok/warehouse/distribute', {
       method: 'POST',
@@ -2204,7 +2216,9 @@ warehouseDistributeBtn?.addEventListener('click', async () => {
         extraHashtags,
         captionPrompt,
         distributionStrategy,
-        channelDelaySeconds
+        channelDelaySeconds,
+        geminiApiKey,
+        geminiModel
       })
     });
     const data = await res.json();
@@ -2368,6 +2382,108 @@ tiktokDoClearHistoryBtn?.addEventListener('click', async () => {
     tiktokDoClearHistoryBtn.innerHTML = originalText;
   }
 });
+
+// ============================================================================
+// TIKTOK PUBLISH COMPLETE POPUP MODAL (ADMIN CELEBRATION NOTIFICATION)
+// ============================================================================
+const tiktokPublishCompleteModal = document.querySelector('#tiktokPublishCompleteModal');
+const closeTikTokCompleteModalBtn = document.querySelector('#closeTikTokCompleteModalBtn');
+const tiktokCompleteConfirmBtn = document.querySelector('#tiktokCompleteConfirmBtn');
+const tiktokCompleteViewHistoryBtn = document.querySelector('#tiktokCompleteViewHistoryBtn');
+const tiktokCompleteStatChannels = document.querySelector('#tiktokCompleteStatChannels');
+const tiktokCompleteStatMode = document.querySelector('#tiktokCompleteStatMode');
+const tiktokCompleteStatStatus = document.querySelector('#tiktokCompleteStatStatus');
+const tiktokCompleteModalSubtitle = document.querySelector('#tiktokCompleteModalSubtitle');
+const tiktokCompleteDetailsList = document.querySelector('#tiktokCompleteDetailsList');
+
+function closePublishCompleteModal() {
+  if (tiktokPublishCompleteModal) {
+    tiktokPublishCompleteModal.classList.add('hidden');
+  }
+}
+
+function showPublishCompleteModal(result) {
+  if (!tiktokPublishCompleteModal) return;
+
+  const items = Array.isArray(result?.results) ? result.results : [];
+  const total = items.length;
+  const successItems = items.filter((it) => it.status === 'success');
+  const successCount = successItems.length;
+  const errorCount = total - successCount;
+
+  // Post mode display
+  const postModeVal = document.querySelector('#tiktokPostMode')?.value || 'draft';
+  const modeLabels = {
+    draft: '💾 Bản Nháp (Draft)',
+    public: '🚀 Đăng Công Khai (Public)',
+    private: '🔒 Chỉ Mình Tôi (Private)'
+  };
+  const modeText = modeLabels[postModeVal] || 'Bản Nháp';
+
+  if (tiktokCompleteStatChannels) {
+    tiktokCompleteStatChannels.textContent = `${successCount}/${total} Kênh`;
+  }
+  if (tiktokCompleteStatMode) {
+    tiktokCompleteStatMode.textContent = modeText;
+  }
+  if (tiktokCompleteStatStatus) {
+    if (errorCount === 0 && total > 0) {
+      tiktokCompleteStatStatus.textContent = '100% Hoàn Thành';
+      tiktokCompleteStatStatus.closest('.complete-stat-badge')?.classList.add('success');
+    } else if (successCount > 0) {
+      tiktokCompleteStatStatus.textContent = `${successCount} Thành Công`;
+    } else {
+      tiktokCompleteStatStatus.textContent = 'Có Lỗi Xảy Ra';
+    }
+  }
+  if (tiktokCompleteModalSubtitle) {
+    tiktokCompleteModalSubtitle.textContent = `Hệ thống đã hoàn tất tiến trình xuất bản cho ${total} kênh TikTok theo đúng kịch bản thiết lập.`;
+  }
+
+  // Render detail rows
+  if (tiktokCompleteDetailsList) {
+    if (items.length === 0) {
+      tiktokCompleteDetailsList.innerHTML = `<div style="text-align: center; color: var(--muted); padding: 16px;">Không có video nào được đăng trong lượt này.</div>`;
+    } else {
+      tiktokCompleteDetailsList.innerHTML = items.map((it) => {
+        const isSuccess = it.status === 'success';
+        const badgeClass = isSuccess ? 'tag-badge success' : 'tag-badge error';
+        const badgeIcon = isSuccess ? '✅ Thành công' : '❌ Lỗi';
+        return `
+          <div class="complete-detail-item" style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: var(--bg-card); border: 1px solid var(--line); border-radius: 8px; margin-bottom: 8px; gap: 12px;">
+            <div style="display: flex; align-items: center; gap: 10px; min-width: 0;">
+              <span style="font-size: 1.1rem;">${isSuccess ? '🎬' : '⚠️'}</span>
+              <div style="min-width: 0;">
+                <div style="font-weight: 600; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 320px;" title="${escapeHtml(it.video || '')}">
+                  ${escapeHtml(it.video || 'Video')}
+                </div>
+                <div style="font-size: 0.8rem; color: var(--muted); margin-top: 2px;">
+                  👤 Kênh: <b style="color: var(--ink);">${escapeHtml(it.account || 'Tài khoản')}</b>
+                </div>
+              </div>
+            </div>
+            <span class="${badgeClass}" style="flex-shrink: 0; font-size: 0.82rem; padding: 4px 10px; border-radius: 6px; font-weight: 600; ${isSuccess ? 'background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3);' : 'background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3);'}">
+              ${badgeIcon}
+            </span>
+          </div>
+        `;
+      }).join('');
+    }
+  }
+
+  tiktokPublishCompleteModal.classList.remove('hidden');
+}
+
+closeTikTokCompleteModalBtn?.addEventListener('click', closePublishCompleteModal);
+tiktokCompleteConfirmBtn?.addEventListener('click', closePublishCompleteModal);
+tiktokCompleteViewHistoryBtn?.addEventListener('click', () => {
+  closePublishCompleteModal();
+  openTikTokHistoryModal();
+});
+tiktokPublishCompleteModal?.addEventListener('click', (e) => {
+  if (e.target === tiktokPublishCompleteModal) closePublishCompleteModal();
+});
+window.showPublishCompleteModal = showPublishCompleteModal;
 
 // ============================================================================
 // ACCORDION / COLLAPSIBLE FORM SECTIONS

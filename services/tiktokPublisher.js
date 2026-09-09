@@ -614,73 +614,146 @@ export async function checkAllAccountsStatus() {
   return results;
 }
 
-export async function generateTikTokMetadata(cues = [], originalTitle = '', aiOptions = {}) {
-  const geminiApiKey = aiOptions.geminiApiKey || process.env.GEMINI_API_KEY;
-  const geminiModel = aiOptions.geminiModel || process.env.GEMINI_MODEL || 'gemini-3.8-flash';
+export async function generateTikTokMetadata(cues = [], originalTitle = '', aiOptions = {}, log = console.log) {
+  const geminiApiKey = String(aiOptions.geminiApiKey || process.env.GEMINI_API_KEY || '').trim();
+  const geminiModel = String(aiOptions.geminiModel || process.env.GEMINI_MODEL || 'gemini-3.8-flash').trim();
 
-  const cuesText = (cues && cues.length > 0) ? cues.map((c) => c.text).join(' ').slice(0, 3000) : '';
-  const fullText = cuesText || String(originalTitle || '').trim();
-  const userHashtags = String(aiOptions.extraHashtags || '').trim();
+  // Try extracting transcript from cues or companion .srt file
+  let videoTranscript = (cues && cues.length > 0) ? cues.map((c) => c.text).join(' ').slice(0, 3500) : '';
+  if (!videoTranscript && aiOptions.videoPath && fss.existsSync(aiOptions.videoPath)) {
+    try {
+      const srtCandidate = path.join(
+        path.dirname(aiOptions.videoPath),
+        path.basename(aiOptions.videoPath, path.extname(aiOptions.videoPath)) + '.srt'
+      );
+      if (fss.existsSync(srtCandidate)) {
+        const rawSrt = fss.readFileSync(srtCandidate, 'utf-8');
+        videoTranscript = rawSrt
+          .replace(/\d+\r?\n\d{2}:\d{2}:\d{2},\d{3} --> \d{2}:\d{2}:\d{2},\d{3}\r?\n/g, '')
+          .replace(/<[^>]+>/g, '')
+          .replace(/\r?\n+/g, ' ')
+          .trim()
+          .slice(0, 3500);
+      }
+    } catch {}
+  }
+
+  const cleanTitle = String(originalTitle || '').replace(/\.[a-zA-Z0-9]+$/, '').replace(/[-_]/g, ' ').trim();
+  const fullText = videoTranscript || cleanTitle || 'Video Lồng Tiếng AI';
   const userPrompt = String(aiOptions.captionPrompt || '').trim();
 
-  if (!geminiApiKey || !fullText) {
-    const defaultTitle = originalTitle ? `Review: ${originalTitle.slice(0, 60)}` : 'Video Lồng Tiếng Hay Nhất';
+  // Extract mandatory hashtags from both user prompt and extraHashtags
+  const promptTags = Array.from(userPrompt.matchAll(/#[\p{L}\p{N}_]+/gu)).map((m) => m[0]);
+  const extraTags = String(aiOptions.extraHashtags || '').split(/\s+/).filter((t) => t.startsWith('#'));
+  const allMandatoryTags = Array.from(new Set([...promptTags, ...extraTags]));
+
+  if (!geminiApiKey) {
+    if (log) log(`⚠️ [AI Gemini] Không tìm thấy API Key (Vui lòng điền tại tab "Cài đặt & API"). Đang tổng hợp nội dung trực tiếp từ Prompt Mẫu...`);
+    const fallbackTitle = cleanTitle ? `Review: ${cleanTitle.slice(0, 60)}` : 'Video Lồng Tiếng Đỉnh Cao';
+    let fallbackCaption = cleanTitle;
+    if (userPrompt) {
+      // Clean instructions to leave narrative or use as hook
+      fallbackCaption = `${fallbackTitle}\n\n${userPrompt.slice(0, 180)}`;
+    } else {
+      fallbackCaption = `${fallbackTitle}\n\nXem ngay video thú vị này nhé mọi người!`;
+    }
+    const finalTags = allMandatoryTags.length > 0 ? allMandatoryTags : ['#xuhuong', '#fyp', '#vietdub', '#trending'];
     return {
-      title: defaultTitle,
-      caption: `${defaultTitle}\n\nXem ngay video thú vị này nhé mọi người!`,
-      hashtags: ['#xuhuong', '#fyp', '#vietdub', '#review', '#trending'].concat(
-        userHashtags ? userHashtags.split(/\s+/).filter((t) => t.startsWith('#')) : []
-      )
+      title: fallbackTitle,
+      caption: fallbackCaption.trim(),
+      hashtags: finalTags
     };
   }
 
-  const prompt = `Dua tren noi dung video long tieng tieng Viet sau day:
-"""
-${fullText}
-"""
-${userPrompt ? `\nYEU CAU PHONG CACH & PROMPT MAU TU NGUOI DUNG (BAT BUOC TUAN THU):\n"${userPrompt}"\n` : ''}
-Nhiem vu: Hay viet tieu de va noi dung dang bai TikTok (social media post) cuc ky hap dan, giat tit tuc thi, chuan xu huong TikTok Viet Nam theo dung phong cach nguoi dung yeu cau:
-1. "hook": 1 cau giat tit gay to mo, ngan gon duoi 50 ky tu (co icon phu hop).
-2. "caption": 1-2 cau tom tat kich tinh hoac loi keu goi xem video (duoi 150 ky tu).
-3. "hashtags": Danh sach 5-7 hashtags hot nhat (#xuhuong, #fyp va cac hashtag sat voi noi dung). ${userHashtags ? `Gom ca cac hashtag bat buoc: ${userHashtags}` : ''}
+  const prompt = `BẠN LÀ MỘT CHUYÊN GIA SÁNG TẠO NỘI DUNG TIKTOK VIRAL HÀNG ĐẦU VIỆT NAM.
+THÔNG TIN VIDEO CẦN ĐĂNG:
+- Tiêu đề / Tên tệp: "${cleanTitle}"
+${videoTranscript ? `- Nội dung bản ghi lời thoại tiếng Việt của video:\n"""\n${videoTranscript}\n"""` : ''}
 
-Tra ve DUY NHAT dinh dang JSON hop le theo mau sau, khong markdown fence, khong chu thich:
+${userPrompt ? `🔴 CHỈ THỊ PROMPT MẪU TỪ NGƯỜI DÙNG (YÊU CẦU ƯU TIÊN SỐ 1, BẮT BUỘC TUÂN THỦ CHẶT CHẼ 100%):
+"""
+${userPrompt}
+"""` : ''}
+
+Nhiệm vụ: Hãy đóng vai chuyên gia sáng tạo nội dung TikTok. Đọc kỹ thông tin video và BÁM SÁT CHẶT CHẼ 100% các yêu cầu về phong cách, độ dài, câu hook và lời kêu gọi trong prompt mẫu của người dùng để tạo nội dung đăng bài:
+1. "hook": 1 câu giật tít mở đầu video ngắn gọn (dưới 50 ký tự), có icon phù hợp, khơi gợi tò mò cực độ.
+2. "caption": Nội dung bài đăng video lôi cuốn, đúng văn phong và chỉ thị trong prompt mẫu của người dùng.
+3. "hashtags": Danh sách 5-8 hashtags hot nhất (#xuhuong, #fyp...), BẮT BUỘC bao gồm đầy đủ các hashtags sau nếu có: ${allMandatoryTags.join(' ')}.
+
+Trả về DUY NHẤT định dạng JSON hợp lệ theo cấu trúc sau (không bọc trong markdown code fence, không thêm văn bản ngoài JSON):
 {
   "hook": "...",
   "caption": "...",
-  "hashtags": ["#xuhuong", "#fyp", "..."]
+  "hashtags": ["#tag1", "#tag2", ...]
 }`;
 
-  try {
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(geminiModel)}:generateContent?key=${encodeURIComponent(geminiApiKey)}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        generationConfig: {
-          temperature: 0.7,
-          responseMimeType: 'application/json'
-        },
-        contents: [{ parts: [{ text: prompt }] }]
-      })
-    });
+  if (log) log(`🤖 [AI Gemini] Đang gửi yêu cầu tới mô hình "${geminiModel}" kèm chỉ thị Prompt Mẫu...`);
 
-    if (!response.ok) throw new Error(`Gemini status ${response.status}`);
-    const data = await response.json();
-    const rawJson = data.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
-    const parsed = JSON.parse(rawJson);
+  // Try primary model, with fallback models if model is not available
+  const modelsToTry = [geminiModel, 'gemini-3.5-flash', 'gemini-2.5-flash', 'gemini-flash-latest'].filter((v, i, a) => a.indexOf(v) === i);
 
-    return {
-      title: parsed.hook || 'Video Lồng Tiếng Đỉnh Cao',
-      caption: `${parsed.hook || ''}\n${parsed.caption || ''}`.trim(),
-      hashtags: Array.isArray(parsed.hashtags) ? parsed.hashtags : ['#xuhuong', '#fyp', '#vietdub']
-    };
-  } catch {
-    return {
-      title: originalTitle || 'Video Lồng Tiếng Đỉnh Cao',
-      caption: 'Video cực cuốn, xem ngay nhé mọi người!',
-      hashtags: ['#xuhuong', '#fyp', '#vietdub', '#trending']
-    };
+  for (const model of modelsToTry) {
+    try {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(geminiApiKey)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          generationConfig: {
+            temperature: 0.7,
+            responseMimeType: 'application/json'
+          },
+          contents: [{ parts: [{ text: prompt }] }]
+        })
+      });
+
+      if (!response.ok) {
+        const errText = await response.text().catch(() => '');
+        throw new Error(`Gemini status ${response.status}: ${errText.slice(0, 100)}`);
+      }
+
+      const data = await response.json();
+      const rawJson = data.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+      const cleanJson = rawJson.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim();
+      const parsed = JSON.parse(cleanJson);
+
+      const generatedTags = Array.isArray(parsed.hashtags) ? parsed.hashtags : [];
+      const combinedTags = Array.from(new Set([...allMandatoryTags, ...generatedTags]));
+
+      const finalTitle = parsed.hook || cleanTitle || 'Video Lồng Tiếng Đỉnh Cao';
+      let finalCaption = '';
+      if (parsed.caption) {
+        finalCaption = parsed.hook && !parsed.caption.includes(parsed.hook)
+          ? `${parsed.hook}\n\n${parsed.caption}`
+          : parsed.caption;
+      } else {
+        finalCaption = finalTitle;
+      }
+
+      if (log) {
+        log(`✨ [AI Gemini] Đã tạo thành công bài đăng theo đúng Prompt Mẫu!`);
+        log(`📌 Tiêu đề: "${finalTitle}"`);
+        log(`📝 Caption: "${finalCaption.replace(/\r?\n/g, ' ')}"`);
+      }
+
+      return {
+        title: finalTitle,
+        caption: finalCaption.trim(),
+        hashtags: combinedTags.length > 0 ? combinedTags : ['#xuhuong', '#fyp', '#vietdub']
+      };
+    } catch (apiErr) {
+      if (log) log(`⚠️ [AI Gemini] Thử mô hình "${model}" gặp lỗi (${apiErr.message}). Đang kiểm tra mô hình thay thế...`);
+    }
   }
+
+  // Fallback if all models failed
+  if (log) log(`⚠️ [AI Gemini] Không thể kết nối với Gemini. Sử dụng nội dung dựa trên Prompt Mẫu dự phòng.`);
+  const fallbackTitle = cleanTitle ? `Review: ${cleanTitle.slice(0, 60)}` : 'Video Lồng Tiếng Đỉnh Cao';
+  const finalTags = allMandatoryTags.length > 0 ? allMandatoryTags : ['#xuhuong', '#fyp', '#vietdub', '#trending'];
+  return {
+    title: fallbackTitle,
+    caption: `${fallbackTitle}\n\n${userPrompt || 'Video cực cuốn, xem ngay nhé mọi người!'}`,
+    hashtags: finalTags
+  };
 }
 
 // Helper to dismiss guide, sound recommendations, or informational popups
@@ -1287,14 +1360,13 @@ export async function distributeWarehouseVideos({
       log(`[${i + 1}/${limit}] [Phân bổ 1:1] Video: "${video.name}" -> Gán độc quyền cho Kênh: "${account.name}" (${account.username || account.name})`);
 
       const cleanTitle = path.basename(video.name, path.extname(video.name)).replace(/[-_]/g, ' ');
-      log(`🤖 [AI Gemini] Đang tạo tiêu đề & caption theo prompt mẫu...`);
       const metadata = await generateTikTokMetadata([], cleanTitle, {
         geminiApiKey: geminiApiKey || process.env.GEMINI_API_KEY,
         geminiModel: geminiModel || process.env.GEMINI_MODEL,
         extraHashtags,
-        captionPrompt
-      });
-      log(`✨ [AI Gemini] Tiêu đề: "${metadata.title}"`);
+        captionPrompt,
+        videoPath: video.path
+      }, log);
 
       try {
         await uploadSingleAccount({
@@ -1339,14 +1411,13 @@ export async function distributeWarehouseVideos({
       log(`[${i + 1}/${limit}] Video: "${video.name}" -> Kênh: "${account.name}" (${account.username || account.name})`);
 
       const cleanTitle = path.basename(video.name, path.extname(video.name)).replace(/[-_]/g, ' ');
-      log(`🤖 [AI Gemini] Đang tạo tiêu đề & caption theo prompt mẫu...`);
       const metadata = await generateTikTokMetadata([], cleanTitle, {
         geminiApiKey: geminiApiKey || process.env.GEMINI_API_KEY,
         geminiModel: geminiModel || process.env.GEMINI_MODEL,
         extraHashtags,
-        captionPrompt
-      });
-      log(`✨ [AI Gemini] Tiêu đề: "${metadata.title}"`);
+        captionPrompt,
+        videoPath: video.path
+      }, log);
 
       try {
         await uploadSingleAccount({

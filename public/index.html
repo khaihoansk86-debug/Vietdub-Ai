@@ -434,31 +434,33 @@
                 </div>
 
                 <!-- TIKTOK PROMPT PRESETS MANAGER -->
-                <div class="tiktok-prompt-manager" style="margin-top: 12px;">
-                  <div class="tiktok-prompt-manager-header" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 8px;">
-                    <div style="display: flex; align-items: center; gap: 6px;">
-                      <span style="font-size: 0.95rem;">🤖</span>
-                      <strong style="font-size: 0.85rem; color: #f1f5f9;">Prompt Mẫu Cho AI Viết Bài Đăng (Caption & Tiêu Đề)</strong>
+                <div class="tiktok-prompt-manager">
+                  <div class="tiktok-prompt-manager-header">
+                    <div class="tiktok-prompt-title-wrap">
+                      <span class="prompt-icon">🤖</span>
+                      <strong class="prompt-title">Prompt Mẫu Cho AI Viết Bài Đăng (Caption & Tiêu Đề)</strong>
                     </div>
-                    <div class="tiktok-prompt-actions" style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                      <select id="tiktokPromptPresetSelect" class="tiktok-prompt-select" style="height: 32px; padding: 0 10px; font-size: 0.8rem; background: #1e293b; border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; color: #fff; max-width: 220px; outline: none; cursor: pointer;">
+                    <div class="tiktok-prompt-bar">
+                      <select id="tiktokPromptPresetSelect" class="tiktok-prompt-select" title="Chọn mẫu Prompt chuẩn">
                         <!-- Options generated dynamically -->
                       </select>
-                      <button type="button" id="tiktokSavePromptPresetBtn" class="tiktok-prompt-tool-btn" title="Lưu lại nội dung đang sửa vào prompt mẫu này" style="height: 32px; padding: 0 10px; font-size: 0.78rem; border-radius: 6px; border: 1px solid rgba(16,185,129,0.4); background: rgba(16,185,129,0.15); color: #10b981; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; font-weight: 500;">
-                        <span>💾</span> Lưu Sửa
-                      </button>
-                      <button type="button" id="tiktokAddPromptPresetBtn" class="tiktok-prompt-tool-btn" title="Tạo thêm một mẫu prompt mới" style="height: 32px; padding: 0 10px; font-size: 0.78rem; border-radius: 6px; border: 1px solid rgba(14,165,233,0.4); background: rgba(14,165,233,0.15); color: #38bdf8; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; font-weight: 500;">
-                        <span>➕</span> Thêm Mới
-                      </button>
-                      <button type="button" id="tiktokRenamePromptPresetBtn" class="tiktok-prompt-tool-btn" title="Đổi tên prompt mẫu đang chọn" style="height: 32px; padding: 0 10px; font-size: 0.78rem; border-radius: 6px; border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.06); color: #cbd5e1; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; font-weight: 500;">
-                        <span>✏️</span> Đổi Tên
-                      </button>
-                      <button type="button" id="tiktokDeletePromptPresetBtn" class="tiktok-prompt-tool-btn" title="Xóa prompt mẫu đang chọn" style="height: 32px; padding: 0 10px; font-size: 0.78rem; border-radius: 6px; border: 1px solid rgba(239,68,68,0.4); background: rgba(239,68,68,0.12); color: #f87171; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; font-weight: 500;">
-                        <span>🗑️</span> Xóa
-                      </button>
+                      <div class="tiktok-prompt-actions">
+                        <button type="button" id="tiktokSavePromptPresetBtn" class="tiktok-prompt-tool-btn btn-save" title="Lưu lại nội dung đang sửa vào prompt mẫu này">
+                          <span>💾</span> Lưu Sửa
+                        </button>
+                        <button type="button" id="tiktokAddPromptPresetBtn" class="tiktok-prompt-tool-btn btn-add" title="Tạo thêm một mẫu prompt mới">
+                          <span>➕</span> Thêm Mới
+                        </button>
+                        <button type="button" id="tiktokRenamePromptPresetBtn" class="tiktok-prompt-tool-btn btn-rename" title="Đổi tên prompt mẫu đang chọn">
+                          <span>✏️</span> Đổi Tên
+                        </button>
+                        <button type="button" id="tiktokDeletePromptPresetBtn" class="tiktok-prompt-tool-btn btn-delete" title="Xóa prompt mẫu đang chọn">
+                          <span>🗑️</span> Xóa
+                        </button>
+                      </div>
                     </div>
                   </div>
-                  <textarea name="tiktokCaptionPrompt" id="tiktokCaptionPrompt" rows="3" placeholder="Ví dụ: Viết tiêu đề và caption TikTok hấp dẫn, giật tít, kích thích người xem tương tác (thả tim, bình luận) và tò mò xem hết video. Viết ngắn gọn dưới 150 ký tự kèm kêu gọi hành động..." style="width: 100%; box-sizing: border-box; padding: 10px 12px; font-size: 0.86rem; line-height: 1.5; background: #0f172a; border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; color: #f8fafc; resize: vertical; outline: none;"></textarea>
+                  <textarea name="tiktokCaptionPrompt" id="tiktokCaptionPrompt" rows="3" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off" placeholder="Nhập câu lệnh prompt để AI Gemini viết caption và tiêu đề video TikTok bám sát theo yêu cầu..."></textarea>
                 </div>
                 <p class="helper-text" style="margin-top: 6px; font-size: 12px; opacity: 0.75;">
                   💡 <em>Gợi ý: Chế độ <strong>Phân bổ ngẫu nhiên 1:1</strong> đảm bảo khi có 10 video và 10 kênh, mỗi kênh sẽ nhận 1 video duy nhất với tiêu đề và caption riêng biệt do AI tạo, tránh trùng lặp nội dung tuyệt đối.</em>
@@ -860,6 +862,72 @@
             </button>
             <button type="button" class="secondary tiktok-btn-sm" id="closeTikTokHistoryModalBtn2" style="white-space: nowrap; min-width: 90px; height: 38px; padding: 0 16px;">Đóng</button>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TIKTOK PUBLISH COMPLETED POPUP MODAL (PROMINENT FOR ADMIN) -->
+    <div id="tiktokPublishCompleteModal" class="tiktok-modal-backdrop hidden">
+      <div class="tiktok-modal-card publish-complete-card">
+        <div class="tiktok-modal-header" style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.18), rgba(14, 165, 233, 0.18)) !important; border-bottom: 1px solid rgba(16, 185, 129, 0.3) !important;">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <span style="font-size: 2rem;">🎉</span>
+            <div>
+              <h3 class="tiktok-modal-title" style="color: #10b981; font-size: 1.25rem; font-weight: 800;">
+                Hoàn Tất Đăng Video TikTok!
+              </h3>
+              <div class="tiktok-modal-subtitle" id="tiktokCompleteModalSubtitle" style="font-size: 0.85rem; color: var(--muted); margin-top: 2px;">
+                Tất cả các kênh TikTok đã chọn đã được xử lý xuất bản hoàn tất 100%.
+              </div>
+            </div>
+          </div>
+          <button type="button" id="closeTikTokCompleteModalBtn" class="tiktok-modal-close" title="Đóng">&times;</button>
+        </div>
+
+        <div class="tiktok-modal-body" style="padding: 20px 24px;">
+          <!-- Highlight stats row -->
+          <div class="complete-stats-row">
+            <div class="complete-stat-badge">
+              <span class="stat-icon">🎯</span>
+              <div class="stat-info">
+                <div class="stat-label">Tổng Kênh Đã Đăng</div>
+                <strong class="stat-val" id="tiktokCompleteStatChannels">0 Kênh</strong>
+              </div>
+            </div>
+            <div class="complete-stat-badge">
+              <span class="stat-icon">💾</span>
+              <div class="stat-info">
+                <div class="stat-label">Chế Độ Xuất Bản</div>
+                <strong class="stat-val" id="tiktokCompleteStatMode">Bản Nháp</strong>
+              </div>
+            </div>
+            <div class="complete-stat-badge success">
+              <span class="stat-icon">✅</span>
+              <div class="stat-info">
+                <div class="stat-label">Trạng Thái</div>
+                <strong class="stat-val" id="tiktokCompleteStatStatus">100% Hoàn Thành</strong>
+              </div>
+            </div>
+          </div>
+
+          <!-- List of published items -->
+          <div class="complete-details-box">
+            <div class="complete-details-header">
+              <span>📋 Chi tiết video & kênh đã xuất bản:</span>
+            </div>
+            <div id="tiktokCompleteDetailsList" class="complete-details-list">
+              <!-- Injected dynamically by JS -->
+            </div>
+          </div>
+        </div>
+
+        <div class="tiktok-modal-footer" style="justify-content: space-between; gap: 14px; padding: 14px 24px;">
+          <button type="button" class="tiktok-modal-btn secondary" id="tiktokCompleteViewHistoryBtn" style="min-width: 170px;">
+            <span>📜</span> Mở Xem Lịch Sử Đã Đăng
+          </button>
+          <button type="button" class="tiktok-modal-btn primary" id="tiktokCompleteConfirmBtn" style="min-width: 170px;">
+            <span>✨</span> Tuyệt Vời / Đã Xong
+          </button>
         </div>
       </div>
     </div>

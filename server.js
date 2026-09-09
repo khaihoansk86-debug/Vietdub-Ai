@@ -524,8 +524,8 @@ app.post('/api/tiktok/warehouse/distribute', async (req, res) => {
       captionPrompt,
       distributionStrategy,
       channelDelaySeconds,
-      geminiApiKey: req.body?.geminiApiKey || GEMINI_API_KEY,
-      geminiModel: req.body?.geminiModel || GEMINI_MODEL,
+      geminiApiKey: String(req.body?.geminiApiKey || process.env.GEMINI_API_KEY || '').trim(),
+      geminiModel: String(req.body?.geminiModel || process.env.GEMINI_MODEL || 'gemini-3.8-flash').trim(),
       logCallback: (msg) => {
         console.log(msg);
         broadcastWarehouseLog(msg);
