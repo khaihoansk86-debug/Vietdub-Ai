@@ -1,0 +1,271 @@
+# 📘 TÀI LIỆU BÀN GIAO DỰ ÁN TOÀN DIỆN (HANDOFF FOR CODEX AGENT)
+# DỰ ÁN: VIETDUB AI STUDIO PRO (v2.0.0)
+
+> **Dành cho Agent tiếp quản (Codex / Antigravity Agent):**
+> Tài liệu này mô tả toàn bộ kiến trúc, logic nghiệp vụ, cấu trúc mã nguồn, quy trình tự động hóa và các hướng dẫn vận hành của dự án **VietDub AI Studio Pro**. Đọc kỹ tài liệu này trước khi thực hiện bất kỳ chỉnh sửa nào trên codebase.
+
+---
+
+## 📌 1. THÔNG TIN ĐỊNH DANH & MÔI TRƯỜNG DỰ ÁN
+
+* **Tên ứng dụng:** VietDub AI Studio Pro
+* **Phiên bản hiện tại:** `2.0.0` (Mã commit mới nhất: `dfd6b4a`)
+* **Thư mục làm việc cốt lõi (Workspace):** `D:\Project Anti\Vietdub AI`
+* **Kho lưu trữ GitHub (Remote):** `https://github.com/khaihoansk86-debug/Vietdub-Ai.git` (Nhánh chính: `main`)
+* **Trang GitHub Releases:** `https://github.com/khaihoansk86-debug/Vietdub-Ai/releases/tag/v2.0.0`
+* **Thư mục dữ liệu AppData thực tế trên Windows:**
+  `C:\Users\datdt\AppData\Roaming\vietdub-ai-local\data`
+* **Kho video nguồn thử nghiệm:** `G:\My Drive\VietDubAI` *(LƯU Ý QUAN TRỌNG: TUYỆT ĐỐI KHÔNG XÓA HOẶC SỬA FILE TRONG THƯ MỤC NÀY)*.
+
+---
+
+## 🏛️ 2. TỔNG QUAN KIẾN TRÚC HỆ THỐNG (SYSTEM ARCHITECTURE)
+
+VietDub AI là ứng dụng hybrid kết hợp giữa **Node.js Express Server**, **Electron Desktop Shell**, **Vanilla JS SPA** và **Playwright Automation Engine**:
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│                     VIETDUB AI STUDIO PRO (v2.0.0)                     │
+├───────────────────────────────┬────────────────────────────────────────┤
+│  FRONTEND (Vanilla JS SPA)    │  DESKTOP SHELL (Electron 42.x)         │
+│  - public/index.html          │  - electron/main.cjs                   │
+│  - public/app.js              │  - System Tray, Window Management      │
+│  - public/style.css           │  - Native File Dialogs                 │
+├───────────────────────────────┴────────────────────────────────────────┤
+│  BACKEND SERVER (Node.js ESM + Express.js - Port 3210)                 │
+│  - server.js (REST API, SSE Realtime Log Stream, Task Queue)           │
+├───────────────────────────────┬────────────────────────────────────────┤
+│  MEDIA PROCESSING MODULE      │  TIKTOK BULK PUBLISHER AUTOMATION      │
+│  - FFmpeg (ffmpeg-static)     │  - services/tiktokPublisher.js         │
+│  - yt-dlp (yt-dlp-exec)       │  - Playwright-Core (System Chrome)     │
+│  - Whisper / Gemini Speech    │  - Isolated User Data Profiles         │
+│  - Edge-TTS / Kokoro / Gemini │  - Anti-Duplicate Binary Fingerprinting │
+│  - Subtitle Alignment & Remux │  - 1:1 Warehouse Smart Distribution    │
+│                               │  - Locked Public Post Engine           │
+└───────────────────────────────┴────────────────────────────────────────┘
+```
+
+---
+
+## ⚙️ 3. CÁC MODULE CHỨC NĂNG & LOGIC CỐT LÕI (CORE MODULES)
+
+### 🚀 MODULE 1: TỰ ĐỘNG HÓA ĐĂNG BÀI TIKTOK THƯƠNG MẠI (`services/tiktokPublisher.js`)
+
+Đây là module phức tạp và quan trọng nhất của hệ thống, phục vụ mục đích thương mại có thể quản lý số lượng lớn tài khoản TikTok và số lượng lớn video trong kho:
+
+#### 1. Quản Lý Đa Kênh & Cách Ly Profile (Multi-Account Isolation)
+- Mỗi tài khoản TikTok có một thư mục Profile Chrome riêng biệt trong AppData:
+  `data/tiktok_profiles/<account_id>`
+- Phiên làm việc (Cookies, LocalStorage, Cache) của các kênh hoàn toàn độc lập, không bao giờ bị đè phiên hay xung đột.
+- Tự động xóa file `SingletonLock` trước khi mở Chrome để chống lỗi lock trình duyệt khi bị tắt đột ngột.
+- Hỗ trợ đăng nhập qua 3 chế độ: Google/Gmail OAuth, SĐT/Email, và Quét mã QR (`launchBrowserForLogin`).
+- Tự động trích xuất `@username` và tên hiển thị kênh từ Chrome History và SQLite Cookies (`syncChannelUsername`).
+
+#### 2. Phân Bổ Kho Video 1:1 Độc Quyền (`distributeWarehouseVideos`)
+- Quét kho video định dạng `.mp4`, `.mov`, `.mkv`, `.webm`, `.avi` (`scanWarehouseVideos`).
+- **Chống trùng 2 lớp (`isAlreadyPublished`):** 
+  - Tính mã băm `SHA-256` của phần Header + Footer + File Size (`computeVideoFingerprint`).
+  - Đối chiếu với lịch sử `tiktok_publish_history.json`. Dù người dùng đổi tên file, tool vẫn nhận diện chính xác và bỏ qua.
+- **Phân phối 1:1 (`distinct_random`):**
+  - Xáo trộn danh sách video mới bằng thuật toán Fisher-Yates.
+  - Lấy `limit = Math.min(shuffledVideos.length, selectedAccounts.length)`.
+  - **Mỗi kênh nhận đúng 1 video riêng biệt**, tuyệt đối không trùng video trong 1 lượt chạy.
+  - Các video còn lại trong kho được giữ nguyên trạng thái "Video mới" (Fresh) cho các đợt chạy tiếp theo.
+
+#### 3. Trí Tuệ Nhân Tạo Sinh Nội Dung Độc Bản (AI Metadata Engine)
+- **Tự động nhận diện ngữ cảnh video thực tế (`resolveVideoContext`):**
+  - Tích hợp `yt-dlp-exec`: Nếu tên file chứa YouTube ID (ví dụ: `youtube_NPobjvv2zrs.mp4`), hệ thống tự động fetch tiêu đề gốc tiếng Việt có dấu chuẩn UTF-8 trong 1-2 giây.
+  - Tự động đọc file phụ đề hoặc transcript kèm theo (`.srt`, `.vtt`, `.txt`).
+- **Tạo Metadata độc bản (`generateTikTokMetadata`):**
+  - Truyền `accountName` và `accountUsername` vào prompt để định hình phong cách cho từng kênh.
+  - Bổ sung quy tắc chống rập khuôn nghiêm ngặt, cấm các câu mở đầu sáo rỗng (*"Ủa alo..."*, *"Xem quả clip..."*).
+  - Sử dụng `temperature: 0.85` kèm random seed để mỗi lần sinh nội dung là hoàn toàn duy nhất.
+
+#### 4. Quy Trình Xuất Bản Khóa Mặc Định Đăng Công Khai (`handleTikTokPostSubmission`)
+> [!IMPORTANT]
+> **Quy tắc bất biến:** Toàn bộ hệ thống (UI, API, Engine) **ĐÃ LOẠI BỎ TRIỆT ĐỂ** chế độ "Lưu nháp" và "Chỉ mình tôi". Mặc định **100% là Đăng Công Khai (Public Post)**.
+
+- **Giải phóng Popup Hashtag Autocomplete:**
+  - Sau khi gõ Caption & Hashtag vào editor, tool lập tức gửi chuỗi lệnh:
+    `page.keyboard.press('Space')` $\rightarrow$ `Escape` $\rightarrow$ `Escape` $\rightarrow$ `document.activeElement.blur()`.
+  - Giúp đóng ngay menu gợi ý hashtag của TikTok Studio, ngăn chặn việc menu che khuất nút Đăng ở chân trang.
+- **Định vị nút Post chuẩn xác:**
+  - Cuộn trang xuống đáy: `window.scrollTo(0, document.body.scrollHeight)`.
+  - Tìm nút Post submit chân trang bằng `getByRole('button', { name: /^(Post|Đăng)$/i, exact: true })`, loại trừ hoàn toàn menu "Posts" ở thanh sidebar.
+- **Chờ Upload 100%:**
+  - Chờ nút Post sáng lên (`isEnabled()`) với thời gian chờ tối ưu lên đến **90 giây** (hỗ trợ video dung lượng lớn).
+- **Vượt qua cảnh báo kiểm tra bản quyền TikTok Studio:**
+  - Tự động bắt hộp thoại *"Continue to post? The copyright check is incomplete..."* và click ngay nút **"Post now" / "Đăng ngay"** (`postNowByRole = page.getByRole('button', { name: /^(Post now|Đăng ngay|Post anyway|Vẫn đăng)$/i })`).
+- **Cơ chế xác minh 2 lớp (Double-Check Confirmation):**
+  - Sau khi bấm Post, nếu sau 30 giây trình duyệt chưa chuyển trang, tool tự động điều hướng sang `https://www.tiktok.com/tiktokstudio/content?tab=post` để kiểm tra danh sách bài đăng thực tế.
+  - Chỉ khi video đã hiển thị trên kênh mới đánh dấu `status: 'success'` và lưu vào lịch sử. Nếu không, báo lỗi rõ ràng và giữ video lại trong kho.
+- **Giải phóng tài nguyên tuần tự:**
+  - Chạy tuần tự từng kênh: Mở Chrome $\rightarrow$ Đăng $\rightarrow$ Đóng Chrome giải phóng RAM $\rightarrow$ Chờ delay giữa các kênh (`channelDelaySeconds`, mặc định 6-20s) $\rightarrow$ Mở kênh kế tiếp. Giúp máy tính chạy 50-100 kênh mà RAM luôn ổn định dưới 800MB.
+
+---
+
+### 🎬 MODULE 2: PIPELINE XỬ LÝ VIDEO & LỒNG TIẾNG (`services/videoProcessor.js` & `server.js`)
+
+Quy trình tự động hóa tải, dịch, tạo giọng nói và dựng video:
+1. **Download:** Tải video từ YouTube / Link trực tiếp qua `yt-dlp`.
+2. **Audio Extraction:** Tách luồng âm thanh gốc bằng `ffmpeg` (`-vn -acodec pcm_s16le`).
+3. **Voice Separation / Whisper:** Nhận diện lời thoại thành các cue thời gian (timestamps).
+4. **Translation (Gemini API):** Dịch phụ đề sang tiếng Việt tự nhiên, chuẩn văn phong hội thoại.
+5. **Text-To-Speech (TTS):** 
+   - Hỗ trợ Edge-TTS (miễn phí, chất lượng cao: `vi-VN-HoaiMyNeural`, `vi-VN-NamMinhNeural`), Kokoro TTS hoặc Gemini TTS.
+   - Cơ chế căn chỉnh nhịp độ tự động (`MAX_TTS_TEMPO = 1.30`) để khớp khẩu hình và thời lượng từng đoạn câu.
+6. **Video Rendering (FFmpeg Remuxing):**
+   - Ghép âm thanh lồng tiếng mới, làm nhỏ âm thanh nền gốc (ducking), xuất video 1080x1920 60fps chuẩn TikTok/Reels/Shorts.
+
+---
+
+### 💻 MODULE 3: GIAO DIỆN & TƯƠNG TÁC NGƯỜI DÙNG (`public/`)
+
+- **Kiến trúc Accordion:** Giao diện chia thành các phân vùng chính có thể thu gọn / phóng to để người dùng không bị rối:
+  1. *Cấu hình API & Giọng đọc AI*
+  2. *Kho Video Tự Động (Warehouse Manager)*
+  3. *Quản Lý Kênh TikTok (Channel Multi-Account Manager)*
+  4. *Quản Lý Prompt Mẫu Bài Viết (Prompt Presets Manager)*
+  5. *Terminal Log Realtime (SSE Stream)*
+- **Realtime Logs:** Kết nối Server-Sent Events `/api/logs/stream` giúp người dùng theo dõi từng hành động của bot trực tiếp trên màn hình.
+- **Custom Modals:** Toàn bộ popup thông báo (xác nhận phân phối, thêm kênh, đổi tên kênh, thông báo hoàn thành) đều dùng HTML/CSS modal chuyên nghiệp, không dùng `alert()` hay `confirm()` nguyên thủy của trình duyệt.
+
+---
+
+## 📁 4. CẤU TRÚC THƯ MỤC CHI TIẾT (PROJECT DIRECTORY TREE)
+
+```
+D:\Project Anti\Vietdub AI\
+├── .github/
+│   └── workflows/
+│       └── build.yml               # GitHub Actions CI/CD (Build Windows NSIS & macOS DMG khi push tag v*)
+├── electron/
+│   └── main.cjs                    # Entry point Electron Desktop, quản lý lifecycle, dialog, tray
+├── public/
+│   ├── index.html                  # Giao diện chính của ứng dụng SPA
+│   ├── app.js                      # Logic client-side, event listeners, API fetch, SSE logs, modals
+│   └── style.css                   # Toàn bộ CSS giao diện, Dark theme hiện đại, Responsive
+├── services/
+│   ├── tiktokPublisher.js          # Trái tim module TikTok Publisher & Studio Automation
+│   ├── videoProcessor.js           # Xử lý video, Whisper, FFmpeg remuxing
+│   ├── audioService.js             # Xử lý TTS, Edge-TTS, căn chỉnh tempo
+│   └── geminiService.js            # Tích hợp Google Gemini API
+├── dist/                           # Thư mục chứa các file build phát hành (.exe, .blockmap)
+│   ├── VietDub-AI-Setup-2.0.0.exe  # Bộ cài đặt Windows chính thức v2.0.0 (~143 MB)
+│   └── win-unpacked/               # Bản unpacked portable để chạy thử nhanh
+├── data/                           # Thư mục dữ liệu runtime dự phòng (nếu không có AppData)
+├── package.json                    # Cấu hình dự án, electron-builder, dependencies, scripts
+├── server.js                       # Express Server trung tâm (Port 3210), REST API routes, job queue
+├── handoff.md                      # Tài liệu bàn giao này
+└── walkthrough.md                  # Nhật ký nghiệm thu và kiểm thử các đợt cập nhật
+```
+
+---
+
+## 💾 5. DỮ LIỆU LƯU TRỮ TRÊN MÁY TÍNH (APPDATA RUNTIME)
+
+Khi ứng dụng chạy trên Windows, toàn bộ dữ liệu cấu hình và phiên đăng nhập được lưu tại:
+`C:\Users\datdt\AppData\Roaming\vietdub-ai-local\data\`
+
+Các file và thư mục quan trọng bên trong:
+1. **`tiktok_accounts.json`**: Mảng JSON chứa danh sách các tài khoản TikTok đã thêm:
+   ```json
+   [
+     {
+       "id": "acc_1788927499861",
+       "name": "Kênh TikTok 1",
+       "username": "@khanhle5842",
+       "folder": "tiktok_profiles/acc_1788927499861",
+       "selected": true,
+       "loggedIn": true
+     }
+   ]
+   ```
+2. **`tiktok_publish_history.json`**: Lịch sử các video đã đăng thành công, dùng để chống trùng:
+   ```json
+   [
+     {
+       "id": "pub_1789002598811",
+       "fileName": "youtube_NPobjvv2zrs.mp4",
+       "fileHash": "9b12a8...f42",
+       "videoPath": "G:\\My Drive\\VietDubAI\\youtube_NPobjvv2zrs.mp4",
+       "accountId": "acc_1788927499861",
+       "accountName": "Kênh TikTok 1",
+       "accountUsername": "@khanhle5842",
+       "caption": "...",
+       "hashtags": ["#fyp", "#xuhuong"],
+       "postMode": "public",
+       "publishedAt": "2026-09-10T01:10:00.000Z",
+       "status": "success"
+     }
+   ]
+   ```
+3. **`tiktok_profiles/`**: Thư mục chứa từng Chrome User Data Directory riêng biệt cho từng kênh.
+
+---
+
+## 🛠️ 6. CÁC LỆNH VẬN HÀNH, TEST & DEPLOY (COMMAND CHEATSHEET)
+
+### 1. Khởi động và kiểm tra mã nguồn
+```powershell
+# Di chuyển vào thư mục dự án
+cd "D:\Project Anti\Vietdub AI"
+
+# Kiểm tra cú pháp toàn bộ file quan trọng (không được có lỗi cú pháp)
+npm run check
+
+# Khởi chạy Express Backend độc lập
+npm start
+
+# Khởi chạy ứng dụng dạng Desktop (Electron)
+npm run desktop
+```
+
+### 2. Đóng gói bộ cài đặt (Build Release)
+```powershell
+# Build bộ cài đặt Windows (File sinh ra tại dist/VietDub-AI-Setup-2.0.0.exe)
+npm run build:win
+
+# Build bộ cài đặt macOS (Chỉ chạy được trên môi trường macOS thật hoặc qua GitHub Actions)
+npm run build:mac
+```
+
+### 3. Quy trình Đẩy Code, Cập Nhật Tag & Kích Hoạt CI/CD Tự Động
+Hệ thống sử dụng GitHub Actions (`.github/workflows/build.yml`) để tự động đóng gói cả **Windows (`.exe`)** và **macOS (`.dmg` arm64)** mỗi khi cập nhật Git Tag:
+
+```powershell
+# 1. Kiểm tra trạng thái git
+git status
+
+# 2. Stage và commit thay đổi
+git add .
+git commit -m "feat(module): mô tả tính năng hoặc bản sửa lỗi"
+
+# 3. Đẩy code lên nhánh main
+git push origin main
+
+# 4. Cập nhật và đẩy đè Git Tag để kích hoạt GitHub Actions build macOS + Windows
+git tag -f v2.0.0 HEAD
+git push origin v2.0.0 --force
+
+# 5. Theo dõi tiến trình build CI/CD trên GitHub
+gh run list
+gh run view <run-id>
+```
+
+---
+
+## 🎯 7. LƯU Ý KỸ THUẬT QUAN TRỌNG CHO CODEX AGENT
+
+1. **Tuyệt đối không khôi phục chế độ Lưu Nháp / Đăng Chỉ Mình Tôi:**
+   - Khách hàng đã yêu cầu chuẩn hóa toàn diện cho thương mại: 100% video xuất bản phải là **Đăng Công Khai (Public Post)**.
+2. **Quy tắc bảo vệ kho video nguồn:**
+   - Tuyệt đối không xóa, di chuyển hay sửa đổi file trong `G:\My Drive\VietDubAI` hoặc các thư mục kho video của người dùng. Mọi thao tác chỉ là đọc (`read-only`).
+3. **Bẫy Hashtag Autocomplete trên TikTok Studio:**
+   - Bất cứ khi nào can thiệp vào logic gõ caption/hashtags, **bắt buộc** phải giữ nguyên khối lệnh gửi phím `Space`, `Escape`, `Escape` và `blur()`. Nếu bỏ khối này, popup gợi ý của TikTok sẽ che mất nút Đăng và làm treo tiến trình submit.
+4. **Trình duyệt Chrome:**
+   - Hệ thống ưu tiên khởi chạy Google Chrome thật của máy tính (`channel: 'chrome'`) với các cờ bypass automation detection (`--disable-infobars`, cờ evasions). Không được chuyển sang Chromium headless vì TikTok Studio sẽ chặn ngay lập tức.
+5. **Danh sách Skills nên sử dụng khi làm việc tiếp:**
+   - `error-handling`: Khi cần bổ sung cơ chế retry hoặc bắt lỗi mạng/DOM.
+   - `ui-ux-pro-max`: Khi cần tinh chỉnh giao diện người dùng, màu sắc, bố cục CSS.
+   - `agent-introspection-debugging`: Khi cần tự chẩn đoán và phân tích nguyên nhân lỗi logic.
