@@ -41,6 +41,8 @@ try {
   assert.equal(await page.title(), 'VietDub AI Studio');
   assert.equal(await page.locator('#pubRunSelect').count(), 0);
   assert.equal(await page.locator('#viewPublish').isVisible(), true);
+  await page.route('**/api/tiktok/accounts/*/login', route => route.fulfill({ contentType: 'application/json', body: JSON.stringify({ ok: true, message: 'Opening Studio' }) }));
+  await page.locator('.tiktok-studio-btn').first().click();
   assert.equal(await page.locator('#tiktokAutoUpload').count(), 0);
   assert.equal(await page.locator('select[name="tiktokDistributionStrategy"]').count(), 0);
   assert.equal(await page.locator('.publish-policy').count(), 3);
@@ -67,6 +69,7 @@ try {
   assert.equal(await page.locator('#warehouseDistributeBtn').isDisabled(), true);
   for (const width of [375, 768, 1024, 1440, 1920, 2560]) {
     await page.setViewportSize({ width, height: 900 });
+    if (width >= 1440) assert.ok(await page.locator('.shell').evaluate(el => el.getBoundingClientRect().width > innerWidth - 40), 'Shell must expand with window');
     if (width >= 1200) assert.equal(await page.evaluate(() => document.querySelector('.view-tabs').getBoundingClientRect().right <= document.querySelector('.topbar').getBoundingClientRect().left), true, 'Sidebar overlap at ' + width);
     for (const view of ['publish', 'process', 'settings']) {
       await page.locator(`button[data-view="${view}"]`).click();
@@ -79,6 +82,9 @@ try {
   let refreshCalls = 0;
   await page.route('**/api/tiktok/history/refresh', route => { refreshCalls++; return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ok:true,updated:0,errors:[]}) }); });
   posting = false;
+  await page.locator('#tiktokPublishCompleteModal').waitFor({ state: 'visible' });
+  assert.match(await page.locator('#tiktokCompleteModalSubtitle').innerText(), /1 TikTok đang xử lý/);
+  await page.locator('#tiktokCompleteViewHistoryBtn').click();
   await page.locator('#tiktokHistoryModal').waitFor({ state: 'visible' });
   assert.match(await page.locator('#tiktokHistoryListContainer').innerText(), /TikTok đang xử lý/);
   assert.match(await page.locator('#tiktokViewHistoryBtn').innerText(), /\(1\)/);

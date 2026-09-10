@@ -1807,7 +1807,7 @@ document.querySelectorAll('.tiktok-login-option-btn').forEach((btn) => {
   });
 });
 
-async function executeTikTokLogin(id, mode = 'all') {
+async function executeTikTokLogin(id, mode = 'all', silent = false) {
   try {
     const res = await fetch(`/api/tiktok/accounts/${id}/login`, {
       method: 'POST',
@@ -1815,7 +1815,7 @@ async function executeTikTokLogin(id, mode = 'all') {
       body: JSON.stringify({ mode })
     });
     const data = await res.json();
-    alert(data.message || 'Đang mở Google Chrome. Bạn hãy hoàn tất đăng nhập tài khoản trên trình duyệt.\n\nSau khi đăng nhập thành công, hãy đóng cửa sổ Chrome lại (hoặc bấm "Lưu Kênh") để ứng dụng hoàn tất lưu tài khoản!');
+    if (!silent || !res.ok) alert(data.message || 'Đang mở Google Chrome. Bạn hãy hoàn tất đăng nhập tài khoản trên trình duyệt.\n\nSau khi đăng nhập thành công, hãy đóng cửa sổ Chrome lại (hoặc bấm "Lưu Kênh") để ứng dụng hoàn tất lưu tài khoản!');
 
     let attempts = 0;
     const interval = setInterval(async () => {
@@ -1937,7 +1937,7 @@ function attachTikTokAccountListeners() {
   tiktokAccountsContainer.querySelectorAll('.tiktok-studio-btn').forEach((btn) => {
     btn.addEventListener('click', async () => {
       const id = btn.dataset.id;
-      await executeTikTokLogin(id, 'all');
+      await executeTikTokLogin(id, 'all', true);
     });
   });
 
@@ -2341,6 +2341,7 @@ function showPublishCompleteModal(result) {
   const successItems = items.filter((it) => it.status === 'success');
   const successCount = successItems.length;
   const errorCount = total - successCount;
+  const processingCount = items.filter(it => it.status === 'processing').length;
 
   // Post mode display
   const postModeVal = document.querySelector('#tiktokPostMode')?.value || 'public';
@@ -2352,7 +2353,7 @@ function showPublishCompleteModal(result) {
   const modeText = modeLabels[postModeVal] || '🚀 Đăng Công Khai';
 
   if (tiktokCompleteStatChannels) {
-    tiktokCompleteStatChannels.textContent = `${successCount}/${total} Kênh`;
+    tiktokCompleteStatChannels.textContent = `${successCount + processingCount}/${total} kênh đã gửi`;
   }
   if (tiktokCompleteStatMode) {
     tiktokCompleteStatMode.textContent = modeText;
@@ -2368,8 +2369,10 @@ function showPublishCompleteModal(result) {
     }
   }
   if (tiktokCompleteModalSubtitle) {
-    tiktokCompleteModalSubtitle.textContent = `Hệ thống đã hoàn tất tiến trình xuất bản cho ${total} kênh TikTok theo đúng kịch bản thiết lập.`;
+    tiktokCompleteModalSubtitle.textContent = total ? `${successCount} công khai · ${processingCount} TikTok đang xử lý · ${total - successCount - processingCount} cần kiểm tra.` : 'Không có video mới để đăng. Thêm clip vào kho rồi thử lại.';
   }
+  tiktokCompleteStatStatus?.closest('.complete-stat-badge')?.classList.toggle('success', total > 0 && successCount === total);
+  if (tiktokCompleteStatStatus) tiktokCompleteStatStatus.textContent = !total ? 'Chưa có clip mới' : processingCount ? 'Đã gửi · Còn bài đang xử lý' : errorCount ? 'Hoàn tất · Cần kiểm tra' : 'Hoàn thành';
 
   // Render detail rows
   if (tiktokCompleteDetailsList) {
@@ -2377,9 +2380,9 @@ function showPublishCompleteModal(result) {
       tiktokCompleteDetailsList.innerHTML = `<div style="text-align: center; color: var(--muted); padding: 16px;">Không có video nào được đăng trong lượt này.</div>`;
     } else {
       tiktokCompleteDetailsList.innerHTML = items.map((it) => {
-        const isSuccess = it.status === 'success';
+        const isSuccess = ['success', 'processing'].includes(it.status);
         const badgeClass = isSuccess ? 'tag-badge success' : 'tag-badge error';
-        const badgeIcon = isSuccess ? '✅ Thành công' : '❌ Lỗi';
+        const badgeIcon = it.status === 'processing' ? '⏳ Đã gửi · Đang xử lý' : isSuccess ? '✅ Công khai' : '⚠️ Cần kiểm tra';
         return `
           <div class="complete-detail-item" style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: var(--bg-card); border: 1px solid var(--line); border-radius: 8px; margin-bottom: 8px; gap: 12px;">
             <div style="display: flex; align-items: center; gap: 10px; min-width: 0;">

@@ -36,7 +36,7 @@
       $('directPostLogs').textContent = state.logs.join('\n');
       if (finished) {
         await scanWarehouse();
-        if (state.results?.some(result => ['success', 'processing'].includes(result.status))) await openTikTokHistoryModal();
+        showPublishCompleteModal(state);
       }
     } catch (error) { notice(error.message); }
     controls();

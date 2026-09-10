@@ -1,3 +1,10 @@
+# Bản 2.2.3
+
+- Shell không giới hạn max-width; sidebar left 16px, chiều rộng cố định, không cộng lề căn giữa.
+- executeTikTokLogin thêm silent cho nút Studio. Popup đăng xong dùng showPublishCompleteModal thay mở lịch sử ngay.
+- Popup phân biệt processing/success, không tô thành công nếu thiếu clip; có nút mở lịch sử.
+- Motion CSS trong prefers-reduced-motion: no-preference. Test giãn cửa sổ tới 2560px và popup hoàn tất.
+
 # Bản 2.2.2
 
 - Shell giới hạn 1440px và sidebar dùng cùng mốc căn giữa. Không có media mở rộng sidebar.

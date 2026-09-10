@@ -1,3 +1,12 @@
+# VietDub AI Studio 2.2.3 — Giao diện giãn cửa sổ
+
+- Nội dung giãn theo chiều rộng cửa sổ, thanh bên giữ lề 16px.
+- Mở Studio không hiện thông báo xác nhận thành công; lỗi vẫn được báo.
+- Popup tổng kết khi đăng kết thúc, phân biệt công khai, đang xử lý, lỗi và kho trống.
+- Hiệu ứng xuất hiện nhẹ, hỗ trợ giảm chuyển động. Giữ nguyên logic upload/dịch/TTS.
+
+---
+
 # VietDub AI Studio 2.2.2 — Bố cục gọn và cân đối
 
 - Căn giữa khung app 1440px, thanh bên di chuyển cùng lề nội dung trên màn hình lớn.
