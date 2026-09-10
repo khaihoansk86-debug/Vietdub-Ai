@@ -1,3 +1,4 @@
+import { findSimilarCaption } from './captionDiversity.js';
 export class DirectPublisher {
   constructor(deps) { this.deps = deps; this.state = { busy: false, message: 'Sẵn sàng đăng video.', logs: [], results: [] }; }
   log(message) {
@@ -26,6 +27,7 @@ export class DirectPublisher {
       const j = Math.floor(Math.random() * (i + 1));
       [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
     }
+    const usedCaptions = (this.deps.history?.() || []).map(entry => entry.caption).filter(Boolean);
     const seen = new Set();
     let index = 0;
     for (const account of accounts) {
@@ -42,12 +44,26 @@ export class DirectPublisher {
       try {
         this.log(`${account.name}: AI đang viết content theo prompt…`);
         let meta;
-        for (let attempt = 0; attempt < 2; attempt++) {
-          try { meta = await this.deps.metadata(video, account, options); break; }
-          catch (error) { if (attempt || /API key|cấu hình/i.test(error.message)) throw error; this.log(`${account.name}: thử lại tạo content AI…`); await this.deps.delay(2000); }
+        for (let attempt = 0; attempt < 4; attempt++) {
+          try {
+            meta = await this.deps.metadata(video, account, { ...options, avoidCaptions: usedCaptions.slice(-60), variationAttempt: attempt });
+            const duplicate = findSimilarCaption(meta.caption, usedCaptions);
+            if (duplicate) {
+              usedCaptions.push(duplicate, meta.caption);
+              const error = new Error('AI vẫn viết nội dung gần trùng bài trước. Clip chưa được upload; thử lại để tạo nội dung mới.');
+              error.code = 'DUPLICATE_CAPTION';
+              throw error;
+            }
+            break;
+          } catch (error) {
+            if (attempt === 3 || /API key|cấu hình/i.test(error.message) || error.code !== 'DUPLICATE_CAPTION' && attempt >= 1) throw error;
+            this.log(`${account.name}: ${error.code === 'DUPLICATE_CAPTION' ? 'caption gần trùng, AI đang viết lại với cách mở đầu và triển khai khác' : 'thử lại tạo content AI'}…`);
+            await this.deps.delay(1000);
+          }
         }
         if (!meta.caption?.trim() || !Array.isArray(meta.hashtags)) throw new Error('AI chưa tạo được nội dung hợp lệ.');
         if (meta.hashtags.some(tag => typeof tag !== 'string') || `${meta.caption} ${meta.hashtags.join(' ')}`.length > 2200) throw new Error('Content vượt 2.200 ký tự. Rút gọn prompt.');
+        usedCaptions.push(meta.caption);
         this.log(`${account.name}: đang upload và đăng ${video.name}…`);
         let result, submitting = false;
         for (let attempt = 0; attempt < 2; attempt++) {

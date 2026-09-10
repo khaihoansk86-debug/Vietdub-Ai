@@ -181,7 +181,7 @@ test('caption uses prompt without transcript, accepts legacy context flag with v
     const result = await generateTikTokMetadata([{ text: 'Tưới cây vào buổi sáng.' }], 'Chăm sóc vườn', opts);
     assert.deepEqual(result.hashtags, ['#cay']);
     assert.match(body.contents[0].parts[0].text, /Không bịa/);
-    assert.equal(body.generationConfig.temperature, 0.35);
+    assert.equal(body.generationConfig.temperature, 0.7);
     assert.match(body.contents[0].parts[0].text, /Không từ chối chỉ vì thiếu phụ đề/);
     globalThis.fetch = async () => { calls++; return { ok: true, json: async () => ({ candidates: [{ content: { parts: [{ text: '{"needsContext":true,"caption":"Một góc nhìn nhẹ nhàng cho hôm nay.","hashtags":[]}' }] } }] }) }; };
     calls = 0;

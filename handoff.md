@@ -368,3 +368,9 @@ Validation: npm run check, npm test (27), npm run test:ui (bao gồm chọn/xóa
 - Bảng lịch sử rộng theo cửa sổ; cột kênh/ngày giờ/trạng thái cố định, caption hiển thị nguyên văn không thêm khoảng trắng template, nền đặc và chữ theo theme. Hashtag rõ chữ, badge không ngắt dòng, nội dung dài cuộn trong modal.
 - Áp dụng cho caption tạo mới; không sửa caption bài đã đăng hoặc lịch sử cũ. Không đổi dịch/TTS/render, phân bổ 1:1 và Post/Post now.
 - Kiểm tra 29 test logic, UI sáng/tối với caption dài và tên Pharma, 7 DOM fixtures. Không đăng bài thật trong kiểm thử.
+
+
+## Cập nhật 2.2.7 — Chống caption trùng giữa các kênh/video
+Nút Đăng video kiểm tra caption với toàn bộ lịch sử local và nội dung đã tạo trong đợt hiện tại. Chuẩn hóa dấu câu, emoji, hashtag; phát hiện trùng chính xác, cùng 7 từ mở đầu hoặc độ giống cụm 2 từ >= 0.58. Gửi tối đa 60 caption cần tránh cho AI, yêu cầu thay cách mở đầu/cấu trúc trong cùng chủ đề prompt; không dùng tên kênh để đổi chủ đề. Tăng temperature lên 0.7.
+AI viết lại tối đa 4 lần. Nếu vẫn gần trùng, không upload clip đó và hiển thị lỗi. Không hứa phát hiện mọi cách diễn đạt cùng nghĩa; lịch sử đã xóa không còn được đối chiếu. Không thay caption bài cũ, dịch/TTS/render hoặc thao tác Post.
+Validation: 32 test logic; UI/DOM và smoke app đóng gói. Chưa đăng bài thật trong lần kiểm thử này.
