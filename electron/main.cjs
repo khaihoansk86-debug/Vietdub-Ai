@@ -5,6 +5,11 @@ const path = require('path');
 const { pathToFileURL } = require('url');
 
 let mainWindow;
+const hasInstanceLock = app.requestSingleInstanceLock();
+if (!hasInstanceLock) app.quit();
+app.on('second-instance', () => {
+  if (mainWindow) { if (mainWindow.isMinimized()) mainWindow.restore(); mainWindow.show(); mainWindow.focus(); }
+});
 
 function writeLog(msg) {
   try {
@@ -67,7 +72,7 @@ function createWindow(port) {
     minWidth: 1080,
     minHeight: 720,
     show: false,
-    title: '🤖 VietDub AI',
+    title: 'VietDub AI Studio',
     autoHideMenuBar: true,
     backgroundColor: '#edf3f6',
     webPreferences: {
@@ -90,7 +95,7 @@ function createWindow(port) {
   }, 2500);
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url);
+    if (/^https:\/\//i.test(url)) shell.openExternal(url);
     return { action: 'deny' };
   });
 
@@ -101,7 +106,7 @@ function createWindow(port) {
   mainWindow.loadURL(`http://127.0.0.1:${port}`);
 }
 
-app.whenReady().then(async () => {
+if (hasInstanceLock) app.whenReady().then(async () => {
   writeLog('app.whenReady fired.');
   try {
     writeLog('Starting local server...');

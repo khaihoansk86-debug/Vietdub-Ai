@@ -3,12 +3,13 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>VietDub AI Studio Pro v2.0 - Tải & Lồng Tiếng Video Hàng Loạt</title>
+    <title>VietDub AI — Studio xuất bản</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ctext y='50' font-size='48'%3E%F0%9F%A4%96%3C/text%3E%3C/svg%3E">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/style.css">
+    <link rel="stylesheet" href="/studio.css">
   </head>
   <body>
     <main class="shell">
@@ -22,9 +23,9 @@
             <div class="brand-info">
               <h1>
                 <span>VietDub AI</span>
-                <span class="pro-badge">PRO v2.0</span>
+                <span class="pro-badge">STUDIO 2.1</span>
               </h1>
-              <p>Studio Tải Video, Ghép Phụ Đề & Lồng Tiếng AI Hàng Loạt</p>
+              <p>Không gian sản xuất & xuất bản nội dung</p>
             </div>
           </div>
           <div class="top-actions">
@@ -37,15 +38,12 @@
           </div>
         </header>
 
-        <nav class="view-tabs" aria-label="VietDub AI views">
-          <button class="tab-btn active" type="button" data-view="process">
-            <span>⚡</span>
-            <span>Quy trình Xử lý</span>
-          </button>
-          <button class="tab-btn" type="button" data-view="settings">
-            <span>⚙️</span>
-            <span>Cài đặt & API</span>
-          </button>
+        <nav class="view-tabs" aria-label="Không gian làm việc">
+          <div class="nav-caption">KHÔNG GIAN LÀM VIỆC</div>
+          <button class="tab-btn active" type="button" data-view="publish"><span aria-hidden="true">▤</span><span>Xuất bản TikTok</span></button>
+          <button class="tab-btn" type="button" data-view="process"><span aria-hidden="true">▷</span><span>Sản xuất video</span></button>
+          <button class="tab-btn" type="button" data-view="settings"><span aria-hidden="true">⚙</span><span>Cài đặt & API</span></button>
+          <div class="nav-footer"><span class="status-dot ready"></span> Workspace local<br><small>VietDub AI Studio · 2.1.0</small></div>
         </nav>
 
         <form id="jobForm" class="panel">
@@ -363,12 +361,46 @@
               </fieldset>
             </section>
 
+            <!-- MAIN SUBMIT ACTION BAR -->
+            <div class="action-bar" style="margin-top: 6px;">
+              <button class="primary" id="submitBtn" type="submit">
+                <span>🚀</span>
+                <span>BẮT ĐẦU XỬ LÝ TOÀN BỘ DANH SÁCH</span>
+              </button>
+            </div>
+          </div>
+
+          <div id="viewPublish" class="view-panel-tab">
+            <div class="studio-heading"><div><span class="eyebrow">PUBLISHING WORKSPACE</span><h2>Trung tâm xuất bản</h2><p>Mỗi kênh một video. Theo dõi từ chuẩn bị đến xác nhận công khai.</p></div><span class="public-badge">Công khai · Phân bổ 1:1</span></div>
+            <div class="studio-metrics" aria-label="Tổng quan lượt đăng">
+              <div><span>Video trong lượt</span><strong id="pubTotal">0</strong><small>Phân bổ độc quyền 1:1</small></div>
+              <div><span>Đã công khai</span><strong id="pubSuccess">0</strong><small>Đã xác minh đúng bài</small></div>
+              <div><span>Đang chờ / xử lý</span><strong id="pubPending">0</strong><small>Tự lưu tiến độ</small></div>
+              <div><span>Cần chú ý</span><strong id="pubAttention">0</strong><small>Đối soát hoặc thử lại</small></div>
+            </div>
+            <section class="run-panel" aria-labelledby="runTitle">
+              <div class="run-heading"><div><h3 id="runTitle">Điều hành lượt đăng</h3><p id="pubRunState">Chưa có lượt đăng</p></div><label class="run-picker">Lượt đăng<select id="pubRunSelect"><option value="">Chưa có dữ liệu</option></select></label></div>
+              <div id="pubNotice" class="studio-notice hidden" role="status" aria-live="polite"></div>
+              <div class="run-toolbar">
+                <label>Hiển thị<select id="pubFilter"><option value="all">Tất cả video</option><option value="attention">Cần chú ý</option><option value="success">Đã công khai</option><option value="pending">Đang chờ / xử lý</option></select></label>
+                <div class="run-buttons">
+                  <button type="button" id="pubStart" class="primary" disabled>Bắt đầu đăng công khai</button>
+                  <button type="button" id="pubPause" class="secondary" disabled>Dừng sau kênh hiện tại</button>
+                  <button type="button" id="pubRetry" class="secondary" disabled>Thử lại mục lỗi</button>
+                  <button type="button" id="pubReconcile" class="secondary" disabled>Đối soát bài đã gửi</button>
+                  <button type="button" id="pubCancel" class="link-btn" disabled>Hủy phần chưa gửi</button>
+                </div>
+              </div>
+              <div class="run-progress"><progress id="pubProgress" max="1" value="0" aria-label="Tiến độ xác nhận công khai"></progress><span id="pubProgressText">0 / 0 video</span></div>
+              <div class="run-table-wrap"><table class="run-table"><thead><tr><th scope="col">Kênh nhận</th><th scope="col">Video & nội dung</th><th scope="col">Trạng thái</th><th scope="col">Kết quả</th></tr></thead><tbody id="pubRows"><tr><td colspan="4"><div class="studio-empty"><span aria-hidden="true">▤</span><strong>Sẵn sàng cho lượt đăng đầu tiên</strong><p>Chọn kênh và kho video bên dưới, sau đó chọn “Kiểm tra & tạo lượt đăng”.</p></div></td></tr></tbody></table></div>
+              <details class="preflight-details" id="pubChecksDetails"><summary>Kiểm tra sẵn sàng <span id="pubCheckSummary"></span></summary><ul id="pubChecks"><li>Kiểm tra Chrome, phiên đăng nhập, video và nội dung AI trước khi đăng.</li></ul></details>
+            </section>
             <!-- TIKTOK AUTO PUBLISHER (MULTI-ACCOUNT) -->
             <section class="form-section tiktok-section" data-section-id="tiktok-section" style="margin-top: 14px;">
               <div class="section-head" title="Nhấp để thu gọn / mở rộng mục này">
                 <div>
-                  <h2><span>📱</span> Quản Lý Đa Kênh & Tự Động Đăng TikTok</h2>
-                  <p>AI tự động tạo tiêu đề, caption giật tít, hashtags và tự động đăng đồng loạt lên các kênh TikTok bạn chọn.</p>
+                  <h2>Kênh & cấu hình xuất bản</h2>
+                  <p>Chọn kênh, thiết lập nội dung và kiểm tra kho trước khi bắt đầu.</p>
                 </div>
                 <div class="tiktok-header-actions" style="display: flex; gap: 10px; align-items: center; flex-shrink: 0;">
                   <button class="secondary tiktok-btn-sm" id="tiktokAddAccountBtn" type="button" style="display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; height: 38px; min-width: 140px; padding: 0 14px; font-weight: 500;">
@@ -390,6 +422,41 @@
                 </div>
               </div>
 
+                            <!-- LOCAL WAREHOUSE DISTRIBUTOR -->
+              <div class="warehouse-box" style="margin-top: 14px; padding: 16px 18px; background: rgba(255,255,255,0.03); border: 1px solid var(--line); border-radius: var(--radius-md);">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                  <h4 style="margin: 0; font-size: 0.95rem; display: flex; align-items: center; gap: 8px;">
+                    <span>📦</span> Phân Bổ Video Từ Kho Local Lên Các Kênh
+                  </h4>
+                </div>
+                <p style="font-size: 0.8rem; color: var(--muted); margin-bottom: 12px;">
+                  Quét thư mục chứa video trên máy tính, tự động bỏ qua video đã đăng và bốc ngẫu nhiên các video mới chia đều cho các kênh TikTok đã chọn (mỗi kênh 1 video riêng biệt, không trùng lặp).
+                </p>
+
+                <!-- Hàng 1: Đường dẫn kho video & Chọn thư mục (đồng đều chiều cao 40px) -->
+                <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 10px;">
+                  <input type="text" id="warehouseFolderPath" aria-label="Đường dẫn kho video" placeholder="Đường dẫn thư mục kho video (Ví dụ: G:\My Drive\VietDubAI hoặc D:\Video Export)..." style="flex: 1; height: 40px; padding: 0 14px; font-size: 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--line); background: var(--bg-subtle); color: var(--text);">
+                  <button type="button" class="secondary tiktok-btn-sm" id="warehouseBrowseBtn" style="height: 40px; min-width: 145px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; font-weight: 500;">
+                    <span>📁</span> Chọn Thư Mục
+                  </button>
+                </div>
+
+                <!-- Hàng 2: Bộ 3 nút thao tác chia đều 1:1:1, cùng chiều cao 40px, cân xứng hoàn hảo -->
+                <div class="warehouse-actions-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; align-items: center;">
+                  <button type="button" class="secondary tiktok-btn-sm" id="warehouseScanBtn" style="height: 40px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; font-weight: 500;">
+                    <span>🔍</span> Quét Lại Kho
+                  </button>
+                  <button type="button" class="primary tiktok-btn-sm" id="warehouseDistributeBtn" style="height: 40px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; white-space: nowrap; font-weight: 600;">
+                    Kiểm tra & tạo lượt đăng
+                  </button>
+                  <button type="button" class="secondary tiktok-btn-sm" id="tiktokViewHistoryBtn" style="height: 40px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; font-weight: 500;">
+                    <span>📜</span> Lịch Sử Đã Đăng (0)
+                  </button>
+                </div>
+
+                <div id="warehouseScanStatus" style="font-size: 0.82rem; margin-top: 10px; color: var(--muted);">Chưa quét thư mục kho.</div>
+              </div>
+
               <fieldset class="settings-group compact">
                 <legend>⚙️ Cấu Hình Tự Động Đăng Bài</legend>
                 <label class="check-row">
@@ -401,12 +468,12 @@
                   <label class="field">
                     <span>Quy tắc phân bổ video cho các kênh</span>
                     <select name="tiktokDistributionStrategy" id="tiktokDistributionStrategy">
-                      <option value="distinct_random" selected>🎯 Phân bổ ngẫu nhiên 1:1 (Mỗi kênh 1 video khác nhau, không trùng lặp)</option>
-                      <option value="broadcast">📢 Đăng đồng loạt (1 video đăng lên tất cả kênh đã chọn)</option>
+                      <option value="distinct_random" selected>Phân bổ 1:1 — mỗi kênh một video riêng</option>
+
                     </select>
                   </label>
                   <label class="check-row" style="align-self: flex-end; padding-bottom: 8px;">
-                    <input name="tiktokSkipPublished" id="tiktokSkipPublished" type="checkbox" checked>
+                    <input name="tiktokSkipPublished" id="tiktokSkipPublished" type="checkbox" checked disabled>
                     <span><strong>Chống trùng:</strong> Bỏ qua video đã đăng</span>
                   </label>
                 </div>
@@ -415,7 +482,7 @@
                   <label class="field">
                     <span>Chế độ đăng bài</span>
                     <div style="display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 12px; background: rgba(34, 197, 94, 0.12); border: 1px solid rgba(34, 197, 94, 0.35); border-radius: 8px; color: #22c55e; font-weight: 600; font-size: 13px;">
-                      <span>🚀 Đăng Công Khai (Public Post - Mặc định)</span>
+                      <span>Công khai · Mọi người đều có thể xem</span>
                     </div>
                     <input type="hidden" name="tiktokPostMode" id="tiktokPostMode" value="public">
                   </label>
@@ -466,49 +533,8 @@
                 </p>
               </fieldset>
 
-              <!-- LOCAL WAREHOUSE DISTRIBUTOR -->
-              <div class="warehouse-box" style="margin-top: 14px; padding: 16px 18px; background: rgba(255,255,255,0.03); border: 1px solid var(--line); border-radius: var(--radius-md);">
-                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
-                  <h4 style="margin: 0; font-size: 0.95rem; display: flex; align-items: center; gap: 8px;">
-                    <span>📦</span> Phân Bổ Video Từ Kho Local Lên Các Kênh
-                  </h4>
-                </div>
-                <p style="font-size: 0.8rem; color: var(--muted); margin-bottom: 12px;">
-                  Quét thư mục chứa video trên máy tính, tự động bỏ qua video đã đăng và bốc ngẫu nhiên các video mới chia đều cho các kênh TikTok đã chọn (mỗi kênh 1 video riêng biệt, không trùng lặp).
-                </p>
-
-                <!-- Hàng 1: Đường dẫn kho video & Chọn thư mục (đồng đều chiều cao 40px) -->
-                <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 10px;">
-                  <input type="text" id="warehouseFolderPath" placeholder="Đường dẫn thư mục kho video (Ví dụ: G:\My Drive\VietDubAI hoặc D:\Video Export)..." style="flex: 1; height: 40px; padding: 0 14px; font-size: 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--line); background: var(--bg-subtle); color: var(--text);">
-                  <button type="button" class="secondary tiktok-btn-sm" id="warehouseBrowseBtn" style="height: 40px; min-width: 145px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; font-weight: 500;">
-                    <span>📁</span> Chọn Thư Mục
-                  </button>
-                </div>
-
-                <!-- Hàng 2: Bộ 3 nút thao tác chia đều 1:1:1, cùng chiều cao 40px, cân xứng hoàn hảo -->
-                <div class="warehouse-actions-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; align-items: center;">
-                  <button type="button" class="secondary tiktok-btn-sm" id="warehouseScanBtn" style="height: 40px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; font-weight: 500;">
-                    <span>🔍</span> Quét Lại Kho
-                  </button>
-                  <button type="button" class="primary tiktok-btn-sm" id="warehouseDistributeBtn" style="height: 40px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; white-space: nowrap; font-weight: 600;">
-                    <span>🎲</span> Bốc Ngẫu Nhiên & Đăng
-                  </button>
-                  <button type="button" class="secondary tiktok-btn-sm" id="tiktokViewHistoryBtn" style="height: 40px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; font-weight: 500;">
-                    <span>📜</span> Lịch Sử Đã Đăng (0)
-                  </button>
-                </div>
-
-                <div id="warehouseScanStatus" style="font-size: 0.82rem; margin-top: 10px; color: var(--muted);">Chưa quét thư mục kho.</div>
-              </div>
             </section>
 
-            <!-- MAIN SUBMIT ACTION BAR -->
-            <div class="action-bar" style="margin-top: 6px;">
-              <button class="primary" id="submitBtn" type="submit">
-                <span>🚀</span>
-                <span>BẮT ĐẦU XỬ LÝ TOÀN BỘ DANH SÁCH</span>
-              </button>
-            </div>
           </div>
 
           <!-- TAB 2: SYSTEM CONFIG & API KEYS -->
@@ -932,5 +958,6 @@
     </div>
 
     <script src="./app.js"></script>
+    <script src="./publisher.js"></script>
   </body>
 </html>

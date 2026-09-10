@@ -94,7 +94,7 @@ function setTheme(theme) {
   localStorage.setItem('vietdub-theme', normalized);
   if (themeToggle) {
     themeToggle.setAttribute('aria-pressed', normalized === 'dark' ? 'true' : 'false');
-    themeToggle.textContent = normalized === 'dark' ? '🌓 Giao diện' : '☀️ Giao diện';
+    themeToggle.textContent = 'Sáng / Tối';
   }
 }
 
@@ -1080,24 +1080,15 @@ function renderHistory(items) {
 
 function initViews() {
   viewTabs.forEach((button) => button.addEventListener('click', () => setView(button.dataset.view || 'process')));
-  setView(localStorage.getItem('vietdub-view') || 'process');
+  setView(localStorage.getItem('vietdub-view') || 'publish');
 }
 
 function setView(view) {
-  const normalized = view === 'settings' ? 'settings' : 'process';
+  const normalized = ['settings', 'publish', 'process'].includes(view) ? view : 'publish';
   localStorage.setItem('vietdub-view', normalized);
-  viewTabs.forEach((button) => button.classList.toggle('active', button.dataset.view === normalized));
-
-  const viewProcess = document.querySelector('#viewProcess');
-  const viewSettings = document.querySelector('#viewSettings');
-
-  if (normalized === 'process') {
-    viewProcess?.classList.remove('hidden');
-    viewSettings?.classList.add('hidden');
-  } else {
-    viewProcess?.classList.add('hidden');
-    viewSettings?.classList.remove('hidden');
-  }
+  document.body.dataset.view = normalized;
+  viewTabs.forEach(button => { button.classList.toggle('active', button.dataset.view === normalized); button.setAttribute('aria-current', button.dataset.view === normalized ? 'page' : 'false'); });
+  for (const [name, id] of Object.entries({ process: 'viewProcess', settings: 'viewSettings', publish: 'viewPublish' })) document.getElementById(id)?.classList.toggle('hidden', name !== normalized);
 }
 
 function applyQuickPreset(name) {
@@ -2154,90 +2145,6 @@ function connectWarehouseLogs() {
     warehouseEventSource.onerror = () => {};
   } catch {}
 }
-
-warehouseDistributeBtn?.addEventListener('click', async () => {
-  const folderPath = warehouseFolderPath?.value?.trim();
-  if (!folderPath) {
-    alert('Vui lòng chọn thư mục kho video trước.');
-    return;
-  }
-
-  const selectedCards = document.querySelectorAll('.tiktok-account-card.selected');
-  if (selectedCards.length === 0) {
-    alert('Bạn chưa chọn kênh TikTok nào để đăng! Hãy tích chọn ít nhất 1 kênh trong danh sách quản lý.');
-    return;
-  }
-
-  const confirmed = await showCustomConfirm({
-    title: 'Bốc Ngẫu Nhiên & Phân Bổ Kho Video',
-    message: `Hệ thống chuẩn bị bốc ngẫu nhiên các video <b>MỚI CHƯA ĐĂNG</b> từ kho để <b>Đăng Công Khai</b> lên <b>${selectedCards.length} kênh TikTok</b> đã chọn (mỗi kênh 1 video riêng biệt, không trùng lặp, tự động bỏ qua video đã đăng trước đó).<br><br>
-<div style="background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; padding: 10px 12px; margin: 4px 0; color: #6ee7b7; font-size: 0.86rem; line-height: 1.5;">
-  🚀 <b>Chế độ xuất bản:</b> Đăng Công Khai trực tiếp lên kênh (Public Post)<br>
-  🛡️ <b>Cam kết bảo toàn dữ liệu 100%:</b> Tất cả video gốc trong thư mục của bạn được <b>GIỮ NGUYÊN HOÀN TOÀN</b>, tuyệt đối không bị xóa hoặc thay đổi!
-</div>`,
-    confirmText: '🚀 Bắt Đầu Đăng Ngay',
-    cancelText: 'Để Sau',
-    icon: '🎲',
-    isDanger: false
-  });
-  if (!confirmed) return;
-
-  warehouseDistributeBtn.disabled = true;
-  setState('running');
-  connectWarehouseLogs();
-
-  appendLog(`\n======================================================`);
-  appendLog(`🚀 BẮT ĐẦU TIẾN TRÌNH PHÂN BỔ KHO VIDEO LÊN ${selectedCards.length} KÊNH TIKTOK...`);
-
-  const postMode = document.querySelector('#tiktokPostMode')?.value || 'public';
-  const extraHashtags = document.querySelector('#tiktokHashtags')?.value || '';
-  const captionPrompt = document.querySelector('#tiktokCaptionPrompt')?.value?.trim() || '';
-  const distributionStrategy = document.querySelector('#tiktokDistributionStrategy')?.value || 'distinct_random';
-  const accountIds = Array.from(selectedCards).map((c) => c.dataset.id).filter(Boolean);
-  const channelDelaySeconds = Math.max(2, parseInt(document.querySelector('#tiktokChannelDelay')?.value || '6', 10));
-
-  let geminiApiKey = document.querySelector('#geminiApiKey')?.value?.trim() || '';
-  if (!geminiApiKey) {
-    try {
-      const savedAiSettings = JSON.parse(localStorage.getItem('vietdub-ai-settings') || '{}');
-      geminiApiKey = savedAiSettings.geminiApiKey || '';
-    } catch {}
-  }
-  const geminiModel = document.querySelector('#geminiModel')?.value || 'gemini-3.8-flash';
-
-  try {
-    const res = await fetch('/api/tiktok/warehouse/distribute', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        folderPath,
-        accountIds,
-        postMode,
-        extraHashtags,
-        captionPrompt,
-        distributionStrategy,
-        channelDelaySeconds,
-        geminiApiKey,
-        geminiModel
-      })
-    });
-    const data = await res.json();
-    if (data.ok) {
-      appendLog(`✅ ${data.message}`);
-      scanWarehouse();
-    } else {
-      appendLog(`❌ ${data.message}`, true);
-      alert(`Không thể phân bổ: ${data.message}`);
-      setState('error');
-    }
-  } catch (err) {
-    appendLog(`❌ Lỗi phân bổ kho: ${err.message}`, true);
-    alert(`Lỗi phân bổ kho: ${err.message}`);
-    setState('error');
-  } finally {
-    warehouseDistributeBtn.disabled = false;
-  }
-});
 
 async function openTikTokHistoryModal() {
   if (tiktokHistoryModal) tiktokHistoryModal.classList.remove('hidden');

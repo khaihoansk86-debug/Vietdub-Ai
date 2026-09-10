@@ -22,14 +22,14 @@ import {
   generateTikTokMetadata,
   uploadToMultipleAccounts,
   scanWarehouseVideos,
-  distributeWarehouseVideos,
+  getPublishRuns,
   getPublishHistory,
   clearPublishHistory
 } from './services/tiktokPublisher.js';
 
 const app = express();
 const PORT = Number(process.env.PORT || 3210);
-const HOST = process.env.HOST || '0.0.0.0';
+const HOST = process.env.HOST || '127.0.0.1';
 const ROOT = process.env.VIETDUB_ROOT || path.resolve('.');
 const DATA_DIR = process.env.VIETDUB_DATA_DIR || path.join(ROOT, 'data');
 const JOBS_DIR = path.join(DATA_DIR, 'jobs');
@@ -467,10 +467,10 @@ app.post('/api/tiktok/accounts/:id/sync', async (req, res) => {
 });
 
 // TikTok Local Warehouse APIs
-app.post('/api/tiktok/warehouse/scan', (req, res) => {
+app.post('/api/tiktok/warehouse/scan', async (req, res) => {
   try {
     const folderPath = String(req.body?.folderPath || '').trim();
-    const result = scanWarehouseVideos(folderPath);
+    const result = await scanWarehouseVideos(folderPath);
     res.json(result);
   } catch (error) {
     res.status(500).json({ ok: false, message: error.message });
@@ -511,51 +511,39 @@ app.get('/api/tiktok/warehouse/events', (req, res) => {
   });
 });
 
-app.post('/api/tiktok/warehouse/distribute', async (req, res) => {
-  try {
-    recentWarehouseLogs.length = 0;
-    const folderPath = String(req.body?.folderPath || '').trim();
-    const accountIds = Array.isArray(req.body?.accountIds) ? req.body.accountIds : [];
-    const postMode = 'public'; // Mặc định và duy nhất: Đăng Công Khai (Public Post)
-    const extraHashtags = String(req.body?.extraHashtags || '').trim();
-    const captionPrompt = String(req.body?.captionPrompt || '').trim();
-    const distributionStrategy = req.body?.distributionStrategy || 'distinct_random';
-    const channelDelaySeconds = Math.max(2, parseInt(req.body?.channelDelaySeconds || 6, 10));
-
-    // Run async background distribution
-    res.json({ ok: true, message: 'Đã bắt đầu tiến trình phân bổ video từ kho lên các kênh TikTok!' });
-
-    distributeWarehouseVideos({
-      folderPath,
-      accountIds,
-      postMode,
-      extraHashtags,
-      captionPrompt,
-      distributionStrategy,
-      channelDelaySeconds,
-      geminiApiKey: String(req.body?.geminiApiKey || process.env.GEMINI_API_KEY || '').trim(),
-      geminiModel: String(req.body?.geminiModel || process.env.GEMINI_MODEL || 'gemini-3.8-flash').trim(),
-      logCallback: (msg) => {
-        console.log(msg);
-        broadcastWarehouseLog(msg);
-      }
-    }).then((result) => {
-      if (result && result.ok === false) {
-        broadcastWarehouseLog(`\n⚠️ ${result.message || 'Không thể phân bổ video'}`, true);
-        broadcastWarehouseLog('__DONE__', true, { done: true, ok: false, error: result.message });
-        return;
-      }
-      broadcastWarehouseLog(`\n🎉 ${result?.message || 'Hoàn tất phân bổ kho video!'}`);
-      broadcastWarehouseLog('__DONE__', false, { done: true, ok: true, result });
-    }).catch((err) => {
-      console.error('Lỗi khi phân bổ kho video:', err);
-      broadcastWarehouseLog(`❌ Lỗi khi phân bổ kho video: ${err.message}`, true);
-      broadcastWarehouseLog('__DONE__', true, { done: true, ok: false, error: err.message });
-    });
-  } catch (error) {
-    res.status(500).json({ ok: false, message: error.message });
-  }
+// Durable publication plans: preview and actual submission are separate actions.
+app.use('/api/tiktok/runs', (req, res, next) => {
+  if (req.method !== 'GET' && req.headers.origin && req.headers.origin !== `http://${req.headers.host}`) return res.status(403).json({ ok: false, message: 'Nguồn yêu cầu không hợp lệ.' });
+  next();
 });
+app.get('/api/tiktok/runs', (_req, res) => {
+  try { const service = getPublishRuns(); res.json({ ok: true, busy: service.busy || service.externalBusy(), runs: service.list() }); }
+  catch (err) { res.status(500).json({ ok: false, message: err.message }); }
+});
+app.post('/api/tiktok/runs/preview', async (req, res) => {
+  try {
+    const { folderPath, accountIds, channelDelaySeconds, captionPrompt, extraHashtags, geminiApiKey, geminiModel } = req.body;
+    const result = await getPublishRuns().prepare({ folderPath, accountIds, channelDelaySeconds, captionPrompt, extraHashtags, geminiApiKey, geminiModel });
+    res.status(result.ok ? 200 : 422).json(result);
+  } catch (err) { res.status(409).json({ ok: false, message: err.message }); }
+});
+app.post('/api/tiktok/runs/:id/:action', (req, res) => {
+  try {
+    const service = getPublishRuns();
+    const run = service.get(req.params.id);
+    const action = req.params.action;
+    if (action === 'pause') return res.json({ ok: true, run: service.pause(run.id) });
+    if (action === 'cancel') return res.json({ ok: true, run: service.cancel(run.id) });
+    if (!['start', 'resume', 'retry', 'reconcile'].includes(action)) return res.status(400).json({ ok: false, message: 'Thao tác không hợp lệ.' });
+    service.assertIdle();
+    if (['completed', 'cancelled'].includes(run.status)) throw new Error('Lượt đăng đã kết thúc.');
+    service.start(run.id, { retry: action === 'retry', reconcileOnly: action === 'reconcile' }).then(result => {
+      broadcastWarehouseLog(`Lượt đăng ${result.id}: ${result.status}`, false, { runId: result.id });
+    }).catch(err => broadcastWarehouseLog(err.message, true));
+    res.json({ ok: true, run });
+  } catch (err) { res.status(409).json({ ok: false, message: err.message }); }
+});
+app.post('/api/tiktok/warehouse/distribute', (_req, res) => res.status(409).json({ ok: false, message: 'Hãy tạo bản xem trước tại Trung tâm xuất bản rồi bắt đầu lượt đăng.' }));
 
 // TikTok Publish History APIs
 app.get('/api/tiktok/history', (_req, res) => {
@@ -580,7 +568,7 @@ app.get('/health', (_req, res) => res.json({ ok: true }));
 
 app.listen(PORT, HOST, () => {
   console.log(`VietDub AI is running at http://${HOST}:${PORT}`);
-  startKokoroBackend().catch((err) => console.error('Lỗi khi tự động khởi chạy Kokoro:', err));
+  if (process.env.VIETDUB_SKIP_KOKORO_AUTOSTART !== '1') startKokoroBackend().catch((err) => console.error('Lỗi khi tự động khởi chạy Kokoro:', err));
 });
 
 async function processJob(job, payload) {
@@ -792,7 +780,7 @@ function parseWatermarkOptions(body) {
 
 function parseTikTokOptions(body) {
   const enabled = ['on', 'true', '1', 'yes'].includes(String(body.tiktokAutoUpload || '').toLowerCase());
-  const mode = ['draft', 'public', 'private'].includes(body.tiktokPostMode) ? body.tiktokPostMode : 'draft';
+  const mode = 'public';
   const distributionStrategy = ['distinct_random', 'broadcast'].includes(body.tiktokDistributionStrategy)
     ? body.tiktokDistributionStrategy
     : 'distinct_random';

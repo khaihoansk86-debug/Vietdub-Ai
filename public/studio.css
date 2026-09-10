@@ -1,0 +1,115 @@
+/* Studio 2.1 — shared desktop/web shell, no changes to processing controls. */
+:root {
+  --bg: #0d1420; --bg-gradient: none; --bg-subtle: #151e2c;
+  --bg-surface: #121c2a; --bg-card: #172231; --bg-card-solid: #172231;
+  --bg-input: #101a28; --bg-input-focus: #101a28;
+  --line: #2a384b; --line-strong: #40516a;
+  --brand: #64b5ff; --brand-gradient: #1768ac; --brand-gradient-hover: #12578f;
+  --brand-soft: #16324b; --ink: #eef3fa; --text: var(--ink); --muted: #a4b4c8;
+  --radius-lg: 12px; --radius-xl: 16px;
+}
+html[data-theme="light"] {
+  --bg: #f3f5f8; --bg-gradient: none; --bg-subtle: #f1f5f9;
+  --bg-surface: #fff; --bg-card: #fff; --bg-card-solid: #fff;
+  --bg-input: #fff; --bg-input-focus: #fff; --line: #dce3ec; --line-strong: #b5c3d3;
+  --brand: #1768ac; --brand-gradient: #1768ac; --brand-gradient-hover: #12578f;
+  --brand-soft: #e8f2fc; --ink: #17273c; --text: var(--ink); --muted: #52657d;
+}
+body { background: var(--bg); font-family: 'Be Vietnam Pro', 'Segoe UI', sans-serif; }
+.shell { display: block; max-width: 1760px; padding: 0 32px 40px 248px; margin: 0 auto; }
+.workspace { min-width: 0; padding: 0; border: 0; border-radius: 0; box-shadow: none; background: transparent; }
+.topbar { min-height: 96px; border-bottom: 1px solid var(--line); padding: 20px 0; margin-bottom: 24px; flex-wrap: wrap; gap: 16px; }
+.brand-logo-wrap { width: 44px; height: 44px; border-radius: 12px; box-shadow: none; }
+.brand h1 { font-size: 21px; letter-spacing: -.7px; }
+.brand-info p { font-size: 12px; }
+.pro-badge { font-size: 10px; border-radius: 5px; padding: 4px 6px; background: var(--brand-soft); color: var(--brand); }
+.view-tabs { position: fixed; left: 0; top: 0; bottom: 0; width: 216px; margin: 0; padding: 34px 14px; display: flex; flex-direction: column; align-items: stretch; gap: 8px; background: #101b2c; border: 0; border-right: 1px solid #29394e; border-radius: 0; z-index: 5; }
+.view-tabs::before { content: 'V / STUDIO'; font-size: 20px; font-weight: 750; color: #f0f6ff; letter-spacing: 2px; padding: 0 12px 30px; }
+.nav-caption { font-size: 9px; letter-spacing: 1.5px; color: #a9b9ce; padding: 12px; }
+.tab-btn { flex: 0 0 auto; text-align: left; justify-content: flex-start; color: #bac8da; font-size: 13px; padding: 14px 12px; border-radius: 8px; border: 1px solid transparent; min-height: 46px; }
+.tab-btn.active { background: #203b59; color: #fff; border-color: #335475; box-shadow: none; }
+.tab-btn:hover { color: #fff; background: #1d3047; }
+.nav-footer { margin-top: auto; border-top: 1px solid #2a394c; padding: 20px 12px 0; font-size: 12px; line-height: 2; color: #c7d5e7; }
+.nav-footer .status-dot { display: inline-block; margin-right: 8px; box-shadow: none; }
+.nav-footer small { color: #a9b9ce; font-size: 10px; }
+.panel { padding: 0; background: transparent; border: 0; box-shadow: none; }
+.studio-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 4px 0 24px; }
+.eyebrow { color: var(--brand); font-size: 10px; font-weight: 700; letter-spacing: 1.8px; }
+.studio-heading h2 { font-size: clamp(23px, 2.6vw, 32px); font-weight: 650; letter-spacing: -1px; margin: 8px 0; }
+.studio-heading p, .run-heading p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.7; }
+.public-badge { background: var(--brand-soft); color: var(--brand); border: 1px solid var(--line); padding: 10px 12px; border-radius: 8px; font-size: 11px; white-space: nowrap; }
+.studio-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-bottom: 24px; }
+.studio-metrics > div { padding: 20px; border: 1px solid var(--line); background: var(--bg-card); border-radius: 12px; }
+.studio-metrics span { color: var(--muted); font-size: 12px; }
+.studio-metrics strong { display: block; font-size: 34px; font-weight: 600; letter-spacing: -1px; margin: 12px 0 6px; font-variant-numeric: tabular-nums; }
+.studio-metrics small { color: var(--muted); font-size: 10px; }
+.run-panel { border: 1px solid var(--line); border-radius: 12px; background: var(--bg-card); overflow: hidden; margin-bottom: 24px; }
+.run-heading { padding: 22px 24px; display: flex; justify-content: space-between; align-items: center; gap: 20px; }
+.run-heading h3 { font-size: 17px; font-weight: 600; margin: 0 0 5px; }
+.run-picker { font-size: 11px; color: var(--muted); display: grid; gap: 5px; max-width: 320px; }
+.run-picker select { max-width: 100%; }
+.run-toolbar { display: flex; flex-wrap: wrap; gap: 14px; justify-content: space-between; align-items: end; padding: 16px 24px; border-block: 1px solid var(--line); background: var(--bg-subtle); }
+.run-toolbar label { color: var(--muted); font-size: 11px; display: grid; gap: 5px; }
+.run-buttons { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+button, select { cursor: pointer; }
+.run-buttons button, .warehouse-box button { min-height: 44px; height: auto; padding: 10px 14px; font-size: 12px; white-space: normal; }
+button.primary { color: #fff; background: var(--brand-gradient); box-shadow: none; border: 1px solid transparent; }
+button.primary:hover { background: var(--brand-gradient-hover); transform: none; box-shadow: none; }
+button:disabled { opacity: .45; cursor: not-allowed; transform: none !important; }
+button:focus-visible, select:focus-visible, input:focus-visible, summary:focus-visible, a:focus-visible { outline: 3px solid var(--brand); outline-offset: 3px; }
+.run-progress { padding: 16px 24px; display: flex; align-items: center; gap: 16px; }
+.run-progress progress { appearance: none; border: 0; height: 6px; flex: 1; min-width: 0; background: var(--line); border-radius: 8px; }
+progress::-webkit-progress-bar { background: var(--line); border-radius: 8px; }
+progress::-webkit-progress-value { background: var(--brand); border-radius: 8px; }
+.run-progress span { color: var(--muted); font-size: 11px; }
+.run-table-wrap { overflow: auto; }
+.run-table { border-collapse: collapse; width: 100%; table-layout: fixed; font-size: 12px; }
+.run-table th { text-align: left; padding: 13px 20px; color: var(--muted); background: var(--bg-subtle); font-size: 10px; text-transform: uppercase; letter-spacing: .7px; }
+.run-table th:nth-child(1) { width: 19%; }.run-table th:nth-child(2) { width: 33%; }.run-table th:nth-child(3) { width: 21%; }
+.run-table td { padding: 20px; border-top: 1px solid var(--line); vertical-align: top; overflow-wrap: anywhere; line-height: 1.7; }
+.run-table td strong { font-weight: 600; }.run-table small { display: block; color: var(--muted); margin-top: 5px; font-size: 10px; }
+.run-table a { color: var(--brand); text-decoration: none; font-weight: 600; }
+.run-table details { margin-top: 8px; }.run-table summary { color: var(--brand); cursor: pointer; font-size: 11px; }
+.caption-copy { white-space: pre-wrap; }.tags-copy { color: var(--brand); }
+.run-badge { display: inline-block; border-radius: 6px; background: var(--bg-subtle); border: 1px solid var(--line); padding: 4px 8px; font-size: 10px; font-weight: 600; }
+.run-badge.success { color: #08724f; background: #dcfce9; border-color: #a7eac2; }
+.run-badge.failed, .run-badge.needs_action, .run-badge.needs_review { color: #92430b; background: #fff0d4; border-color: #f6d399; }
+.run-badge.uploading, .run-badge.submitted, .run-badge.verifying, .run-badge.processing { color: #12559a; background: #e0efff; border-color: #a8cdef; }
+.muted { color: var(--muted); }.row-error { font-size: 11px; color: var(--ink-secondary); }
+.studio-empty { text-align: center; padding: 38px 12px; color: var(--muted); }
+.studio-empty > span { display: block; font-size: 32px; color: var(--brand); margin-bottom: 12px; }
+.studio-empty strong { display: block; color: var(--ink); font-size: 15px; }.studio-empty p { margin-bottom: 0; }
+.studio-notice { background: var(--brand-soft); color: var(--ink); border-left: 3px solid var(--brand); padding: 14px 18px; margin: 0 24px 18px; font-size: 12px; line-height: 1.8; }
+.studio-notice.error { border-color: #e99730; }
+.preflight-details { border-top: 1px solid var(--line); padding: 18px 24px; font-size: 12px; }
+.preflight-details summary { cursor: pointer; font-weight: 600; }.preflight-details summary span { color: var(--muted); font-weight: 400; }
+.preflight-details ul { list-style: none; padding: 0; margin-bottom: 0; display: grid; gap: 8px; }
+.preflight-details li { border-left: 3px solid var(--line); padding: 8px 12px; background: var(--bg-subtle); }
+.preflight-details li span { display: block; color: var(--muted); margin-top: 5px; line-height: 1.7; }
+.preflight-details .check-pass { border-color: #34b786; }.preflight-details .check-error { border-color: #ec8b42; }
+.form-section { background: var(--bg-card); border-color: var(--line); box-shadow: none; padding: 24px; }
+.form-section .section-head { margin-bottom: 18px; }.section-head h2 { font-size: 17px; font-weight: 600; }
+.section-head p { font-size: 12px; line-height: 1.7; max-width: 640px; }
+.tiktok-header-actions { flex-wrap: wrap; }.tiktok-section .section-head { flex-wrap: wrap; gap: 14px; }
+.tiktok-section .helper-text { display: none; }.tiktok-section .warehouse-box { background: var(--bg-subtle) !important; padding: 20px !important; }
+.tiktok-accounts-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.tiktok-account-card { min-width: 0; box-shadow: none; display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; padding: 18px; }.tiktok-account-card.selected { border-color: var(--brand); background: var(--brand-soft); }
+.tiktok-account-info { width: 100%; }.tiktok-account-info > div { min-width: 0; }.tiktok-account-name { overflow-wrap: anywhere; }
+.tiktok-account-actions button { min-height: 38px; }
+.field input[type="number"] { min-height: 42px; padding: 10px 12px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--bg-input); color: var(--ink); }
+.topbar { box-shadow: none; border-radius: 0; background: transparent; }
+.tiktok-account-actions { flex-basis: 100%; flex-wrap: wrap; justify-content: flex-start; }
+.tiktok-account-info, fieldset, .field, .control-row, .tiktok-prompt-manager, .tiktok-prompt-bar { min-width: 0; }
+select, textarea, input { max-width: 100%; }
+.tiktok-prompt-bar, .tiktok-prompt-actions, .tiktok-prompt-manager-header { flex-wrap: wrap; }
+body[data-view="publish"] .status { display: none; }
+.status { position: static; width: 100%; max-height: none; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 24px; }
+.status-card { border: 1px solid var(--line); background: var(--bg-card); box-shadow: none; }
+.top-actions button { min-height: 40px; font-size: 11px; }.sections-global-toggle-bar { background: var(--bg-card); }
+@media (min-width: 1800px) { .view-tabs { width: calc((100vw - 1760px) / 2 + 216px); padding-left: max(14px, calc((100vw - 1760px) / 2)); } }
+@media (max-width: 1100px) { .shell { padding: 0 20px 32px 206px; }.view-tabs { width: 186px; }.studio-heading { align-items: start; flex-direction: column; }.studio-metrics { gap: 10px; }.studio-metrics > div { padding: 14px; }.run-heading { flex-wrap: wrap; }.top-actions { flex-wrap: wrap; }.status { grid-template-columns: 1fr; } }
+@media (max-width: 760px) {
+  .tiktok-prompt-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .shell { padding: 0 16px 32px; }.view-tabs { position: static; width: auto; flex-direction: row; flex-wrap: wrap; padding: 8px; margin-bottom: 20px; border-radius: 10px; }.view-tabs::before, .nav-caption, .nav-footer { display: none; }.tab-btn { flex: 1; justify-content: center; padding: 10px 6px; font-size: 11px; gap: 5px; }.topbar { margin-bottom: 16px; }.brand-info p { font-size: 10px; }.studio-metrics { grid-template-columns: 1fr 1fr; }.run-heading, .run-toolbar, .run-progress, .preflight-details { padding: 16px; }.run-picker { width: 100%; max-width: none; }.run-toolbar, .run-toolbar label { width: 100%; }.run-buttons button { flex: 1 1 140px; }.run-table { min-width: 710px; }.form-section { padding: 16px; }.warehouse-box > div { flex-wrap: wrap; }.warehouse-actions-grid { grid-template-columns: 1fr !important; }.warehouse-box input { width: 100%; min-width: 0; flex-basis: 100% !important; }.studio-notice { margin-inline: 16px; }.tiktok-accounts-list { grid-template-columns: minmax(0, 1fr); }.topEngineStatus { display: none; }.control-row { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }

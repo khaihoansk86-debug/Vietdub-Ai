@@ -1,3 +1,23 @@
+# Cập nhật bàn giao 2.1.0 — 10/09/2026
+
+Phần này thay thế các mô tả tương ứng của 2.0.0 bên dưới. Xem `RELEASE_NOTES.md` để biết tính năng, kiểm thử và giới hạn nghiệm thu.
+
+- `services/publishRuns.js`: bộ điều phối lưu bền, SHA-256 toàn file, giữ chỗ 1:1, khóa tiến trình, phục hồi, dừng/tiếp tục/thử lại/đối soát; ghi atomic JSON trước thao tác gửi.
+- `services/tiktokVerification.js`: kiểm tra phiên/CAPTCHA, quyền Công khai, danh sách bài và bằng chứng đúng bài. Không coi toast, URL chuyển trang, “Only me” hoặc “Under review” là thành công.
+- `services/tiktokPublisher.js`: Chrome có giao diện, đăng bài, metadata, kiểm tra video FFmpeg và tích hợp bộ điều phối mới. Giữ chuỗi Space → Escape → Escape → blur. Lịch sử mới lưu full SHA-256 và URL/ID bài.
+- `public/publisher.js`, `public/studio.css`: Trung tâm xuất bản, bảng trạng thái, bản xem trước, điều khiển lượt, log và giao diện responsive. `public/app.js` vẫn phụ trách các control sản xuất/cài đặt cũ.
+- API: `GET /api/tiktok/runs`, `POST /api/tiktok/runs/preview`, `POST /api/tiktok/runs/:id/{start,resume,pause,retry,reconcile,cancel}`. Endpoint distribute cũ hướng sang luồng xem trước.
+- Data mới: `tiktok_publish_runs.json`, `tiktok_publish.lock`. Giữ nguyên account/profile/history hiện có. Bài chưa rõ kết quả luôn giữ chỗ và chỉ đối soát.
+- Phân phối mới chỉ Public + 1:1. Video lỗi, thiếu video riêng biệt, chưa đăng nhập hoặc lỗi AI sẽ được báo trước khi đăng.
+- Pipeline dịch/lồng tiếng thực tế nằm trong `server.js`; repository tại thời điểm này chỉ có module TikTok và các module mới trong `services/`, không có các file videoProcessor/audioService/geminiService như sơ đồ 2.0 mô tả. Mã pipeline được giữ nguyên.
+- `npm test`, `npm run test:ui`, `node scripts/smoke-packaged.mjs` là các lệnh kiểm tra mới. Biến `VIETDUB_SKIP_KOKORO_AUTOSTART=1` chỉ dùng trong smoke test; chạy thông thường vẫn giữ tự khởi động Kokoro.
+- Release: tăng phiên bản và tạo tag mới `v2.1.0`, không force-move tag `v2.0.0`. CI tiếp tục Windows NSIS + macOS arm64 DMG, có test và checksum.
+- Chưa chạy đăng thật lên TikTok; kiểm thử DOM dùng dữ liệu mô phỏng. Không xem kết quả test như bảo đảm TikTok DOM không thay đổi.
+
+---
+
+# Tài liệu lịch sử 2.0.0 (tham khảo)
+
 # 📘 TÀI LIỆU BÀN GIAO DỰ ÁN TOÀN DIỆN (HANDOFF FOR CODEX AGENT)
 # DỰ ÁN: VIETDUB AI STUDIO PRO (v2.0.0)
 
