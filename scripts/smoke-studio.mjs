@@ -11,6 +11,7 @@ const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'vietdub-studio-smoke-'));
 const output = path.join(root, 'dist', 'qa'); fs.mkdirSync(output, { recursive: true });
 const port = 3297;
 const accounts = [{ id: 'qa_a', name: 'Khải Hoàn Studio', username: '@studio_demo', selected: true, loggedIn: true, folder: 'tiktok_profiles/qa_a' }];
+accounts.push(...Array.from({ length: 23 }, (_, i) => ({ id: `qa_${i}`, name: `Kênh thử nghiệm ${i + 2}`, username: `@qa_${i}`, selected: false, loggedIn: false, folder: `tiktok_profiles/qa_${i}` })));
 fs.writeFileSync(path.join(temp, 'tiktok_accounts.json'), JSON.stringify(accounts));
 const run = { id: 'qa-run', status: 'preview', createdAt: new Date().toISOString(), checks: [{ status: 'pass', label: 'Kho video', message: 'Dữ liệu mô phỏng phục vụ kiểm thử giao diện.' }], channelDelaySeconds: 6, items: [
   { id: 'qa-item-1', accountId: 'qa_a', accountName: 'Khải Hoàn Studio', accountUsername: '@studio_demo', video: 'Chăm sóc da đúng cách — tập 01.mp4', caption: 'Một thói quen nhỏ, một thay đổi lớn. <img src=x onerror=alert(1)>', hashtags: ['#chamsocda', '#vietdub'], status: 'queued', attempts: 0 },
@@ -40,6 +41,12 @@ try {
   assert.equal(await page.title(), 'VietDub AI Studio');
   assert.equal(await page.locator('#pubRunSelect').count(), 0);
   assert.equal(await page.locator('#viewPublish').isVisible(), true);
+  await page.locator('#selectAllAccounts').click();
+  await page.waitForFunction(() => document.querySelectorAll('.tiktok-account-card.selected').length === 24);
+  assert.equal(JSON.parse(fs.readFileSync(path.join(temp, 'tiktok_accounts.json'))).filter(a => a.selected).length, 24);
+  await page.locator('#deselectAllAccounts').click();
+  await page.waitForFunction(() => document.querySelectorAll('.tiktok-account-card.selected').length === 0);
+  assert.equal(JSON.parse(fs.readFileSync(path.join(temp, 'tiktok_accounts.json'))).filter(a => a.selected).length, 0);
   let calls = 0, posting = false;
   await page.route('**/api/tiktok/warehouse/status', route => route.fulfill({ contentType: 'application/json', body: JSON.stringify({ busy: posting, message: posting ? 'Đang đăng' : 'Sẵn sàng', logs: [], results: [{ status: 'processing' }] }) }));
   await page.route('**/api/tiktok/warehouse/distribute', async route => {

@@ -139,7 +139,10 @@ test('processing history excludes clip from fresh stock and upgrades without dup
   try {
     const { recordPublishedVideo, loadPublishHistory, isAlreadyPublished } = await import('../services/tiktokPublisher.js');
     const item = { videoPath: f.videos[0].path, account: { id: 'a', name: 'A' }, sha256: await fullFingerprint(f.videos[0].path), postId: '123', postUrl: 'https://www.tiktok.com/@a/video/123' };
+    recordPublishedVideo({ ...item, postId: '', postUrl: '', status: 'needs_review' });
+    assert.equal((await isAlreadyPublished({ videoPath: item.videoPath })).published, true);
     recordPublishedVideo({ ...item, status: 'processing' });
+    assert.equal(loadPublishHistory().length, 1);
     assert.equal((await isAlreadyPublished({ videoPath: item.videoPath })).published, true);
     recordPublishedVideo({ ...item, status: 'success' });
     assert.equal(loadPublishHistory().length, 1);

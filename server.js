@@ -15,6 +15,7 @@ import {
   deleteTikTokAccount,
   renameTikTokAccount,
   toggleAccountSelection,
+  selectAllAccounts,
   openTikTokLoginWindow,
   syncAccountProfile,
   checkAccountStatus,
@@ -421,6 +422,11 @@ app.delete('/api/tiktok/accounts/:id', async (req, res) => {
   }
 });
 
+app.post('/api/tiktok/accounts/select-all', (req, res) => {
+  if (req.headers.origin && req.headers.origin !== `http://${req.headers.host}`) return res.status(403).json({ ok: false });
+  try { res.json(selectAllAccounts(req.body.selected)); }
+  catch (error) { res.status(409).json({ ok: false, message: error.message }); }
+});
 app.post('/api/tiktok/accounts/:id/select', (req, res) => {
   try {
     const result = toggleAccountSelection(req.params.id, req.body.selected);

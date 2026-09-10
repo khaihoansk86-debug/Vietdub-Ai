@@ -1,3 +1,14 @@
+# VietDub AI Studio 2.2.0 — Bản chính thức
+
+- Thanh bên được căn vào trong, có khoảng cách và góc bo đồng bộ.
+- Chọn tất cả / Bỏ chọn tất cả, bộ đếm kênh và danh sách cuộn phù hợp trên 20 kênh.
+- Thử lại có giới hạn cho AI và lỗi mạng trước khi gửi; không lặp Post khi gửi chưa rõ kết quả.
+- Lưu dấu trước Post, kiểm tra lại bài đang xử lý theo ID và tổng kết kết quả tất cả kênh.
+- Kiểm thử 24 kênh mô phỏng, lưu lựa chọn, đăng 1:1, lịch sử, giao diện responsive và adapter TikTok.
+- Giữ nguyên pipeline dịch, giọng đọc và render. Trạng thái công khai vẫn phụ thuộc xử lý/kiểm duyệt của TikTok.
+
+---
+
 # VietDub AI Studio 2.1.5 — Lịch sử bài đã gửi
 
 - Lưu ngay bài đã tìm đúng trên TikTok nhưng còn đang xử lý vào lịch sử, kèm URL và trạng thái riêng.

@@ -170,7 +170,7 @@ export async function isAlreadyPublished({ videoPath, accountId = null }) {
 
   for (let i = history.length - 1; i >= 0; i--) {
     const entry = history[i];
-    if (!['success', 'processing'].includes(entry.status)) continue;
+    if (!['success', 'processing', 'needs_review'].includes(entry.status)) continue;
 
     // Match by fingerprint (highest confidence) or filename
     const isFileMatch = entry.sha256 ? entry.sha256 === sha256 :
@@ -188,10 +188,10 @@ export async function isAlreadyPublished({ videoPath, accountId = null }) {
 
 export function recordPublishedVideo({ videoPath, account, caption = '', hashtags = [], postMode = 'public', status = 'success', sha256 = '', postId = '', postUrl = '', verification = '', confirmedAt = '' }) {
   const history = loadPublishHistory();
-  const existing = postId && history.find(h => h.postId === postId && h.accountId === account.id);
+  const existing = history.find(h => h.accountId === account.id && (postId && h.postId === postId || sha256 && h.sha256 === sha256 && h.status === 'needs_review' && !h.postId));
   if (existing) {
-    if (status === 'success' && existing.status !== 'success') {
-      Object.assign(existing, { status, confirmedAt, verification, postUrl });
+    if (existing.status !== 'success' && ['success', 'processing'].includes(status)) {
+      Object.assign(existing, { status, confirmedAt, verification, postUrl, postId });
       savePublishHistory(history);
     }
     return existing;
@@ -1179,6 +1179,15 @@ export async function validateWarehouseVideo(file) {
     child.once('exit', code => { clearTimeout(timer); code === 0 ? resolve() : reject(new Error('Video lỗi hoặc không có hình ảnh hợp lệ.')); });
   });
 }
+
+export function selectAllAccounts(selected) {
+  getPublishRuns().assertIdle();
+  if (typeof selected !== 'boolean') throw new Error('Trạng thái chọn không hợp lệ.');
+  const accounts = loadTikTokAccounts();
+  for (const account of accounts) account.selected = selected;
+  saveTikTokAccounts(accounts);
+  return { ok: true, count: accounts.length };
+}
 export function getPublishRuns() {
   if (!runService) runService = new PublishRuns({
     directory: getDataDir, accounts: loadTikTokAccounts, scan: scanWarehouseVideos,
@@ -1205,6 +1214,10 @@ export function getDirectPublisher() {
     acquire: () => getPublishRuns().acquire(), release: () => getPublishRuns().release(),
     metadata: (video, account, options) => generateTikTokMetadata([], video.name, { ...options, requireAi: true, videoPath: video.path, accountName: account.name, accountUsername: account.username }),
     upload: uploadSingleAccount, record: recordPublishedVideo,
+    reconcile: (account, result) => withAccountPage(account, async page => {
+      const row = (await loadStudioContent(page)).find(row => row.id === result.postId && row.username.toLowerCase() === account.username.replace(/^@/, '').toLowerCase());
+      return row && !row.processing && row.visibility === 'public' ? { ...result, status: 'success', confirmedAt: new Date().toISOString(), verification: 'studio-post-id-public' } : result;
+    }),
     delay: ms => new Promise(resolve => setTimeout(resolve, ms))
   });
   return directPublisher;

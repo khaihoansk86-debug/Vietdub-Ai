@@ -1,3 +1,11 @@
+# Bản chính thức 2.2.0
+
+- Thanh bên cách mép 16px, theo lề shell trên màn rộng. Danh sách tài khoản giới hạn chiều cao và có chọn/bỏ chọn tất cả, ghi một lần qua API select-all.
+- DirectPublisher thử lại AI tối đa một lần, upload chỉ thử lại lỗi mạng/timeout trước submitting. onStage submitting ghi needs_review vào lịch sử trước click; scan bỏ qua clip này để tránh gửi lại khi timeout.
+- Kết quả processing được kiểm tra lại theo ID, cập nhật success khi đúng kênh và Everyone. Nếu TikTok còn xử lý vẫn ghi đúng trạng thái, không khẳng định công khai.
+- Tổng kết số kênh công khai/đang xử lý/cần kiểm tra/thiếu clip. Bộ test 24 kênh và UI selection 24 tài khoản dùng profile tạm.
+- Phát hành giữ duy nhất v2.2.0 trên GitHub theo yêu cầu; sao lưu refs/bundle trước khi dọn tag cũ. Không thay đổi dịch/TTS/render.
+
 # Bản 2.1.5 — Lưu bài đang xử lý vào lịch sử
 
 - DirectPublisher ghi cả success và processing có postId/postUrl. Processing được loại khỏi kho mới; không gắn nhãn Công khai khi TikTok còn xử lý.
