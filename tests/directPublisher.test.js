@@ -71,3 +71,10 @@ test('24 channels each receive one unique clip', async () => {
   assert.equal(publisher.state.results.length, 24);
   assert.equal(new Set(publisher.state.results.map(r => r.video)).size, 24);
 });
+test('upload result account display name cannot overwrite the account identity in history', async () => {
+  const { publisher } = setup(); let saved;
+  publisher.deps.upload = async () => ({ status: 'success', account: 'Display name' });
+  publisher.deps.record = entry => { saved = entry; };
+  publisher.start({ accountIds: ['a'] }); await publisher.task;
+  assert.equal(saved.account.id, 'a');
+});

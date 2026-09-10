@@ -1180,6 +1180,40 @@ export async function validateWarehouseVideo(file) {
   });
 }
 
+export async function refreshPublishHistory() {
+  const service = getPublishRuns();
+  service.acquire();
+  let updated = 0;
+  const errors = [];
+  try {
+    const history = loadPublishHistory();
+    const accounts = loadTikTokAccounts();
+    let repaired = false;
+    for (const entry of history.filter(h => !h.accountId && h.postUrl)) {
+      const username = entry.postUrl.match(/^https:\/\/www\.tiktok\.com\/(@[^/]+)\/video\/\d+$/)?.[1];
+      const account = accounts.find(a => a.username === username);
+      if (account) { Object.assign(entry, { accountId: account.id, accountName: account.name, accountUsername: account.username }); repaired = true; }
+    }
+    if (repaired) savePublishHistory(history);
+    const pending = history.filter(h => ['processing', 'needs_review'].includes(h.status) && h.postId);
+    for (const accountId of new Set(pending.map(h => h.accountId))) {
+      const account = loadTikTokAccounts().find(a => a.id === accountId);
+      if (!account) continue;
+      try {
+        const rows = await withAccountPage(account, page => loadStudioContent(page));
+        for (const entry of pending.filter(h => h.accountId === accountId)) {
+          const row = rows.find(r => r.id === entry.postId && r.username.toLowerCase() === account.username.replace(/^@/, '').toLowerCase());
+          if (row && !row.processing && row.visibility === 'public') {
+            recordPublishedVideo({ ...entry, account, status: 'success', confirmedAt: new Date().toISOString(), verification: 'history-studio-id-public' });
+            updated++;
+          }
+        }
+      } catch (error) { errors.push(`${account.name}: ${error.message}`); }
+    }
+    return { ok: true, updated, errors, history: getPublishHistory() };
+  } finally { service.release(); }
+}
+
 export function selectAllAccounts(selected) {
   getPublishRuns().assertIdle();
   if (typeof selected !== 'boolean') throw new Error('Trạng thái chọn không hợp lệ.');

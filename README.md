@@ -11,12 +11,12 @@ VietDub AI kết hợp tải video, xử lý phụ đề, tạo giọng đọc v
 
 ## Tải và cài đặt
 
-Phiên bản hiện tại: **2.2.0**.
+Phiên bản hiện tại: **2.2.1**.
 
 | Nền tảng | Bộ cài |
 | --- | --- |
-| Windows x64 | [VietDub-AI-Setup-2.2.0.exe](https://github.com/khaihoansk86-debug/Vietdub-Ai/releases/download/v2.2.0/VietDub-AI-Setup-2.2.0.exe) |
-| macOS Apple Silicon — arm64 | [VietDub-AI-2.2.0-macOS-arm64.dmg](https://github.com/khaihoansk86-debug/Vietdub-Ai/releases/download/v2.2.0/VietDub-AI-2.2.0-macOS-arm64.dmg) |
+| Windows x64 | [VietDub-AI-Setup-2.2.1.exe](https://github.com/khaihoansk86-debug/Vietdub-Ai/releases/download/v2.2.1/VietDub-AI-Setup-2.2.1.exe) |
+| macOS Apple Silicon — arm64 | [VietDub-AI-2.2.1-macOS-arm64.dmg](https://github.com/khaihoansk86-debug/Vietdub-Ai/releases/download/v2.2.1/VietDub-AI-2.2.1-macOS-arm64.dmg) |
 
 Trang release có tệp `SHA256SUMS` để đối chiếu tính toàn vẹn bộ cài. Hiện chưa cung cấp bộ cài cho Mac Intel.
 
@@ -185,7 +185,7 @@ Vietdub-Ai/
 
 GitHub Actions kiểm tra và đóng gói trên Windows/macOS khi push tag `v*`, sau đó tải bộ cài cùng checksum lên Releases. Dùng tag mới cho mỗi phiên bản.
 
-Bản 2.2.0 có 24 kiểm thử logic và 6 tình huống DOM hồi quy, cùng kiểm thử API/giao diện và khởi động bản Windows đóng gói. Luồng Post → Post now đã được kiểm chứng trên bài thật ở bản trước. Bản 2.2.0 kiểm thử 24 kênh bằng dữ liệu mô phỏng; chưa chạy một đợt đăng thật với 24 kênh. Giao diện macOS chưa được nghiệm thu trên máy Mac thật; TikTok có thể tiếp tục thay đổi giao diện.
+Bản 2.2.1 có 24 kiểm thử logic và 6 tình huống DOM hồi quy, cùng kiểm thử API/giao diện và khởi động bản Windows đóng gói. Luồng Post → Post now đã được kiểm chứng trên bài thật ở bản trước. Bản 2.2.1 kiểm thử 24 kênh bằng dữ liệu mô phỏng; chưa chạy một đợt đăng thật với 24 kênh. Giao diện macOS chưa được nghiệm thu trên máy Mac thật; TikTok có thể tiếp tục thay đổi giao diện.
 
 ## Hỗ trợ
 

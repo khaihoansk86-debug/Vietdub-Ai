@@ -62,8 +62,9 @@ try {
   await page.waitForFunction(() => document.getElementById('directPostStatus').textContent === 'Đang đăng');
   assert.equal(calls, 1);
   assert.equal(await page.locator('#warehouseDistributeBtn').isDisabled(), true);
-  for (const width of [375, 768, 1024, 1440]) {
+  for (const width of [375, 768, 1024, 1440, 1920, 2560]) {
     await page.setViewportSize({ width, height: 900 });
+    if (width >= 1200) assert.equal(await page.evaluate(() => document.querySelector('.view-tabs').getBoundingClientRect().right <= document.querySelector('.topbar').getBoundingClientRect().left), true, 'Sidebar overlap at ' + width);
     for (const view of ['publish', 'process', 'settings']) {
       await page.locator(`button[data-view="${view}"]`).click();
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false, `${view} overflow at ${width}`);
@@ -72,10 +73,15 @@ try {
   }
   await page.screenshot({ path: path.join(output, 'studio-direct-1440.png'), fullPage: true });
   await page.route('**/api/tiktok/history', route => route.fulfill({ contentType: 'application/json', body: JSON.stringify({ ok: true, history: [{ fileName: 'clip.mp4', accountName: 'QA', status: 'processing', postUrl: 'https://www.tiktok.com/@qa/video/123', publishedAt: new Date().toISOString() }] }) }));
+  let refreshCalls = 0;
+  await page.route('**/api/tiktok/history/refresh', route => { refreshCalls++; return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ok:true,updated:0,errors:[]}) }); });
   posting = false;
   await page.locator('#tiktokHistoryModal').waitFor({ state: 'visible' });
   assert.match(await page.locator('#tiktokHistoryListContainer').innerText(), /TikTok đang xử lý/);
   assert.match(await page.locator('#tiktokViewHistoryBtn').innerText(), /\(1\)/);
+  await page.locator('#refreshHistoryStatusBtn').click();
+  await page.waitForFunction(() => document.getElementById('historyRefreshStatus').textContent.includes('Đã cập nhật'));
+  assert.equal(refreshCalls, 1);
   // DOM adapter integration: no real TikTok account or publication is involved.
   const fixture = await browser.newPage();
   const videoId = String((BigInt(Math.floor(Date.now() / 1000)) << 32n) + 123n);
@@ -86,7 +92,7 @@ try {
   assert.equal(evidence.status, 'success');
   await fixture.setContent('<div id="captcha">Verify</div>'); await assert.rejects(assertSession(fixture), /xác minh/);
   assert.deepEqual(errors, []);
-  fs.writeFileSync(path.join(output, 'smoke-report.json'), JSON.stringify({ ok: true, date: new Date().toISOString(), viewports: [375, 768, 1024, 1440], themes: ['dark', 'light'], checks: ['real API isolation', 'CSRF', 'invalid preview', 'stored recovery', 'XSS escaping', 'filters', 'processing form retained', 'all navigation tabs', 'DOM public verification', 'CAPTCHA detection'], errors }, null, 2));
+  fs.writeFileSync(path.join(output, 'smoke-report.json'), JSON.stringify({ ok: true, date: new Date().toISOString(), viewports: [375, 768, 1024, 1440, 1920, 2560], themes: ['dark', 'light'], checks: ['real API isolation', 'CSRF', 'invalid preview', 'stored recovery', 'XSS escaping', 'filters', 'processing form retained', 'all navigation tabs', 'DOM public verification', 'CAPTCHA detection'], errors }, null, 2));
   console.log(`PASS: API + UI + DOM smoke. Artifacts: ${output}`);
 } finally {
   if (browser) await browser.close(); child.kill();

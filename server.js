@@ -26,6 +26,7 @@ import {
   getPublishRuns,
   getDirectPublisher,
   getPublishHistory,
+  refreshPublishHistory,
   clearPublishHistory
 } from './services/tiktokPublisher.js';
 
@@ -560,6 +561,11 @@ app.post('/api/tiktok/warehouse/distribute', (req, res) => {
 });
 
 // TikTok Publish History APIs
+app.post('/api/tiktok/history/refresh', async (req, res) => {
+  if (req.headers.origin && req.headers.origin !== `http://${req.headers.host}`) return res.status(403).json({ ok: false });
+  try { res.json(await refreshPublishHistory()); }
+  catch (error) { res.status(409).json({ ok: false, message: error.message }); }
+});
 app.get('/api/tiktok/history', (_req, res) => {
   try {
     const history = getPublishHistory();

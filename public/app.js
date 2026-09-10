@@ -2150,7 +2150,25 @@ async function refreshTikTokHistoryCount() {
   if (data.ok && Array.isArray(data.history) && tiktokViewHistoryBtn) tiktokViewHistoryBtn.textContent = `Lịch Sử Đã Đăng (${data.history.length})`;
 }
 
-async function openTikTokHistoryModal() {
+let refreshingHistory = false;
+async function refreshHistoryStatuses() {
+  if (refreshingHistory) return;
+  refreshingHistory = true;
+  const button = document.getElementById('refreshHistoryStatusBtn');
+  const status = document.getElementById('historyRefreshStatus');
+  button.disabled = true; status.textContent = 'Đang mở Studio để kiểm tra bài đã gửi…';
+  try {
+    const response = await fetch('/api/tiktok/history/refresh', { method: 'POST' });
+    const data = await response.json();
+    if (!response.ok || !data.ok) throw new Error(data.message || 'Không cập nhật được trạng thái.');
+    status.textContent = `Đã cập nhật ${data.updated} bài công khai.${data.errors.length ? ' ' + data.errors.join(' ') : ''}`;
+    await openTikTokHistoryModal(false);
+  } catch (error) { status.textContent = error.message; }
+  finally { refreshingHistory = false; button.disabled = false; }
+}
+document.getElementById('refreshHistoryStatusBtn').addEventListener('click', refreshHistoryStatuses);
+
+async function openTikTokHistoryModal(autoRefresh = true) {
   if (tiktokHistoryModal) tiktokHistoryModal.classList.remove('hidden');
   if (tiktokHistoryListContainer) {
     tiktokHistoryListContainer.innerHTML = '<div style="text-align: center; color: var(--muted); padding: 24px;">⏳ Đang tải lịch sử đã đăng...</div>';
@@ -2158,6 +2176,7 @@ async function openTikTokHistoryModal() {
   try {
     const res = await fetch('/api/tiktok/history');
     const data = await res.json();
+    if (autoRefresh && data.history?.some(h => ['processing', 'needs_review'].includes(h.status) && h.postId)) refreshHistoryStatuses();
     const modalTitle = tiktokHistoryModal?.querySelector('.tiktok-modal-title');
     if (data.ok && Array.isArray(data.history) && data.history.length > 0) {
       if (modalTitle) modalTitle.textContent = `Lịch Sử Đã Đăng TikTok (${data.history.length})`;

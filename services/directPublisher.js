@@ -64,7 +64,7 @@ export class DirectPublisher {
             this.log(`${account.name}: lỗi kết nối trước khi gửi, thử lại một lần…`); await this.deps.delay(2500);
           }
         }
-        if (result.status === 'success' || result.status === 'processing' && result.postId && result.postUrl) this.deps.record({ account, videoPath: video.path, ...meta, ...result, sha256 });
+        if (result.status === 'success' || result.status === 'processing' && result.postId && result.postUrl) this.deps.record({ account, videoPath: video.path, ...meta, ...result, sha256, account });
         if (result.status === 'processing' && this.deps.reconcile) {
           this.log(`${account.name}: đã gửi, đang kiểm tra lại trạng thái TikTok…`);
           try {
@@ -72,7 +72,7 @@ export class DirectPublisher {
             const verified = await this.deps.reconcile(account, result);
             if (verified.status === 'success') {
               result = verified;
-              this.deps.record({ account, videoPath: video.path, ...meta, ...result, sha256 });
+              this.deps.record({ account, videoPath: video.path, ...meta, ...result, sha256, account });
             }
           } catch (error) { this.log(`${account.name}: chưa cập nhật được trạng thái: ${error.message}`); }
         }

@@ -1,3 +1,12 @@
+# VietDub AI Studio 2.2.1 — Cửa sổ lớn và trạng thái lịch sử
+
+- Sửa thanh bên chồng nội dung ở màn hình từ 1.800px; kiểm tra thêm 1920/2560px.
+- Tự quét bài đang xử lý khi mở lịch sử, thêm nút Quét lại trạng thái.
+- Sửa thông tin tài khoản bị tên hiển thị ghi đè khi lưu kết quả; phục hồi bản ghi cũ theo username trong URL.
+- Đã đối chiếu hai bài thật trên Studio và cập nhật Đã công khai; không upload lại.
+
+---
+
 # VietDub AI Studio 2.2.0 — Bản chính thức
 
 - Thanh bên được căn vào trong, có khoảng cách và góc bo đồng bộ.

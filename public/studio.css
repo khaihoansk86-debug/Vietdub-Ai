@@ -110,7 +110,6 @@ body[data-view="publish"] .status { display: none; }
 .status { position: static; width: 100%; max-height: none; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 24px; }
 .status-card { border: 1px solid var(--line); background: var(--bg-card); box-shadow: none; }
 .top-actions button { min-height: 40px; font-size: 11px; }.sections-global-toggle-bar { background: var(--bg-card); }
-@media (min-width: 1800px) { .view-tabs { width: calc((100vw - 1760px) / 2 + 216px); padding-left: max(14px, calc((100vw - 1760px) / 2)); } }
 @media (max-width: 1100px) { .shell { padding: 0 20px 32px 206px; }.view-tabs { width: 186px; }.studio-heading { align-items: start; flex-direction: column; }.studio-metrics { gap: 10px; }.studio-metrics > div { padding: 14px; }.run-heading { flex-wrap: wrap; }.top-actions { flex-wrap: wrap; }.status { grid-template-columns: 1fr; } }
 @media (max-width: 760px) {
   .tiktok-prompt-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }

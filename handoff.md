@@ -1,3 +1,10 @@
+# Bản 2.2.1
+
+- Bỏ media min-width 1800 làm tăng width/padding thanh bên xung đột với left mới. Test chồng lấn ở 1920/2560.
+- POST history/refresh quét pending theo ID/kênh; UI gọi khi mở lịch sử và có nút quét lại. Không upload.
+- DirectPublisher đặt account object sau spread result để tên account dạng string từ upload không ghi đè. Refresh phục hồi accountId thiếu từ URL khớp tài khoản hiện có.
+- Đã quét hai bài thật và nâng success; giữ nguyên thao tác đăng và pipeline âm thanh.
+
 # Bản chính thức 2.2.0
 
 - Thanh bên cách mép 16px, theo lề shell trên màn rộng. Danh sách tài khoản giới hạn chiều cao và có chọn/bỏ chọn tất cả, ghi một lần qua API select-all.
