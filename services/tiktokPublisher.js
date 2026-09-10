@@ -170,7 +170,7 @@ export async function isAlreadyPublished({ videoPath, accountId = null }) {
 
   for (let i = history.length - 1; i >= 0; i--) {
     const entry = history[i];
-    if (entry.status !== 'success') continue;
+    if (!['success', 'processing'].includes(entry.status)) continue;
 
     // Match by fingerprint (highest confidence) or filename
     const isFileMatch = entry.sha256 ? entry.sha256 === sha256 :
@@ -188,7 +188,14 @@ export async function isAlreadyPublished({ videoPath, accountId = null }) {
 
 export function recordPublishedVideo({ videoPath, account, caption = '', hashtags = [], postMode = 'public', status = 'success', sha256 = '', postId = '', postUrl = '', verification = '', confirmedAt = '' }) {
   const history = loadPublishHistory();
-  if (postId && history.some(h => h.postId === postId && h.accountId === account.id)) return history.find(h => h.postId === postId && h.accountId === account.id);
+  const existing = postId && history.find(h => h.postId === postId && h.accountId === account.id);
+  if (existing) {
+    if (status === 'success' && existing.status !== 'success') {
+      Object.assign(existing, { status, confirmedAt, verification, postUrl });
+      savePublishHistory(history);
+    }
+    return existing;
+  }
   const fileName = path.basename(videoPath);
   const fileHash = computeVideoFingerprint(videoPath) || '';
 

@@ -132,3 +132,17 @@ test('confirmation requires exact caption, account, new post ID and explicit pub
   assert.equal(selectEvidence([good, { ...good, id: String(BigInt(newId) + 1n) }], expected).status, 'needs_review');
   assert.equal(selectEvidence([good], { ...expected, baselineIds: undefined }).status, 'needs_review');
 });
+
+test('processing history excludes clip from fresh stock and upgrades without duplication', async t => {
+  const f = fixture(t);
+  const previous = process.env.VIETDUB_DATA_DIR; process.env.VIETDUB_DATA_DIR = f.directory;
+  try {
+    const { recordPublishedVideo, loadPublishHistory, isAlreadyPublished } = await import('../services/tiktokPublisher.js');
+    const item = { videoPath: f.videos[0].path, account: { id: 'a', name: 'A' }, sha256: await fullFingerprint(f.videos[0].path), postId: '123', postUrl: 'https://www.tiktok.com/@a/video/123' };
+    recordPublishedVideo({ ...item, status: 'processing' });
+    assert.equal((await isAlreadyPublished({ videoPath: item.videoPath })).published, true);
+    recordPublishedVideo({ ...item, status: 'success' });
+    assert.equal(loadPublishHistory().length, 1);
+    assert.equal(loadPublishHistory()[0].status, 'success');
+  } finally { if (previous === undefined) delete process.env.VIETDUB_DATA_DIR; else process.env.VIETDUB_DATA_DIR = previous; }
+});

@@ -11,9 +11,13 @@
     try {
       const response = await fetch('/api/tiktok/warehouse/status');
       if (!response.ok) throw new Error('Không đọc được trạng thái đăng.');
-      const state = await response.json(); busy = state.busy;
+      const state = await response.json(); const finished = busy && !state.busy; busy = state.busy;
       if (!requesting) notice(state.message);
       $('directPostLogs').textContent = state.logs.join('\n');
+      if (finished) {
+        await scanWarehouse();
+        if (state.results?.some(result => ['success', 'processing'].includes(result.status))) await openTikTokHistoryModal();
+      }
     } catch (error) { notice(error.message); }
     controls();
   }
@@ -34,6 +38,7 @@
     finally { requesting = false; controls(); }
   });
   document.querySelector('.tiktok-section')?.classList.remove('is-collapsed');
+  refreshTikTokHistoryCount().catch(() => {});
   async function poll() { await refresh(); setTimeout(poll, 2000); }
   poll();
 })();

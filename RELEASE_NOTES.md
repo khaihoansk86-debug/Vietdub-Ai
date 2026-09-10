@@ -1,3 +1,12 @@
+# VietDub AI Studio 2.1.5 — Lịch sử bài đã gửi
+
+- Lưu ngay bài đã tìm đúng trên TikTok nhưng còn đang xử lý vào lịch sử, kèm URL và trạng thái riêng.
+- Bỏ qua clip đang xử lý khi chọn video mới để tránh đăng trùng.
+- Tự quét lại kho, cập nhật bộ đếm và mở lịch sử khi hoàn tất đăng; bổ sung liên kết mở bài.
+- Giữ nguyên thao tác đăng trực tiếp và pipeline dịch/lồng tiếng.
+
+---
+
 # VietDub AI Studio 2.1.4 — Đăng trực tiếp
 
 - Bỏ bảng Điều hành lượt đăng, bộ chọn lượt, kiểm tra sẵn sàng và bước prepare/start khỏi nút Đăng video.

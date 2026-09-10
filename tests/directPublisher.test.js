@@ -35,3 +35,10 @@ test('ambiguous submission is not marked successful or retried within a click', 
   assert.equal(calls.includes('history'), false);
   assert.equal(publisher.state.results[0].status, 'needs_review');
 });
+test('a matched post awaiting TikTok processing is saved to history immediately', async () => {
+  const { publisher, calls } = setup();
+  publisher.deps.upload = async () => ({ status: 'processing', postId: '123', postUrl: 'https://www.tiktok.com/@a/video/123' });
+  publisher.start({ accountIds: ['a'], captionPrompt: 'prompt' }); await publisher.task;
+  assert.equal(calls.includes('history'), true);
+  assert.equal(publisher.state.results[0].status, 'processing');
+});

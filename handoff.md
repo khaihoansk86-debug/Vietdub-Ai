@@ -1,3 +1,10 @@
+# Bản 2.1.5 — Lưu bài đang xử lý vào lịch sử
+
+- DirectPublisher ghi cả success và processing có postId/postUrl. Processing được loại khỏi kho mới; không gắn nhãn Công khai khi TikTok còn xử lý.
+- Lịch sử có nhãn trạng thái và liên kết bài, tự mở khi hoàn tất đăng; bộ đếm được làm mới từ lịch sử.
+- recordPublishedVideo cho phép nâng processing lên success cùng postId mà không tạo bản ghi trùng.
+- Đã khôi phục hai bài bị bỏ sót từ trạng thái app 2.1.4, đối chiếu ID trên Studio. Không upload lại.
+
 # Bản 2.1.4 — Đăng trực tiếp, thay thế UI điều hành lượt
 
 - Nút đăng gọi `POST /api/tiktok/warehouse/distribute`, trạng thái từ `GET /api/tiktok/warehouse/status`.

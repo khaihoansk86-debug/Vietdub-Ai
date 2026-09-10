@@ -2090,17 +2090,15 @@ async function scanWarehouse() {
           📦 Tổng: <strong>${totalCount} video</strong>
         </span>
         <span class="warehouse-stat-pill" style="background: rgba(16, 185, 129, 0.15); color: #34d399; border-color: rgba(16, 185, 129, 0.3);">
-          ✨ Mới chưa đăng: <strong>${freshCount} video</strong>
+          ✨ Chưa gửi: <strong>${freshCount} video</strong>
         </span>
         ${publishedCount > 0 ? `
           <span class="warehouse-stat-pill" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; border-color: rgba(245, 158, 11, 0.3);">
-            ⏭️ Đã đăng (sẽ bỏ qua): <strong>${publishedCount} video</strong>
+            ⏭️ Đã gửi / đã đăng: <strong>${publishedCount} video</strong>
           </span>
         ` : ''}
       `;
-      if (tiktokViewHistoryBtn) {
-        tiktokViewHistoryBtn.innerHTML = `<span>📜</span> Lịch Sử Đã Đăng (${publishedCount || 0})`;
-      }
+      await refreshTikTokHistoryCount();
     } else {
       warehouseScanStatus.innerHTML = `<span style="color: #f87171;">⚠️ ${escapeHtml(data.message)}</span>`;
     }
@@ -2144,6 +2142,12 @@ function connectWarehouseLogs() {
     };
     warehouseEventSource.onerror = () => {};
   } catch {}
+}
+
+async function refreshTikTokHistoryCount() {
+  const response = await fetch('/api/tiktok/history');
+  const data = await response.json();
+  if (data.ok && Array.isArray(data.history) && tiktokViewHistoryBtn) tiktokViewHistoryBtn.textContent = `Lịch Sử Đã Đăng (${data.history.length})`;
 }
 
 async function openTikTokHistoryModal() {
@@ -2199,8 +2203,9 @@ async function openTikTokHistoryModal() {
                   </td>
                   <td style="text-align: center; white-space: nowrap;">
                     <span class="tiktok-history-badge">
-                      ${h.postMode === 'draft' ? '💾 Bản Nháp' : '🚀 Công Khai'}
+                      ${h.status === 'processing' ? '⏳ Đã gửi · TikTok đang xử lý' : h.status === 'success' ? '✅ Đã công khai' : 'Chưa xác nhận công khai'}
                     </span>
+                    ${/^https:\/\/www\.tiktok\.com\/@[\w.-]+\/video\/\d+$/.test(h.postUrl || '') ? `<br><a href="${escapeHtml(h.postUrl)}" target="_blank" rel="noopener noreferrer">Mở bài đăng ↗</a>` : ''}
                   </td>
                 </tr>
               `;}).join('')}

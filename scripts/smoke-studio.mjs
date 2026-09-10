@@ -41,7 +41,7 @@ try {
   assert.equal(await page.locator('#pubRunSelect').count(), 0);
   assert.equal(await page.locator('#viewPublish').isVisible(), true);
   let calls = 0, posting = false;
-  await page.route('**/api/tiktok/warehouse/status', route => route.fulfill({ contentType: 'application/json', body: JSON.stringify({ busy: posting, message: posting ? 'Đang đăng' : 'Sẵn sàng', logs: [] }) }));
+  await page.route('**/api/tiktok/warehouse/status', route => route.fulfill({ contentType: 'application/json', body: JSON.stringify({ busy: posting, message: posting ? 'Đang đăng' : 'Sẵn sàng', logs: [], results: [{ status: 'processing' }] }) }));
   await page.route('**/api/tiktok/warehouse/distribute', async route => {
     calls++;
     assert.equal(route.request().postDataJSON().captionPrompt, 'Prompt QA content');
@@ -64,6 +64,11 @@ try {
     await page.locator('button[data-view="publish"]').click();
   }
   await page.screenshot({ path: path.join(output, 'studio-direct-1440.png'), fullPage: true });
+  await page.route('**/api/tiktok/history', route => route.fulfill({ contentType: 'application/json', body: JSON.stringify({ ok: true, history: [{ fileName: 'clip.mp4', accountName: 'QA', status: 'processing', postUrl: 'https://www.tiktok.com/@qa/video/123', publishedAt: new Date().toISOString() }] }) }));
+  posting = false;
+  await page.locator('#tiktokHistoryModal').waitFor({ state: 'visible' });
+  assert.match(await page.locator('#tiktokHistoryListContainer').innerText(), /TikTok đang xử lý/);
+  assert.match(await page.locator('#tiktokViewHistoryBtn').innerText(), /\(1\)/);
   // DOM adapter integration: no real TikTok account or publication is involved.
   const fixture = await browser.newPage();
   const videoId = String((BigInt(Math.floor(Date.now() / 1000)) << 32n) + 123n);

@@ -43,7 +43,7 @@ export class DirectPublisher {
         if (!meta.caption?.trim() || !Array.isArray(meta.hashtags)) throw new Error('AI chưa tạo được nội dung hợp lệ.');
         this.log(`${account.name}: đang upload và đăng ${video.name}…`);
         const result = await this.deps.upload({ account, videoPath: video.path, ...meta, log: message => this.log(message) });
-        if (result.status === 'success') this.deps.record({ account, videoPath: video.path, ...meta, ...result, sha256 });
+        if (result.status === 'success' || result.status === 'processing' && result.postId && result.postUrl) this.deps.record({ account, videoPath: video.path, ...meta, ...result, sha256 });
         this.state.results.push({ account: account.name, video: video.name, status: result.status, postUrl: result.postUrl });
         this.log(`${account.name}: ${result.status === 'success' ? 'Đã đăng công khai.' : result.message || 'Đã gửi, chưa xác nhận công khai. Kiểm tra TikTok Studio.'}`);
       } catch (error) { this.log(`${account.name}: ${error.message}`); this.state.results.push({ account: account.name, video: video.name, status: 'error' }); }
