@@ -7,6 +7,7 @@ import { chromium } from 'playwright-core';
 import ytdl from 'yt-dlp-exec';
 import ffmpegStatic from 'ffmpeg-static';
 import { PublishRuns, atomicJson, fullFingerprint } from './publishRuns.js';
+import { DirectPublisher } from './directPublisher.js';
 import { assertSession, loadStudioContent, selectEvidence, ensurePublic, normalizeCaption } from './tiktokVerification.js';
 
 export async function resolveVideoContext(videoPath, originalTitle = '') {
@@ -1188,4 +1189,16 @@ export async function distributeWarehouseVideos(options) {
   const prepared = await service.prepare(options);
   if (!prepared.ok) return prepared;
   return service.start(prepared.run.id);
+}
+
+let directPublisher;
+export function getDirectPublisher() {
+  if (!directPublisher) directPublisher = new DirectPublisher({
+    accounts: loadTikTokAccounts, scan: scanWarehouseVideos, hash: fullFingerprint,
+    acquire: () => getPublishRuns().acquire(), release: () => getPublishRuns().release(),
+    metadata: (video, account, options) => generateTikTokMetadata([], video.name, { ...options, requireAi: true, videoPath: video.path, accountName: account.name, accountUsername: account.username }),
+    upload: uploadSingleAccount, record: recordPublishedVideo,
+    delay: ms => new Promise(resolve => setTimeout(resolve, ms))
+  });
+  return directPublisher;
 }

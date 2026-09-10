@@ -36,64 +36,34 @@ try {
   await page.route('**/*', route => route.request().url().startsWith(origin) ? route.continue() : route.abort());
   const errors = []; page.on('pageerror', err => errors.push(err.message));
   page.on('dialog', () => errors.push('Unexpected native dialog'));
-  await page.goto(origin); await page.waitForSelector('#pubRows .run-badge');
-  assert.equal(await page.locator('#pubTotal').textContent(), '2');
-  assert.equal(await page.locator('#pubAttention').textContent(), '1');
-  assert.equal(await page.locator('#viewPublish').isVisible(), true);
-  await page.locator('#pubRows details').first().locator('summary').click();
-  assert.equal(await page.locator('#pubRows img').count(), 0);
-  assert.ok((await page.locator('#pubRows .caption-copy').first().textContent()).includes('<img'));
-  await page.locator('#pubFilter').selectOption('attention'); assert.equal(await page.locator('#pubRows tr').count(), 1);
-  await page.locator('#pubFilter').selectOption('all');
-  const beforeForm = await page.evaluate(() => [...new FormData(document.getElementById('jobForm')).keys()]);
-  assert.ok(beforeForm.includes('ttsProvider'));
-  assert.equal(await page.locator('#tiktokAutoUpload').evaluate(el => el.form.id), 'jobForm');
-  await page.locator('button[data-view="process"]').click(); assert.equal(await page.locator('#viewProcess').isVisible(), true);
-  await page.locator('button[data-view="settings"]').click(); assert.equal(await page.locator('#geminiApiKey').isVisible(), true);
-  await page.locator('button[data-view="publish"]').click();
-  for (const theme of ['dark', 'light']) {
-    await page.evaluate(theme => document.documentElement.dataset.theme = theme, theme);
-    await page.screenshot({ path: path.join(output, `studio-${theme}-1440.png`), fullPage: true });
-  }
-  for (const width of [375, 768, 1024, 1440]) {
-    await page.setViewportSize({ width, height: 900 });
-    const overflow = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1);
-    if (overflow) console.log(await page.evaluate(() => [...document.querySelectorAll('body *')].filter(el => { const r = el.getBoundingClientRect(); return r.width && r.right > innerWidth + 1 && !el.closest('.run-table-wrap'); }).slice(0, 20).map(el => ({ tag: el.tagName, id: el.id, class: el.className, width: el.getBoundingClientRect().width, right: el.getBoundingClientRect().right }))));
-    assert.equal(overflow, false, `Page overflow at ${width}`);
-    for (const view of ['publish', 'process', 'settings']) {
-      await page.locator(`button[data-view="${view}"]`).click();
-      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false, `${view} overflow at ${width}`);
-    }
-    await page.locator('button[data-view="publish"]').click();
-    if (width === 375) await page.screenshot({ path: path.join(output, 'studio-mobile-375.png'), fullPage: true });
-  }
-  // One click must prepare AI content and start, without publishing to a real account.
+  await page.goto(origin); await page.waitForSelector('#warehouseDistributeBtn');
   assert.equal(await page.title(), 'VietDub AI Studio');
-  assert.equal(await page.locator('.view-tabs').evaluate(el => getComputedStyle(el, '::before').content), '"VietDub AI Studio"');
-  let prepareCalls = 0, startCalls = 0, allowPrepare = true;
-  await page.route('**/api/tiktok/runs/preview', async route => {
-    prepareCalls++;
-    const input = route.request().postDataJSON();
-    assert.equal(input.captionPrompt, 'Prompt QA content');
-    assert.ok(input.accountIds.length > 0);
-    await new Promise(resolve => setTimeout(resolve, 150));
-    await route.fulfill({ status: allowPrepare ? 200 : 422, contentType: 'application/json', body: JSON.stringify(allowPrepare ? { ok: true, run, checks: [] } : { ok: false, checks: [{ status: 'error', label: 'Kho video', message: 'Không đủ video' }] }) });
-  });
-  await page.route('**/api/tiktok/runs/qa-run/start', route => {
-    startCalls++;
-    return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ ok: true }) });
+  assert.equal(await page.locator('#pubRunSelect').count(), 0);
+  assert.equal(await page.locator('#viewPublish').isVisible(), true);
+  let calls = 0, posting = false;
+  await page.route('**/api/tiktok/warehouse/status', route => route.fulfill({ contentType: 'application/json', body: JSON.stringify({ busy: posting, message: posting ? 'Đang đăng' : 'Sẵn sàng', logs: [] }) }));
+  await page.route('**/api/tiktok/warehouse/distribute', async route => {
+    calls++;
+    assert.equal(route.request().postDataJSON().captionPrompt, 'Prompt QA content');
+    posting = true;
+    await route.fulfill({ contentType: 'application/json', body: '{"ok":true}' });
   });
   await page.locator('.tiktok-account-card').first().evaluate(el => el.classList.add('selected'));
   await page.locator('#warehouseFolderPath').fill(temp);
   await page.locator('#tiktokCaptionPrompt').fill('Prompt QA content');
   await page.locator('#warehouseDistributeBtn').evaluate(el => { el.click(); el.click(); });
-  await page.waitForFunction(() => document.getElementById('pubNotice').textContent.startsWith('Đã bắt đầu đăng video.'));
-  assert.equal(prepareCalls, 1); assert.equal(startCalls, 1);
-  await page.waitForFunction(() => !document.getElementById('warehouseDistributeBtn').disabled);
-  allowPrepare = false;
-  await page.locator('#warehouseDistributeBtn').click();
-  await page.waitForFunction(() => document.getElementById('pubNotice').textContent.startsWith('Chưa thể đăng video.'));
-  assert.equal(prepareCalls, 2); assert.equal(startCalls, 1);
+  await page.waitForFunction(() => document.getElementById('directPostStatus').textContent === 'Đang đăng');
+  assert.equal(calls, 1);
+  assert.equal(await page.locator('#warehouseDistributeBtn').isDisabled(), true);
+  for (const width of [375, 768, 1024, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    for (const view of ['publish', 'process', 'settings']) {
+      await page.locator(`button[data-view="${view}"]`).click();
+      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false, `${view} overflow at ${width}`);
+    }
+    await page.locator('button[data-view="publish"]').click();
+  }
+  await page.screenshot({ path: path.join(output, 'studio-direct-1440.png'), fullPage: true });
   // DOM adapter integration: no real TikTok account or publication is involved.
   const fixture = await browser.newPage();
   const videoId = String((BigInt(Math.floor(Date.now() / 1000)) << 32n) + 123n);

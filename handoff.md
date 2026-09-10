@@ -1,3 +1,11 @@
+# Bản 2.1.4 — Đăng trực tiếp, thay thế UI điều hành lượt
+
+- Nút đăng gọi `POST /api/tiktok/warehouse/distribute`, trạng thái từ `GET /api/tiktok/warehouse/status`.
+- `services/directPublisher.js` chọn từ `scanWarehouseVideos`, AI theo prompt, gọi uploadSingleAccount; bỏ prepare, preflight từng kênh và reserved của lượt cũ. Không đòi đủ video cho tất cả kênh.
+- `public/publisher.js` chỉ quản lý nút đăng, trạng thái và nhật ký. Đã xóa bảng điều hành lượt khỏi HTML.
+- Lịch sử success vẫn được ghi; lần gửi chưa rõ không ghi success và không tự retry trong cùng một cú bấm. Người dùng bấm đăng mới có thể chọn lại clip chưa có trong lịch sử success.
+- Bộ điều phối cũ vẫn còn cho API tương thích và luồng tự đăng sau render, không dùng để phân bổ khi bấm nút đăng kho.
+
 # Bản 2.1.3 — Đăng video một nút
 
 - Tên thanh bên và cửa sổ: VietDub AI Studio.

@@ -23,6 +23,7 @@ import {
   uploadToMultipleAccounts,
   scanWarehouseVideos,
   getPublishRuns,
+  getDirectPublisher,
   getPublishHistory,
   clearPublishHistory
 } from './services/tiktokPublisher.js';
@@ -543,7 +544,14 @@ app.post('/api/tiktok/runs/:id/:action', (req, res) => {
     res.json({ ok: true, run });
   } catch (err) { res.status(409).json({ ok: false, message: err.message }); }
 });
-app.post('/api/tiktok/warehouse/distribute', (_req, res) => res.status(409).json({ ok: false, message: 'Hãy tạo bản xem trước tại Trung tâm xuất bản rồi bắt đầu lượt đăng.' }));
+app.get('/api/tiktok/warehouse/status', (_req, res) => res.json(getDirectPublisher().state));
+app.post('/api/tiktok/warehouse/distribute', (req, res) => {
+  if (req.headers.origin && req.headers.origin !== `http://${req.headers.host}`) return res.status(403).json({ ok: false, message: 'Nguồn yêu cầu không hợp lệ.' });
+  try {
+    getDirectPublisher().start(req.body);
+    res.json({ ok: true });
+  } catch (error) { res.status(409).json({ ok: false, message: error.message }); }
+});
 
 // TikTok Publish History APIs
 app.get('/api/tiktok/history', (_req, res) => {

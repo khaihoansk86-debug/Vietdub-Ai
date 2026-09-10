@@ -1,3 +1,12 @@
+# VietDub AI Studio 2.1.4 — Đăng trực tiếp
+
+- Bỏ bảng Điều hành lượt đăng, bộ chọn lượt, kiểm tra sẵn sàng và bước prepare/start khỏi nút Đăng video.
+- Đăng trực tiếp bằng kho video, AI theo prompt và thao tác Post/Post now hiện hành; không dùng giữ chỗ từ các lượt cũ.
+- Kho thiếu video vẫn đăng số clip hiện có; nhật ký hiển thị ngay dưới nút đăng.
+- Giữ lịch sử bài đã xác nhận công khai, khóa chống chạy đồng thời và pipeline dịch/TTS/render.
+
+---
+
 # VietDub AI Studio 2.1.3 — Đăng video một nút
 
 - Hiển thị đúng tên VietDub AI Studio ở thanh bên và tiêu đề cửa sổ.

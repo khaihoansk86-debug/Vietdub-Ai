@@ -43,7 +43,7 @@
           <button class="tab-btn active" type="button" data-view="publish"><span aria-hidden="true">▤</span><span>Xuất bản TikTok</span></button>
           <button class="tab-btn" type="button" data-view="process"><span aria-hidden="true">▷</span><span>Sản xuất video</span></button>
           <button class="tab-btn" type="button" data-view="settings"><span aria-hidden="true">⚙</span><span>Cài đặt & API</span></button>
-          <div class="nav-footer"><span class="status-dot ready"></span> Workspace local<br><small>VietDub AI Studio · 2.1.3</small></div>
+          <div class="nav-footer"><span class="status-dot ready"></span> Workspace local<br><small>VietDub AI Studio · 2.1.4</small></div>
         </nav>
 
         <form id="jobForm" class="panel">
@@ -372,29 +372,7 @@
 
           <div id="viewPublish" class="view-panel-tab">
             <div class="studio-heading"><div><span class="eyebrow">PUBLISHING WORKSPACE</span><h2>Trung tâm xuất bản</h2><p>Mỗi kênh một video. Theo dõi từ chuẩn bị đến xác nhận công khai.</p></div><span class="public-badge">Công khai · Phân bổ 1:1</span></div>
-            <div class="studio-metrics" aria-label="Tổng quan lượt đăng">
-              <div><span>Video trong lượt</span><strong id="pubTotal">0</strong><small>Phân bổ độc quyền 1:1</small></div>
-              <div><span>Đã công khai</span><strong id="pubSuccess">0</strong><small>Đã xác minh đúng bài</small></div>
-              <div><span>Đang chờ / xử lý</span><strong id="pubPending">0</strong><small>Tự lưu tiến độ</small></div>
-              <div><span>Cần chú ý</span><strong id="pubAttention">0</strong><small>Đối soát hoặc thử lại</small></div>
-            </div>
-            <section class="run-panel" aria-labelledby="runTitle">
-              <div class="run-heading"><div><h3 id="runTitle">Điều hành lượt đăng</h3><p id="pubRunState">Chưa có lượt đăng</p></div><label class="run-picker">Lượt đăng<select id="pubRunSelect"><option value="">Chưa có dữ liệu</option></select></label></div>
-              <div id="pubNotice" class="studio-notice hidden" role="status" aria-live="polite"></div>
-              <div class="run-toolbar">
-                <label>Hiển thị<select id="pubFilter"><option value="all">Tất cả video</option><option value="attention">Cần chú ý</option><option value="success">Đã công khai</option><option value="pending">Đang chờ / xử lý</option></select></label>
-                <div class="run-buttons">
-                  <button type="button" id="pubStart" class="primary" disabled hidden>Tiếp tục phần chưa gửi</button>
-                  <button type="button" id="pubPause" class="secondary" disabled>Dừng sau kênh hiện tại</button>
-                  <button type="button" id="pubRetry" class="secondary" disabled>Thử lại mục lỗi</button>
-                  <button type="button" id="pubReconcile" class="secondary" disabled>Đối soát bài đã gửi</button>
-                  <button type="button" id="pubCancel" class="link-btn" disabled>Hủy phần chưa gửi</button>
-                </div>
-              </div>
-              <div class="run-progress"><progress id="pubProgress" max="1" value="0" aria-label="Tiến độ xác nhận công khai"></progress><span id="pubProgressText">0 / 0 video</span></div>
-              <div class="run-table-wrap"><table class="run-table"><thead><tr><th scope="col">Kênh nhận</th><th scope="col">Video & nội dung</th><th scope="col">Trạng thái</th><th scope="col">Kết quả</th></tr></thead><tbody id="pubRows"><tr><td colspan="4"><div class="studio-empty"><span aria-hidden="true">▤</span><strong>Sẵn sàng cho lượt đăng đầu tiên</strong><p>Chọn kênh và kho video bên dưới, sau đó chọn “Đăng video”.</p></div></td></tr></tbody></table></div>
-              <details class="preflight-details" id="pubChecksDetails"><summary>Kiểm tra sẵn sàng <span id="pubCheckSummary"></span></summary><ul id="pubChecks"><li>Kiểm tra Chrome, phiên đăng nhập, video và nội dung AI trước khi đăng.</li></ul></details>
-            </section>
+
             <!-- TIKTOK AUTO PUBLISHER (MULTI-ACCOUNT) -->
             <section class="form-section tiktok-section" data-section-id="tiktok-section" style="margin-top: 14px;">
               <div class="section-head" title="Nhấp để thu gọn / mở rộng mục này">
@@ -454,7 +432,7 @@
                   </button>
                 </div>
 
-                <div id="warehouseScanStatus" style="font-size: 0.82rem; margin-top: 10px; color: var(--muted);">Chưa quét thư mục kho.</div>
+                <p id="directPostStatus" role="status" aria-live="polite">Sẵn sàng đăng video.</p><details><summary>Nhật ký đăng video</summary><pre id="directPostLogs" style="white-space: pre-wrap; overflow-wrap: anywhere;"></pre></details><div id="warehouseScanStatus" style="font-size: 0.82rem; margin-top: 10px; color: var(--muted);">Chưa quét thư mục kho.</div>
               </div>
 
               <fieldset class="settings-group compact">
