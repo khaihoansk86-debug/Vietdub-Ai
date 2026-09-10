@@ -202,7 +202,7 @@ export function isAlreadyPublished({ videoPath, accountId = null }) {
   return { published: false, entry: null };
 }
 
-export function recordPublishedVideo({ videoPath, account, caption = '', hashtags = [], postMode = 'draft', status = 'success' }) {
+export function recordPublishedVideo({ videoPath, account, caption = '', hashtags = [], postMode = 'public', status = 'success' }) {
   const history = loadPublishHistory();
   const fileName = path.basename(videoPath);
   const fileHash = computeVideoFingerprint(videoPath) || '';
@@ -842,6 +842,10 @@ async function dismissTikTokStudioPopups(page, log) {
 async function handleTikTokPostSubmission(uploadTarget, page, account, log, videoPath = '') {
   log(`📱 [TikTok - ${account.name}] Đang kiểm tra trạng thái video và chuẩn bị Đăng Công Khai (Post)...`);
 
+  // Cuộn trang xuống đáy trước tiên để footer hiển thị đầy đủ
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight)).catch(() => {});
+  await page.waitForTimeout(1000);
+
   // Tìm nút Post chính xác: PHẢI là nút Post submit ở chân trang, KHÔNG được nhầm với menu "Posts" ở thanh bên (sidebar)
   let postBtn = null;
   const postExactMatchRegex = /^(Post|Đăng)$/i;
@@ -859,9 +863,22 @@ async function handleTikTokPostSubmission(uploadTarget, page, account, log, vide
 
   // 2. Fallback: tìm trong footer / form-actions, tuyệt đối loại trừ aside/nav/sidebar
   if (!postBtn) {
-    const footerPost = uploadTarget.locator('div[class*="footer"] button, .btn-post button, footer button').filter({ hasText: postExactMatchRegex }).first();
+    const footerPost = uploadTarget.locator('div[class*="footer"] button, .btn-post button, footer button, .Button__root--type-primary').filter({ hasText: postExactMatchRegex }).first();
     if (await footerPost.isVisible().catch(() => false)) {
       postBtn = footerPost;
+    }
+  }
+
+  // 3. Fallback: lặp lại nếu chưa render
+  if (!postBtn) {
+    for (let r = 0; r < 5; r++) {
+      await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight)).catch(() => {});
+      await page.waitForTimeout(1000);
+      const btn = uploadTarget.getByRole('button', { name: postExactMatchRegex, exact: true });
+      if (await btn.count() > 0) {
+        postBtn = btn.first();
+        break;
+      }
     }
   }
 
@@ -869,14 +886,17 @@ async function handleTikTokPostSubmission(uploadTarget, page, account, log, vide
     throw new Error('Không tìm thấy nút "Post" / "Đăng" trên giao diện TikTok Studio.');
   }
 
-  // 1. Chờ video tải lên hoàn tất và các bước kiểm tra ban đầu (upload 100% -> nút Post được kích hoạt sáng lên)
-  log(`📱 [TikTok - ${account.name}] Đang chờ video hoàn tất tải lên để kích hoạt nút Post (Đăng)...`);
+  // Chờ video tải lên hoàn tất (upload 100% -> nút Post được kích hoạt sáng lên)
+  log(`📱 [TikTok - ${account.name}] Đang chờ video hoàn tất tải lên (100%) để kích hoạt nút Post (Đăng)...`);
   let isEnabled = false;
-  for (let w = 0; w < 60; w++) {
+  for (let w = 0; w < 90; w++) {
     isEnabled = await postBtn.isEnabled().catch(() => false);
     if (isEnabled) {
       log(`📱 [TikTok - ${account.name}] Video đã tải lên xong, nút Post (Đăng) đã sẵn sàng!`);
       break;
+    }
+    if (w % 10 === 0) {
+      await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight)).catch(() => {});
     }
     await page.waitForTimeout(1000);
   }
@@ -887,14 +907,19 @@ async function handleTikTokPostSubmission(uploadTarget, page, account, log, vide
 
   // Cuộn nút Post vào tầm nhìn để click chuẩn xác
   await postBtn.scrollIntoViewIfNeeded().catch(() => {});
-  await page.waitForTimeout(1000);
+  await page.waitForTimeout(800);
 
-  // 2. Bấm nút Post chính
+  // Bấm nút Post chính
   log(`📱 [TikTok - ${account.name}] Đã bấm nút "Post" (Đăng). Đang theo dõi tiến trình kiểm duyệt & xuất bản...`);
-  await postBtn.click();
-  await page.waitForTimeout(1500);
+  try {
+    await postBtn.click({ timeout: 5000 });
+  } catch (clickErr) {
+    log(`⚠️ [TikTok - ${account.name}] Click Post thông thường không phản hồi (${clickErr.message}), kích hoạt qua evaluate click...`);
+    await postBtn.evaluate((b) => b.click()).catch(() => {});
+  }
+  await page.waitForTimeout(2000);
 
-  // 3. Vòng lặp theo dõi xuất bản & xử lý modal cảnh báo ("Continue to post?", "Post now")
+  // Vòng lặp theo dõi xuất bản & xử lý modal cảnh báo ("Continue to post?", "Post now")
   let isPublished = false;
 
   for (let loop = 0; loop < 30; loop++) {
@@ -926,6 +951,19 @@ async function handleTikTokPostSubmission(uploadTarget, page, account, log, vide
     if (isPublished) break;
 
     // C. Tìm và click nút "Post now" / "Đăng ngay" trong modal xác nhận bản quyền (ví dụ: "Continue to post? The copyright check is incomplete...")
+    const postNowByRole = page.getByRole('button', { name: /^(Post now|Đăng ngay|Post anyway|Vẫn đăng)$/i });
+    if (await postNowByRole.count() > 0 && await postNowByRole.first().isVisible().catch(() => false)) {
+      log(`📱 [TikTok - ${account.name}] Phát hiện hộp thoại xác nhận ("Continue to post?"). Bấm "Post now" ("Đăng ngay")...`);
+      try {
+        await postNowByRole.first().click({ timeout: 3000 });
+      } catch {
+        await postNowByRole.first().evaluate((el) => el.click()).catch(() => {});
+      }
+      log(`📱 [TikTok - ${account.name}] Đã bấm "Post now" ("Đăng ngay") thành công! Đang chờ TikTok hoàn tất...`);
+      await page.waitForTimeout(3000);
+      continue;
+    }
+
     const modalBtnSelectors = [
       '.common-modal button.TUXButton--primary',
       '.TUXModal button.TUXButton--primary',
@@ -959,7 +997,7 @@ async function handleTikTokPostSubmission(uploadTarget, page, account, log, vide
         await postNowBtn.evaluate((el) => el.click()).catch(() => {});
       }
       log(`📱 [TikTok - ${account.name}] Đã bấm "Post now" ("Đăng ngay") thành công! Đang chờ TikTok hoàn tất...`);
-      await page.waitForTimeout(2500);
+      await page.waitForTimeout(3000);
       continue;
     }
 
@@ -995,12 +1033,11 @@ async function handleTikTokPostSubmission(uploadTarget, page, account, log, vide
     throw new Error(`Kênh "${account.name}" chưa hoàn tất xuất bản video lên TikTok Studio. Hộp thoại xác nhận hoặc mạng có thể bị gián đoạn.`);
   }
 
-  // Chờ thêm 3.5 giây để đảm bảo mọi request và cookie lưu trữ ổn định
   await page.waitForTimeout(3500);
   log(`🎉 [TikTok - ${account.name}] Hoàn tất toàn bộ quy trình Đăng Công Khai lên kênh!`);
 }
 
-export async function uploadSingleAccount({ account, videoPath, caption, hashtags, postMode, log }) {
+export async function uploadSingleAccount({ account, videoPath, caption, hashtags, postMode = 'public', log }) {
   const channel = await detectBrowserChannel();
   const profileDir = getAccountProfileDir(account);
 
@@ -1100,73 +1137,28 @@ export async function uploadSingleAccount({ account, videoPath, caption, hashtag
       log(`⚠️ [TikTok - ${account.name}] Cảnh báo không thể tự động gõ caption: ${editorErr.message}`);
     }
 
-    await page.waitForTimeout(2500);
+    // Dismiss hashtag autocomplete popup and release focus so it never blocks footer/buttons
+    try {
+      await page.keyboard.press('Space');
+      await page.waitForTimeout(300);
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(300);
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(300);
+      await page.evaluate(() => {
+        if (document.activeElement && document.activeElement.blur) {
+          document.activeElement.blur();
+        }
+      });
+    } catch {}
+
+    await page.waitForTimeout(1500);
     await dismissTikTokStudioPopups(page, log);
 
-    if (postMode === 'public') {
-      await handleTikTokPostSubmission(uploadTarget, page, account, log, videoPath);
-    } else {
-      // Draft mode (Lưu vào bản nháp)
-      log(`📱 [TikTok - ${account.name}] Đang chờ video hoàn tất tải lên (100%) để kích hoạt nút Lưu Bản Nháp...`);
-      await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-      await page.waitForTimeout(1000);
+    // BẮT BUỘC: Đăng công khai (Public Post) hoàn toàn tự động, loại bỏ hoàn toàn chế độ nháp
+    await handleTikTokPostSubmission(uploadTarget, page, account, log, videoPath);
 
-      // Chờ Post button sẵn sàng (dấu hiệu video đã upload xong và các nút footer đã enable)
-      const postBtnForWait = uploadTarget.getByRole('button', { name: /^(Post|Đăng)$/i, exact: true });
-      for (let w = 0; w < 60; w++) {
-        const isEnabled = await postBtnForWait.isEnabled().catch(() => false);
-        if (isEnabled) {
-          log(`📱 [TikTok - ${account.name}] Video đã tải lên hoàn tất, nút Lưu Bản Nháp đã sẵn sàng!`);
-          break;
-        }
-        await page.waitForTimeout(1000);
-      }
-
-      await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-      await page.waitForTimeout(1000);
-
-      const draftRegex = /^(Save draft|Lưu bản nháp)$/i;
-      let draftBtn = uploadTarget.getByRole('button', { name: draftRegex, exact: true });
-      if (await draftBtn.count() === 0) {
-        draftBtn = page.getByRole('button', { name: draftRegex, exact: true });
-      }
-      if (await draftBtn.count() === 0) {
-        draftBtn = uploadTarget.locator('div[class*="footer"] button, .btn-post button, footer button').filter({ hasText: draftRegex });
-      }
-
-      const actualDraftBtn = draftBtn.first();
-      let draftClicked = false;
-      try {
-        await actualDraftBtn.waitFor({ state: 'visible', timeout: 20000 });
-        await actualDraftBtn.scrollIntoViewIfNeeded().catch(() => {});
-        await actualDraftBtn.click();
-        draftClicked = true;
-        log(`📱 [TikTok - ${account.name}] Đã bấm nút "Save draft" ("Lưu bản nháp"). Đang chờ TikTok lưu trữ...`);
-      } catch (clickErr) {
-        log(`⚠️ [TikTok - ${account.name}] Thử bấm Save draft thông thường gặp lỗi, đang dùng DOM dispatch: ${clickErr.message}`);
-        draftClicked = await uploadTarget.evaluate(() => {
-          const btns = Array.from(document.querySelectorAll('button'));
-          const b = btns.find(el => /^(Save draft|Lưu bản nháp)$/i.test(el.innerText?.trim()));
-          if (b) { b.click(); return true; }
-          return false;
-        }).catch(() => false);
-      }
-
-      if (draftClicked) {
-        for (let waitDraft = 0; waitDraft < 15; waitDraft++) {
-          await page.waitForTimeout(1000);
-          if (page.url().includes('draft') || page.url().includes('/content')) {
-            log(`🎉 [TikTok - ${account.name}] Đã xác nhận: Video đã được lưu thành công vào mục Bản Nháp (Drafts) của kênh!`);
-            break;
-          }
-        }
-      } else {
-        log(`⚠️ [TikTok - ${account.name}] Không bấm được nút Save draft, video có thể đã được tự động lưu tạm trên TikTok Studio.`);
-      }
-      await page.waitForTimeout(3500);
-    }
-
-    log(`🎉 [TikTok - ${account.name}] Hoàn tất đăng tải video thành công (${postMode === 'public' ? 'Đã đăng công khai' : 'Đã lưu bản nháp'})!`);
+    log(`🎉 [TikTok - ${account.name}] Hoàn tất toàn bộ quy trình Đăng Công Khai video thành công!`);
     await context.close();
     return { success: true, account: account.name };
   } catch (err) {
@@ -1188,7 +1180,7 @@ export async function uploadToMultipleAccounts({
   videoPath,
   caption,
   hashtags,
-  postMode = 'draft',
+  postMode = 'public',
   distributionStrategy = 'distinct_random',
   skipAlreadyPublished = true,
   channelDelaySeconds = 6,
@@ -1353,7 +1345,7 @@ export function scanWarehouseVideos(folderPath) {
 export async function distributeWarehouseVideos({
   folderPath,
   accountIds = [],
-  postMode = 'draft',
+  postMode = 'public',
   extraHashtags = '',
   captionPrompt = '',
   distributionStrategy = 'distinct_random',

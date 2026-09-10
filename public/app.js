@@ -2170,10 +2170,10 @@ warehouseDistributeBtn?.addEventListener('click', async () => {
 
   const confirmed = await showCustomConfirm({
     title: 'Bốc Ngẫu Nhiên & Phân Bổ Kho Video',
-    message: `Hệ thống chuẩn bị bốc ngẫu nhiên các video <b>MỚI CHƯA ĐĂNG</b> từ kho để đăng lên <b>${selectedCards.length} kênh TikTok</b> đã chọn (tự động bỏ qua các video đã đăng trước đó).<br><br>
+    message: `Hệ thống chuẩn bị bốc ngẫu nhiên các video <b>MỚI CHƯA ĐĂNG</b> từ kho để <b>Đăng Công Khai</b> lên <b>${selectedCards.length} kênh TikTok</b> đã chọn (mỗi kênh 1 video riêng biệt, không trùng lặp, tự động bỏ qua video đã đăng trước đó).<br><br>
 <div style="background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; padding: 10px 12px; margin: 4px 0; color: #6ee7b7; font-size: 0.86rem; line-height: 1.5;">
-  🛡️ <b>Cam kết bảo toàn dữ liệu 100%:</b><br>
-  Tất cả video gốc trong thư mục của bạn được <b>GIỮ NGUYÊN HOÀN TOÀN</b>, tuyệt đối không bị xóa hoặc thay đổi. Hệ thống chỉ gắn thẻ "Đã Đăng" vào sổ theo dõi để tự động bỏ qua ở các đợt tiếp theo!
+  🚀 <b>Chế độ xuất bản:</b> Đăng Công Khai trực tiếp lên kênh (Public Post)<br>
+  🛡️ <b>Cam kết bảo toàn dữ liệu 100%:</b> Tất cả video gốc trong thư mục của bạn được <b>GIỮ NGUYÊN HOÀN TOÀN</b>, tuyệt đối không bị xóa hoặc thay đổi!
 </div>`,
     confirmText: '🚀 Bắt Đầu Đăng Ngay',
     cancelText: 'Để Sau',
@@ -2189,7 +2189,7 @@ warehouseDistributeBtn?.addEventListener('click', async () => {
   appendLog(`\n======================================================`);
   appendLog(`🚀 BẮT ĐẦU TIẾN TRÌNH PHÂN BỔ KHO VIDEO LÊN ${selectedCards.length} KÊNH TIKTOK...`);
 
-  const postMode = document.querySelector('#tiktokPostMode')?.value || 'draft';
+  const postMode = document.querySelector('#tiktokPostMode')?.value || 'public';
   const extraHashtags = document.querySelector('#tiktokHashtags')?.value || '';
   const captionPrompt = document.querySelector('#tiktokCaptionPrompt')?.value?.trim() || '';
   const distributionStrategy = document.querySelector('#tiktokDistributionStrategy')?.value || 'distinct_random';
@@ -2412,13 +2412,13 @@ function showPublishCompleteModal(result) {
   const errorCount = total - successCount;
 
   // Post mode display
-  const postModeVal = document.querySelector('#tiktokPostMode')?.value || 'draft';
+  const postModeVal = document.querySelector('#tiktokPostMode')?.value || 'public';
   const modeLabels = {
     draft: '💾 Bản Nháp (Draft)',
     public: '🚀 Đăng Công Khai (Public)',
     private: '🔒 Chỉ Mình Tôi (Private)'
   };
-  const modeText = modeLabels[postModeVal] || 'Bản Nháp';
+  const modeText = modeLabels[postModeVal] || '🚀 Đăng Công Khai';
 
   if (tiktokCompleteStatChannels) {
     tiktokCompleteStatChannels.textContent = `${successCount}/${total} Kênh`;

@@ -516,7 +516,7 @@ app.post('/api/tiktok/warehouse/distribute', async (req, res) => {
     recentWarehouseLogs.length = 0;
     const folderPath = String(req.body?.folderPath || '').trim();
     const accountIds = Array.isArray(req.body?.accountIds) ? req.body.accountIds : [];
-    const postMode = req.body?.postMode || 'draft';
+    const postMode = 'public'; // Mặc định và duy nhất: Đăng Công Khai (Public Post)
     const extraHashtags = String(req.body?.extraHashtags || '').trim();
     const captionPrompt = String(req.body?.captionPrompt || '').trim();
     const distributionStrategy = req.body?.distributionStrategy || 'distinct_random';
@@ -640,7 +640,7 @@ async function processJob(job, payload) {
         videoPath: finalVideo,
         caption: metadata.caption,
         hashtags: metadata.hashtags,
-        postMode: payload.tiktok.mode,
+        postMode: 'public',
         distributionStrategy: payload.tiktok.distributionStrategy || 'distinct_random',
         skipAlreadyPublished: payload.tiktok.skipAlreadyPublished !== false,
         channelDelaySeconds: Math.max(2, parseInt(payload.tiktok.channelDelaySeconds || 6, 10)),

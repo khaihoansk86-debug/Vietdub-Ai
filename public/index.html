@@ -414,11 +414,10 @@
                 <div class="control-row" style="margin-top: 10px;">
                   <label class="field">
                     <span>Chế độ đăng bài</span>
-                    <select name="tiktokPostMode" id="tiktokPostMode">
-                      <option value="draft" selected>💾 Lưu vào Bản Nháp (Draft - Khuyên dùng an toàn)</option>
-                      <option value="public">🚀 Đăng Công Khai Ngay (Public Post)</option>
-                      <option value="private">🔒 Chỉ mình tôi (Private)</option>
-                    </select>
+                    <div style="display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 12px; background: rgba(34, 197, 94, 0.12); border: 1px solid rgba(34, 197, 94, 0.35); border-radius: 8px; color: #22c55e; font-weight: 600; font-size: 13px;">
+                      <span>🚀 Đăng Công Khai (Public Post - Mặc định)</span>
+                    </div>
+                    <input type="hidden" name="tiktokPostMode" id="tiktokPostMode" value="public">
                   </label>
                   <label class="field">
                     <span>Thời gian chờ giữa mỗi kênh (giây)</span>
