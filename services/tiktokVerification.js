@@ -33,7 +33,7 @@ export async function readStudioRows(page) {
     for (const link of document.querySelectorAll('a[href*="/video/"]')) {
       const match = link.href.match(/^https:\/\/(?:www\.)?tiktok\.com\/@([^/]+)\/video\/(\d+)/);
       if (!match) continue;
-      const row = link.closest('tr, [role="row"], [data-e2e="content-post-item"], [class*="PostCard"], [class*="post-card"], [class*="video-card"], [class*="content-item"]');
+      const row = link.closest('tr, [role="row"], [data-tt="components_RowLayout_FlexRow"], [data-e2e="content-post-item"], [class*="PostCard"], [class*="post-card"], [class*="video-card"], [class*="content-item"]');
       if (!row) continue;
       const text = row.innerText;
       const captionEl = row.querySelector('[data-e2e="video-desc"], [data-e2e="content-post-caption"], [class*="caption"], [class*="video-title"], [class*="post-title"]') || link;
@@ -51,32 +51,52 @@ export async function loadStudioContent(page) {
   await page.goto('https://www.tiktok.com/tiktokstudio/content?tab=post', { waitUntil: 'domcontentloaded', timeout: 45000 });
   await page.waitForTimeout(2000);
   await assertSession(page);
-  // Require a recognizable loaded list, including the explicit empty state.
-  await page.locator('a[href*="/video/"], [data-e2e="content-post-item"]').first().waitFor({ state: 'visible', timeout: 12000 }).catch(async () => {
-    const empty = page.getByText(/^(No (posts|videos|content)( yet)?|You haven.t posted any videos yet\.?|Chưa có (bài đăng|video|nội dung)|Không có (bài đăng|video|nội dung))$/i).first();
-    if (!await empty.isVisible().catch(() => false)) {
-      await assertSession(page);
-      throw new Error('Không đọc được danh sách bài TikTok Studio. Đóng các cửa sổ Chrome của kênh và thử lại.');
-    }
+  // TikTok may render the empty title and description in one text node.
+  // Match rendered lines rather than requiring one exact text element.
+  await page.waitForFunction(() => {
+    if (document.querySelector('a[href*="/video/"], [data-e2e="content-post-item"]')) return true;
+    const lines = document.body.innerText.split('\n').map(t => t.trim());
+    return lines.some(t => /^(No (posts|videos|content)( yet)?|You haven.t posted any videos yet\.?|Chưa có (bài đăng|video|nội dung)|Không có (bài đăng|video|nội dung))$/i.test(t));
+  }, null, { timeout: 20000 }).catch(async () => {
+    await assertSession(page);
+    throw new Error('Không đọc được danh sách bài TikTok Studio. Thử đối soát lại sau khi trang tải xong.');
   });
   return readStudioRows(page);
 }
 
 export async function ensurePublic(target) {
-  const label = target.getByText(/^(Who can (watch|view) this video|Ai có thể (xem|xem video này))\??$/i).first();
-  const container = label.locator('..');
+  const publicName = /^(Everyone|Public|Mọi người|Công khai)$/i;
+  let container = target.locator('[data-e2e="video_visibility_container"]').first();
+  if (!await container.isVisible().catch(() => false)) {
+    const labels = target.getByText(/^(Who can (watch|view|see) this (video|post)|Ai có thể (xem|xem video này|xem bài (đăng|viết) này))\??$/i);
+    let found = false;
+    for (let i = 0; i < await labels.count() && !found; i++) {
+      if (!await labels.nth(i).isVisible()) continue;
+      let parent = labels.nth(i);
+      for (let depth = 0; depth < 4; depth++) {
+        parent = parent.locator('..');
+        if (await parent.locator('select, [role="combobox"]').count() === 1) { container = parent; found = true; break; }
+      }
+    }
+    if (!found) throw new Error('Không xác định được trường quyền hiển thị. Dừng trước khi Đăng.');
+  }
+  await container.scrollIntoViewIfNeeded();
   const select = container.locator('select');
   if (await select.count()) {
-    const option = select.locator('option').filter({ hasText: /^(Everyone|Public|Mọi người|Công khai)$/i }).first();
+    const option = select.locator('option').filter({ hasText: publicName }).first();
     const value = await option.getAttribute('value');
     if (value === null) throw new Error('Không tìm thấy lựa chọn Công khai.');
     await select.selectOption(value);
     return;
   }
-  if (!await label.isVisible().catch(() => false)) throw new Error('Không xác định được trường quyền hiển thị. Dừng trước khi Đăng.');
-  const publicText = container.getByText(/^(Everyone|Public|Mọi người|Công khai)$/i).first();
-  if (await publicText.isVisible().catch(() => false)) return;
-  await container.locator('[role="combobox"], button, [class*="select"]').first().click({ timeout: 5000 });
-  await target.getByText(/^(Everyone|Public|Mọi người|Công khai)$/i).last().click({ timeout: 5000 });
-  if (!await publicText.isVisible().catch(() => false)) throw new Error('TikTok chưa xác nhận quyền Công khai.');
+  const trigger = container.getByRole('combobox').first();
+  if (publicName.test((await trigger.innerText()).trim())) return;
+  await trigger.click({ timeout: 5000 });
+  const options = target.getByText(publicName);
+  let clicked = false;
+  for (let i = 0; i < await options.count(); i++) {
+    if (await options.nth(i).isVisible()) { await options.nth(i).click({ timeout: 5000 }); clicked = true; break; }
+  }
+  if (!clicked) throw new Error('Không tìm thấy lựa chọn Công khai trong menu quyền hiển thị.');
+  await trigger.filter({ hasText: publicName }).waitFor({ state: 'visible', timeout: 5000 });
 }

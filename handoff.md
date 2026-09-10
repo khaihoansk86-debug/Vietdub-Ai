@@ -1,3 +1,10 @@
+# Bản vá 2.1.2 — 10/09/2026
+
+- Đã quan sát trực tiếp DOM TikTok: quyền hiển thị dùng `video_visibility_container`, nhãn “Who can see this post”, nút combobox Everyone; hàng bài đăng dùng `data-tt="components_RowLayout_FlexRow"`.
+- Đã sửa nhận diện quyền, danh sách rỗng và hàng bài trong `services/tiktokVerification.js`. Giữ nguyên kiểm tra bằng chứng và pipeline dịch/TTS.
+- `npm run test:post` gồm 6 tình huống DOM hồi quy.
+- Đã đăng thật qua Post + Post now, đối soát thành công bài công khai trên @khaihoanpharma. Lượt @khanhle5842 chưa có bằng chứng hoàn tất, giữ `needs_review`, không tự upload lại.
+
 # Cập nhật bàn giao 2.1.1 — 10/09/2026
 
 Phần này thay thế các mô tả tương ứng của 2.0.0 bên dưới. Xem `RELEASE_NOTES.md` để biết tính năng, kiểm thử và giới hạn nghiệm thu.

@@ -904,11 +904,13 @@ async function handleTikTokPostSubmission(uploadTarget, page, account, log, evid
 
   await assertSession(page);
   await ensurePublic(uploadTarget);
+  log('Đã xác nhận quyền hiển thị Everyone / Công khai.');
   await postBtn.scrollIntoViewIfNeeded();
   const submittedAt = new Date().toISOString();
   onStage('submitting', { baselineIds: evidence.baselineIds, submittedAt });
   // Never click again after an ambiguous click timeout.
   await postBtn.click({ timeout: 10000 });
+  log('Đã bấm Post / Đăng.');
   onStage('submitted');
   for (let loop = 0; loop < 15; loop++) {
     await assertSession(page);
@@ -917,6 +919,7 @@ async function handleTikTokPostSubmission(uploadTarget, page, account, log, evid
       const confirm = target.getByRole('button', { name: /^(Post now|Đăng ngay|Post anyway|Vẫn đăng)$/i }).first();
       if (await confirm.isVisible().catch(() => false)) {
         await confirm.click({ timeout: 5000 });
+        log('Đã bấm Post now / Đăng ngay.');
         break;
       }
     }

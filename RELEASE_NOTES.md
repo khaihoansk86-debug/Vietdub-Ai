@@ -1,3 +1,14 @@
+# VietDub AI Studio 2.1.2 — Sửa thao tác Đăng
+
+- Sửa nhận diện quyền hiển thị TikTok Studio: hỗ trợ nhãn “Who can see this post” và container `video_visibility_container` hiện hành.
+- Đọc đúng ô combobox Everyone, hỗ trợ menu ngoài container và nhãn tiếng Việt; vẫn dừng nếu không xác nhận được Công khai.
+- Sửa kiểm tra danh sách trống “No posts yet” khi tiêu đề và mô tả nằm chung phần tử.
+- Hỗ trợ hàng nội dung `data-tt` để xác nhận đúng caption, kênh và quyền Everyone sau khi đăng.
+- Bổ sung kiểm thử hồi quy với cấu trúc HTML đã quan sát trên TikTok thật.
+- Giữ nguyên pipeline dịch/lồng tiếng và dữ liệu tài khoản.
+
+---
+
 # VietDub AI Studio 2.1.1
 
 Trung tâm xuất bản TikTok mới thay luồng bốc video và đăng ngay bằng bản xem trước có thể kiểm tra và lượt đăng lưu bền.

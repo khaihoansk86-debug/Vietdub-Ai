@@ -1,0 +1,32 @@
+import { chromium } from 'playwright-core';
+import assert from 'node:assert/strict';
+import { ensurePublic, loadStudioContent, readStudioRows } from '../services/tiktokVerification.js';
+const browser = await chromium.launch({ channel: 'chrome', headless: true });
+try {
+  const page = await browser.newPage();
+  await page.setContent('<section><h3>Who can watch this post</h3><div><button role="combobox">Everyone</button></div></section><button id="post">Post</button>');
+  await ensurePublic(page);
+  await page.getByRole('button', { name: 'Post', exact: true }).click();
+  assert.equal(await page.locator('#post').isEnabled(), true);
+  console.log('PASS: current post wording and nested public selector');
+  await page.setContent('<div data-e2e="video_visibility_container"><div class="title-v2"><span>Who can see this post</span></div><div class="Select__root"><button role="combobox"><div class="Select__triggerInner"><div>Everyone</div></div></button></div></div>');
+  await ensurePublic(page);
+  console.log('PASS: captured live TikTok visibility structure');
+  await page.setContent('<section><h3>Ai có thể xem bài đăng này?</h3><div><button role="combobox" onclick="document.querySelector(\'#menu\').hidden=false">Only me</button></div></section><div id="menu" hidden><button onclick="document.querySelector(\'[role=combobox]\').textContent=\'Everyone\';this.parentElement.hidden=true">Everyone</button></div>');
+  await ensurePublic(page);
+  assert.equal(await page.getByRole('combobox').innerText(), 'Everyone');
+  console.log('PASS: private selector changed to Everyone through portal menu');
+  await page.setContent('<p>Everyone</p><button>Post</button>');
+  await assert.rejects(ensurePublic(page), /quyền hiển thị/);
+  console.log('PASS: unrelated Everyone text never counts as privacy selection');
+  await page.route('https://www.tiktok.com/tiktokstudio/content?tab=post', route => route.fulfill({ contentType: 'text/html', body: '<div>No posts yet<br>Your posted and scheduled videos will appear here.</div>' }));
+  assert.deepEqual(await loadStudioContent(page), []);
+  console.log('PASS: empty Studio list with shared text container');
+  await page.setContent('<div data-tt="components_RowLayout_FlexRow"><div data-tt="components_RowLayout_FlexRow_2"><a href="https://www.tiktok.com/@example/video/7683747944243268884">A full caption #test</a></div><div>Everyone</div></div><div data-tt="components_RowLayout_FlexRow"><a href="https://www.tiktok.com/@example/video/7683747944243268885">Other caption</a><div>Only me</div></div>');
+  const rows = await readStudioRows(page);
+  assert.equal(rows.length, 2);
+  assert.equal(rows[0].caption, 'A full caption #test');
+  assert.equal(rows[0].visibility, 'public');
+  assert.equal(rows[1].visibility, 'private');
+  console.log('PASS: live data-tt rows keep captions and privacy isolated');
+} finally { await browser.close(); }
