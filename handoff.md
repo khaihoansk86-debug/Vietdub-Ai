@@ -1,4 +1,4 @@
-# Cập nhật bàn giao 2.1.0 — 10/09/2026
+# Cập nhật bàn giao 2.1.1 — 10/09/2026
 
 Phần này thay thế các mô tả tương ứng của 2.0.0 bên dưới. Xem `RELEASE_NOTES.md` để biết tính năng, kiểm thử và giới hạn nghiệm thu.
 
@@ -11,7 +11,7 @@ Phần này thay thế các mô tả tương ứng của 2.0.0 bên dưới. Xem
 - Phân phối mới chỉ Public + 1:1. Video lỗi, thiếu video riêng biệt, chưa đăng nhập hoặc lỗi AI sẽ được báo trước khi đăng.
 - Pipeline dịch/lồng tiếng thực tế nằm trong `server.js`; repository tại thời điểm này chỉ có module TikTok và các module mới trong `services/`, không có các file videoProcessor/audioService/geminiService như sơ đồ 2.0 mô tả. Mã pipeline được giữ nguyên.
 - `npm test`, `npm run test:ui`, `node scripts/smoke-packaged.mjs` là các lệnh kiểm tra mới. Biến `VIETDUB_SKIP_KOKORO_AUTOSTART=1` chỉ dùng trong smoke test; chạy thông thường vẫn giữ tự khởi động Kokoro.
-- Release: tăng phiên bản và tạo tag mới `v2.1.0`, không force-move tag `v2.0.0`. CI tiếp tục Windows NSIS + macOS arm64 DMG, có test và checksum.
+- Release: tăng phiên bản và tạo tag mới `v2.1.1`, không force-move tag `v2.0.0`. CI tiếp tục Windows NSIS + macOS arm64 DMG, có test và checksum.
 - Chưa chạy đăng thật lên TikTok; kiểm thử DOM dùng dữ liệu mô phỏng. Không xem kết quả test như bảo đảm TikTok DOM không thay đổi.
 
 ---

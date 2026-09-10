@@ -1,4 +1,4 @@
-# VietDub AI Studio 2.1.0
+# VietDub AI Studio 2.1.1
 
 Trung tâm xuất bản TikTok mới thay luồng bốc video và đăng ngay bằng bản xem trước có thể kiểm tra và lượt đăng lưu bền.
 
@@ -31,9 +31,11 @@ Không đăng video lên tài khoản thật trong quá trình kiểm thử. DOM
 
 ## Dùng thử
 
-1. Cài bộ Windows `VietDub-AI-Setup-2.1.0.exe`.
+1. Cài bộ Windows `VietDub-AI-Setup-2.1.1.exe`.
 2. Mở Xuất bản TikTok, chọn kênh và kho video, điền Gemini API tại Cài đặt & API.
 3. Chọn **Kiểm tra & tạo lượt đăng**; Chrome lần lượt kiểm tra các phiên. Xem caption/hashtag trước khi chọn **Bắt đầu đăng công khai**.
 4. Nếu trạng thái **Cần đối soát**, chọn **Đối soát bài đã gửi**. Nếu **Cần thao tác**, mở đăng nhập kênh, xử lý xác minh rồi đóng Chrome và thử lại mục lỗi.
 
 Dữ liệu mới: `tiktok_publish_runs.json` và khóa tiến trình `tiktok_publish.lock` trong data runtime hiện tại. API key không được lưu trong nhật ký lượt đăng. Không xóa khóa của tiến trình đang chạy.
+
+Bản vá 2.1.1 sửa đường dẫn chạy test tương thích Node 20 trên Windows CI. Tag 2.1.0 được giữ nguyên để truy vết lần build lỗi.
