@@ -41,6 +41,9 @@ try {
   assert.equal(await page.title(), 'VietDub AI Studio');
   assert.equal(await page.locator('#pubRunSelect').count(), 0);
   assert.equal(await page.locator('#viewPublish').isVisible(), true);
+  assert.equal(await page.locator('#tiktokAutoUpload').count(), 0);
+  assert.equal(await page.locator('select[name="tiktokDistributionStrategy"]').count(), 0);
+  assert.equal(await page.locator('.publish-policy').count(), 3);
   await page.locator('#selectAllAccounts').click();
   await page.waitForFunction(() => document.querySelectorAll('.tiktok-account-card.selected').length === 24);
   assert.equal(JSON.parse(fs.readFileSync(path.join(temp, 'tiktok_accounts.json'))).filter(a => a.selected).length, 24);

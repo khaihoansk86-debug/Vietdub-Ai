@@ -1,3 +1,12 @@
+# VietDub AI Studio 2.2.2 — Bố cục gọn và cân đối
+
+- Căn giữa khung app 1440px, thanh bên di chuyển cùng lề nội dung trên màn hình lớn.
+- Bỏ tùy chọn tự đăng sau render và dropdown phân bổ; cố định 1:1.
+- Ba ô chính sách đều nhau; thời gian chờ và hashtag bố trí cùng hàng, responsive trên màn hình nhỏ.
+- Giữ nguyên luồng Đăng video trực tiếp, quét lịch sử và xử lý dịch/lồng tiếng.
+
+---
+
 # VietDub AI Studio 2.2.1 — Cửa sổ lớn và trạng thái lịch sử
 
 - Sửa thanh bên chồng nội dung ở màn hình từ 1.800px; kiểm tra thêm 1920/2560px.

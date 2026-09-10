@@ -1,3 +1,9 @@
+# Bản 2.2.2
+
+- Shell giới hạn 1440px và sidebar dùng cùng mốc căn giữa. Không có media mở rộng sidebar.
+- Bỏ checkbox tiktokAutoUpload khỏi form, không gửi yêu cầu tự đăng sau render. Dropdown strategy thay bằng hidden distinct_random và nhãn 1:1 cố định.
+- publish-policy-row ba cột và publish-fields hai cột, một cột trên mobile.
+
 # Bản 2.2.1
 
 - Bỏ media min-width 1800 làm tăng width/padding thanh bên xung đột với left mới. Test chồng lấn ở 1920/2560.

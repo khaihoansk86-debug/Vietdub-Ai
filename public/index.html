@@ -43,7 +43,7 @@
           <button class="tab-btn active" type="button" data-view="publish"><span aria-hidden="true">▤</span><span>Xuất bản TikTok</span></button>
           <button class="tab-btn" type="button" data-view="process"><span aria-hidden="true">▷</span><span>Sản xuất video</span></button>
           <button class="tab-btn" type="button" data-view="settings"><span aria-hidden="true">⚙</span><span>Cài đặt & API</span></button>
-          <div class="nav-footer"><span class="status-dot ready"></span> Workspace local<br><small>VietDub AI Studio · 2.2.1</small></div>
+          <div class="nav-footer"><span class="status-dot ready"></span> Workspace local<br><small>VietDub AI Studio · 2.2.2</small></div>
         </nav>
 
         <form id="jobForm" class="panel">
@@ -436,48 +436,19 @@
                 <p id="directPostStatus" role="status" aria-live="polite">Sẵn sàng đăng video.</p><details><summary>Nhật ký đăng video</summary><pre id="directPostLogs" style="white-space: pre-wrap; overflow-wrap: anywhere;"></pre></details><div id="warehouseScanStatus" style="font-size: 0.82rem; margin-top: 10px; color: var(--muted);">Chưa quét thư mục kho.</div>
               </div>
 
-              <fieldset class="settings-group compact">
-                <legend>⚙️ Cấu Hình Tự Động Đăng Bài</legend>
-                <label class="check-row">
-                  <input name="tiktokAutoUpload" id="tiktokAutoUpload" type="checkbox">
-                  <span><strong>Bật tự động đăng lên các kênh TikTok đã chọn</strong> ngay khi video render xong</span>
-                </label>
-
-                <div class="control-row" style="margin-top: 10px;">
-                  <label class="field">
-                    <span>Quy tắc phân bổ video cho các kênh</span>
-                    <select name="tiktokDistributionStrategy" id="tiktokDistributionStrategy">
-                      <option value="distinct_random" selected>Phân bổ 1:1 — mỗi kênh một video riêng</option>
-
-                    </select>
-                  </label>
-                  <label class="check-row" style="align-self: flex-end; padding-bottom: 8px;">
-                    <input name="tiktokSkipPublished" id="tiktokSkipPublished" type="checkbox" checked disabled>
-                    <span><strong>Chống trùng:</strong> Bỏ qua video đã đăng</span>
-                  </label>
+              <fieldset class="settings-group compact publish-settings">
+                <legend>Cấu hình đăng video</legend>
+                <div class="publish-policy-row">
+                  <div class="publish-policy"><strong>Phân bổ 1:1</strong><span>Mỗi kênh một video riêng</span></div>
+                  <div class="publish-policy"><strong>Công khai</strong><span>Mọi người đều có thể xem</span></div>
+                  <div class="publish-policy"><strong>Chống trùng</strong><span>Bỏ qua video đã gửi / đã đăng</span></div>
                 </div>
-
-                <div class="control-row" style="margin-top: 10px;">
-                  <label class="field">
-                    <span>Chế độ đăng bài</span>
-                    <div style="display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 12px; background: rgba(34, 197, 94, 0.12); border: 1px solid rgba(34, 197, 94, 0.35); border-radius: 8px; color: #22c55e; font-weight: 600; font-size: 13px;">
-                      <span>Công khai · Mọi người đều có thể xem</span>
-                    </div>
-                    <input type="hidden" name="tiktokPostMode" id="tiktokPostMode" value="public">
-                  </label>
-                  <label class="field">
-                    <span>Thời gian chờ giữa mỗi kênh (giây)</span>
-                    <input name="tiktokChannelDelay" id="tiktokChannelDelay" type="number" min="2" max="300" value="6" placeholder="Mặc định: 6 giây">
-                  </label>
+                <input type="hidden" name="tiktokDistributionStrategy" value="distinct_random">
+                <input type="hidden" name="tiktokPostMode" id="tiktokPostMode" value="public">
+                <div class="publish-fields">
+                  <label class="field"><span>Thời gian chờ giữa các kênh (giây)</span><input name="tiktokChannelDelay" id="tiktokChannelDelay" type="number" min="2" max="300" value="6"></label>
+                  <label class="field"><span>Hashtags bổ sung (tùy chọn)</span><input name="tiktokHashtags" id="tiktokHashtags" type="text" placeholder="#xuhuong #fyp #review #skincare"></label>
                 </div>
-
-                <div class="control-row" style="margin-top: 10px;">
-                  <label class="field" style="width: 100%;">
-                    <span>Hashtags bổ sung (tùy chọn)</span>
-                    <input name="tiktokHashtags" id="tiktokHashtags" type="text" placeholder="#xuhuong #fyp #review #skincare">
-                  </label>
-                </div>
-
                 <!-- TIKTOK PROMPT PRESETS MANAGER -->
                 <div class="tiktok-prompt-manager">
                   <div class="tiktok-prompt-manager-header">
