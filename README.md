@@ -1,211 +1,204 @@
-# 🤖 VietDub AI
+# VietDub AI Studio
 
-VietDub AI là web app chạy trên máy cá nhân hoặc mạng LAN để tải video, ghép nhiều clip, tạo phụ đề, lồng tiếng AI, chèn watermark và xuất video hoàn chỉnh.
+**Sản xuất video, lồng tiếng tiếng Việt và quản lý xuất bản TikTok trong một ứng dụng desktop.**
 
-Giao diện hỗ trợ tiếng Việt/tiếng Anh, chế độ sáng/tối, tuỳ chỉnh phụ đề, watermark, giọng đọc TTS và nhập API trực tiếp trên web hoặc qua file `.env`.
+VietDub AI kết hợp tải video, xử lý phụ đề, tạo giọng đọc và xuất bản nhiều kênh. Trung tâm xuất bản giúp xem trước nội dung, phân bổ mỗi kênh một video riêng và theo dõi đến bước xác nhận Công khai.
 
-## Tính năng chính
+[![Build and Release](https://github.com/khaihoansk86-debug/Vietdub-Ai/actions/workflows/build.yml/badge.svg)](https://github.com/khaihoansk86-debug/Vietdub-Ai/actions/workflows/build.yml)
+[![Release](https://img.shields.io/github/v/release/khaihoansk86-debug/Vietdub-Ai)](https://github.com/khaihoansk86-debug/Vietdub-Ai/releases/latest)
 
-- Tải video từ link, tải nhiều link và gộp thành một video.
-- Upload video/SRT trực tiếp từ máy.
-- Tạo phụ đề bằng Gemini.
-- Lồng tiếng AI bằng OpenAI TTS hoặc Microsoft Edge Neural.
-- Tuỳ chỉnh font phụ đề, kích thước, nền phụ đề, khoảng cách đáy và độ dài dòng.
-- Chèn watermark ảnh với vị trí và kích thước tuỳ chỉnh.
-- Tự dọn dữ liệu tạm sau khi xử lý để giảm dung lượng ổ cứng.
-- Chạy local hoặc mở cho các máy cùng mạng LAN truy cập.
-- Có script cài tự khởi động cùng Windows bằng Task Scheduler.
+[Tải ứng dụng](https://github.com/khaihoansk86-debug/Vietdub-Ai/releases/latest) · [Ghi chú phát hành](RELEASE_NOTES.md) · [Báo lỗi](https://github.com/khaihoansk86-debug/Vietdub-Ai/issues)
 
-## Yêu cầu hệ thống
+## Tải và cài đặt
 
-Nên dùng Windows 10/11. Các hệ điều hành khác vẫn có thể chạy nếu đã cài đủ Node.js, Python và các công cụ tương ứng.
+Phiên bản hiện tại: **2.1.1**.
 
-Cần cài trước:
+| Nền tảng | Bộ cài |
+| --- | --- |
+| Windows x64 | [VietDub-AI-Setup-2.1.1.exe](https://github.com/khaihoansk86-debug/Vietdub-Ai/releases/download/v2.1.1/VietDub-AI-Setup-2.1.1.exe) |
+| macOS Apple Silicon — arm64 | [VietDub-AI-2.1.1-macOS-arm64.dmg](https://github.com/khaihoansk86-debug/Vietdub-Ai/releases/download/v2.1.1/VietDub-AI-2.1.1-macOS-arm64.dmg) |
 
-- Node.js 20 trở lên.
-- Python 3.10 trở lên.
-- Git.
-- Kết nối internet để tải video và gọi API AI.
+Trang release có tệp `SHA256SUMS` để đối chiếu tính toàn vẹn bộ cài. Hiện chưa cung cấp bộ cài cho Mac Intel.
 
-Gói `ffmpeg-static` và `yt-dlp-exec` được cài qua `npm install`. Microsoft Edge TTS cần thêm gói Python `edge-tts`.
+1. Cài ứng dụng phù hợp với hệ điều hành.
+2. Mở **Cài đặt & API**, cấu hình dịch vụ AI cần sử dụng.
+3. Chọn **Sản xuất video** để xử lý nội dung hoặc **Xuất bản TikTok** để quản lý lượt đăng.
 
-## Clone project về máy
+Bộ cài đã đóng gói Electron/Node.js, FFmpeg và yt-dlp. Các tính năng sau cần thêm thành phần tương ứng:
+
+| Thành phần | Khi nào cần |
+| --- | --- |
+| Google Chrome | Đăng nhập và tự động hóa TikTok Studio |
+| Gemini API key | Tạo/dịch phụ đề và tạo caption AI cho lượt đăng từ kho |
+| OpenAI API key | Khi chọn OpenAI TTS |
+| Python và `edge-tts` | Khi chọn Microsoft Edge Neural |
+| Python, Git và môi trường Kokoro | Khi dùng Kokoro local; ứng dụng có quy trình thiết lập backend |
+| Internet | Tải video, gọi dịch vụ AI trực tuyến và đăng TikTok |
+
+## Tính năng
+
+### Sản xuất video
+
+- Nhập danh sách liên kết hoặc video/SRT từ máy tính.
+- Tải và ghép clip, tạo/dịch phụ đề bằng Gemini.
+- Lồng tiếng với **Kokoro local**, **Microsoft Edge Neural** hoặc **OpenAI TTS**.
+- Căn nhịp giọng đọc theo từng đoạn; điều chỉnh âm lượng giọng và âm thanh gốc.
+- Tùy chỉnh phụ đề, watermark và khung hình đầu ra.
+- Theo dõi hàng đợi, nhật ký và video đã hoàn tất.
+
+### Xuất bản TikTok
+
+- Quản lý nhiều kênh với profile Chrome riêng biệt.
+- Phân bổ **1:1**: mỗi kênh nhận một video riêng trong lượt đăng.
+- Chống trùng bằng SHA-256 toàn file, tương thích lịch sử fingerprint cũ.
+- Xem trước kênh, video, caption và hashtag trước khi bắt đầu.
+- Kiểm tra video, Chrome, phiên đăng nhập và nội dung AI trước khi đăng.
+- Lưu trạng thái để phục hồi khi ứng dụng hoặc kết nối bị gián đoạn.
+- Dừng sau kênh hiện tại, tiếp tục phần chưa gửi, thử lại mục lỗi và đối soát bài đã gửi.
+- Lưu URL/ID bài khi xác minh được kết quả; giữ nguyên kho video nguồn.
+
+### Không gian làm việc
+
+Giao diện chia thành các màn hình xuất bản, sản xuất và cài đặt. Bảng điều hành có số liệu tổng quan, bộ lọc trạng thái, nhật ký từng video và liên kết mở bài đăng. Hỗ trợ giao diện sáng/tối và bố cục responsive.
+
+## Quy trình đăng Công khai 1:1
+
+```mermaid
+flowchart LR
+    A[Chọn kênh và kho video] --> B[Kiểm tra sẵn sàng]
+    B --> C[Xem trước phân bổ và caption]
+    C --> D[Bắt đầu đăng Công khai]
+    D --> E[Xác minh bài đăng]
+    E --> F[Đã công khai]
+    E --> G[Cần đối soát hoặc đang xử lý]
+```
+
+1. **Chuẩn bị kênh:** thêm tài khoản, đăng nhập qua Chrome, đóng cửa sổ đăng nhập và đồng bộ kênh.
+2. **Chọn nguồn:** chọn kênh nhận và thư mục video. Các video đã đăng hoặc đang giữ chỗ trong lượt khác được loại khỏi phân bổ mới.
+3. **Tạo bản xem trước:** chọn **Kiểm tra & tạo lượt đăng**. Kho cần đủ video riêng biệt cho số kênh được chọn.
+4. **Kiểm tra nội dung:** xem caption/hashtag trong bảng, sau đó chọn **Bắt đầu đăng công khai**.
+5. **Theo dõi:** các kênh chạy tuần tự, có thời gian chờ và nhật ký từng video.
+
+| Trạng thái | Thao tác phù hợp |
+| --- | --- |
+| Chờ đăng | Bắt đầu hoặc tiếp tục phần chưa gửi |
+| Đang tải / Đang gửi / Đang xác minh | Theo dõi hoặc yêu cầu dừng sau kênh hiện tại |
+| Đã công khai | Mở liên kết bài đã xác nhận |
+| TikTok đang xử lý | Đối soát lại khi TikTok xử lý xong |
+| Cần đối soát | Kiểm tra bài đã gửi; không tự tải video lên lại |
+| Cần thao tác | Xử lý đăng nhập/CAPTCHA trong Chrome, đóng cửa sổ rồi thử lại mục lỗi |
+| Chưa gửi · Có lỗi | Khắc phục nguyên nhân rồi thử lại mục lỗi |
+
+**Ứng dụng chỉ xuất bản ở chế độ Công khai.** Việc chuyển trang hoặc xuất hiện thông báo thành công chưa đủ để ghi nhận kết quả. Bộ xác minh đối chiếu nội dung, kênh, ID bài mới và quyền hiển thị; nếu chưa rõ, ứng dụng dừng hoặc yêu cầu đối soát.
+
+## Chạy từ mã nguồn
+
+Cần Node.js **20 trở lên**, npm và Git. Cài thêm Python/dependency của TTS và Google Chrome theo tính năng sử dụng.
 
 ```powershell
 git clone https://github.com/khaihoansk86-debug/Vietdub-Ai.git
 cd Vietdub-Ai
+npm ci
+npm run desktop
 ```
 
-## Cài đặt thư viện
-
-```powershell
-npm install
-pip install edge-tts
-copy .env.example .env
-```
-
-Nếu máy dùng nhiều phiên bản Python, có thể cần chạy:
-
-```powershell
-py -m pip install edge-tts
-```
-
-## Cấu hình API
-
-Mở file `.env` và điền API key của bạn:
-
-```text
-GEMINI_API_KEY=your_gemini_api_key_here
-GEMINI_MODEL=gemini-3.5-flash
-RAPIDAPI_KEY=your_rapidapi_key_here
-OPENAI_API_KEY=your_openai_api_key_here
-OPENAI_TTS_MODEL=gpt-4o-mini-tts
-PORT=3210
-HOST=0.0.0.0
-```
-
-Bạn cũng có thể để trống `.env` và nhập API trực tiếp trong mục `API & mô hình AI` trên giao diện web.
-
-Lưu ý:
-
-- File `.env` chứa API riêng của từng máy và không được commit lên Git.
-- Người khác clone project về chỉ cần tự tạo `.env` hoặc tự nhập API trên giao diện.
-- Nếu API hết hạn, có thể thay API mới ngay trên giao diện mà không cần sửa code.
-
-## Chạy web
+Chạy backend và giao diện web local:
 
 ```powershell
 npm start
 ```
 
-Mở trên chính máy đang chạy server:
+Mở [http://127.0.0.1:3210](http://127.0.0.1:3210). Bản Electron tự chọn cổng trống bắt đầu từ `3210`.
+
+### Cấu hình API
+
+Nhập khóa trong **Cài đặt & API**, hoặc tạo `.env` dựa trên `.env.example` khi chạy từ source. Chọn model khả dụng trong tài khoản của bạn.
+
+```dotenv
+HOST=127.0.0.1
+PORT=3210
+GEMINI_API_KEY=
+GEMINI_MODEL=
+OPENAI_API_KEY=
+OPENAI_TTS_MODEL=gpt-4o-mini-tts
+RAPIDAPI_KEY=
+```
+
+Nếu sao chép `.env.example`, đổi `HOST=0.0.0.0` trong tệp mẫu thành `HOST=127.0.0.1` để chỉ truy cập server trên máy. API local hiện chưa có cơ chế đăng nhập dành cho triển khai công khai.
+
+Cài dependency Edge TTS nếu cần:
+
+```powershell
+python -m pip install edge-tts
+```
+
+Không đưa `.env`, API key, profile Chrome hoặc dữ liệu tài khoản lên Git. Chế độ chỉ tải/ghép video không yêu cầu dịch vụ AI; nhu cầu API phụ thuộc chế độ xử lý đã chọn.
+
+## Dữ liệu và phục hồi
+
+Bản desktop lưu dữ liệu tách khỏi thư mục cài đặt:
+
+| Môi trường | Vị trí mặc định |
+| --- | --- |
+| Windows desktop | `%APPDATA%\vietdub-ai-local\data` |
+| macOS desktop | `~/Library/Application Support/vietdub-ai-local/data` |
+| Backend từ source | `data/` cho job; module TikTok trên Windows ưu tiên data AppData đã tồn tại |
+
+Biến `VIETDUB_DATA_DIR` cho phép chỉ định chung thư mục runtime khi cần.
+
+| Dữ liệu | Nội dung |
+| --- | --- |
+| `tiktok_accounts.json` | Danh sách kênh và cấu hình profile |
+| `tiktok_profiles/` | Phiên Chrome riêng cho từng kênh |
+| `tiktok_publish_history.json` | Lịch sử bài đăng đã xác nhận |
+| `tiktok_publish_runs.json` | Phân bổ, trạng thái và nhật ký lượt đăng |
+| `tiktok_publish.lock` | Khóa điều phối để ngăn tiến trình chạy chồng |
+
+Giữ lại dữ liệu khi nâng cấp để bảo toàn phiên đăng nhập, phục hồi và chống trùng. Không xóa khóa của tiến trình đang chạy. API key không được ghi vào nhật ký lượt đăng.
+
+## Kiến trúc mã nguồn
+
+Ứng dụng sử dụng **Electron**, **Express/Node.js ESM**, **Vanilla JavaScript/CSS**, **Playwright + Chrome**, **FFmpeg** và **yt-dlp**.
 
 ```text
-http://localhost:3210
+Vietdub-Ai/
+├── electron/main.cjs              # Desktop shell
+├── public/
+│   ├── index.html                 # Các màn hình ứng dụng
+│   ├── app.js                     # Sản xuất video và cấu hình
+│   ├── publisher.js               # Điều hành lượt đăng
+│   ├── style.css                  # Kiểu dáng nền và control
+│   └── studio.css                 # Giao diện Studio
+├── services/
+│   ├── tiktokPublisher.js         # Chrome, metadata và đăng bài
+│   ├── publishRuns.js             # Phân bổ, trạng thái, phục hồi
+│   └── tiktokVerification.js      # Xác minh phiên và bài Công khai
+├── server.js                      # API, dịch, TTS, phụ đề, render
+├── tests/publishRuns.test.js      # Kiểm thử bộ điều phối
+├── scripts/                       # Kiểm tra, checksum và vận hành
+├── .github/workflows/build.yml    # Build Windows/macOS khi push tag
+├── RELEASE_NOTES.md               # Thay đổi và phạm vi kiểm thử
+└── handoff.md                     # Bàn giao kỹ thuật
 ```
 
-Mở từ máy khác cùng mạng LAN:
+## Kiểm thử và đóng gói
 
-```text
-http://IP_MAY_CHU:3210
-```
+| Lệnh | Mục đích |
+| --- | --- |
+| `npm run check` | Kiểm tra cú pháp backend, frontend và module xuất bản |
+| `npm test` | Kiểm thử phân bổ, chống trùng, khóa lượt, phục hồi và xác minh |
+| `npm run test:ui` | Kiểm tra API/giao diện bằng Chrome với dữ liệu mô phỏng |
+| `npm run build:win` | Tạo bộ cài Windows NSIS trong `dist/` |
+| `npm run build:mac` | Tạo DMG arm64 trên macOS |
+| `node scripts/smoke-packaged.mjs` | Mở bản Windows đóng gói bằng profile kiểm thử riêng |
+| `node scripts/release-checksums.mjs` | Tạo SHA-256 cho bộ cài phiên bản hiện tại |
 
-Ví dụ:
+GitHub Actions kiểm tra và đóng gói trên Windows/macOS khi push tag `v*`, sau đó tải bộ cài cùng checksum lên Releases. Dùng tag mới cho mỗi phiên bản.
 
-```text
-http://192.168.1.115:3210
-```
+Bản 2.1.1 đã qua 16 kiểm thử logic, kiểm thử API/giao diện ở bốn độ rộng và kiểm tra khởi động bản Windows đóng gói. Kiểm thử tự động dùng dữ liệu mô phỏng, chưa thay thế nghiệm thu đăng trên tài khoản TikTok thật; giao diện macOS chưa được nghiệm thu trên máy Mac thật.
 
-Nếu máy khác không truy cập được, hãy kiểm tra:
+## Hỗ trợ
 
-- Server đang chạy chưa.
-- `HOST=0.0.0.0` trong `.env`.
-- Tường lửa Windows đã cho phép cổng `3210`.
-- Các máy đang cùng một mạng LAN.
+Khi [báo lỗi](https://github.com/khaihoansk86-debug/Vietdub-Ai/issues), cung cấp phiên bản, hệ điều hành, bước tái hiện và nhật ký liên quan. Loại bỏ khóa API, cookie và thông tin nhạy cảm trước khi đính kèm.
 
-Cho phép cổng `3210` qua Windows Firewall bằng PowerShell Administrator:
-
-```powershell
-New-NetFirewallRule -DisplayName "VietDub AI 3210" -Direction Inbound -Action Allow -Protocol TCP -LocalPort 3210
-```
-
-Nếu muốn xoá rule này:
-
-```powershell
-Remove-NetFirewallRule -DisplayName "VietDub AI 3210"
-```
-
-## Chạy dạng app Windows
-
-Project có thêm bản desktop bằng Electron. Cách này tự mở cửa sổ `VietDub AI` như một phần mềm Windows, bên trong vẫn chạy server local nội bộ để giữ nguyên toàn bộ chức năng.
-
-Chạy thử app desktop khi đang phát triển:
-
-```powershell
-npm run desktop
-```
-
-Tạo bộ cài Windows:
-
-```powershell
-npm run build:win
-```
-
-Sau khi build xong, bộ cài nằm trong thư mục:
-
-```text
-dist/VietDub-AI-Setup-1.0.0.exe
-```
-
-Ghi chú:
-
-- App desktop tự chọn cổng trống bắt đầu từ `3210`, nên hạn chế bị trùng với server web đang chạy.
-- Dữ liệu xử lý của app desktop được lưu trong thư mục dữ liệu người dùng của Windows, không lưu vào thư mục cài đặt.
-- API key vẫn là của từng máy. Người dùng có thể nhập trực tiếp trong giao diện hoặc tạo file `.env` khi chạy bản source.
-- Muốn chia sẻ cho máy khác, chỉ cần gửi file cài trong `dist`.
-
-## Tự chạy khi bật Windows
-
-Mở PowerShell bằng quyền Administrator tại thư mục project, sau đó chạy:
-
-```powershell
-.\scripts\install-startup-task.ps1
-```
-
-Script này tạo Task Scheduler tên `VietDub AI Server`. Server sẽ tự chạy khi Windows khởi động. Watchdog trong `scripts/start-vietdub-watch.ps1` sẽ tự bật lại server nếu tiến trình bị tắt.
-
-Log khởi động nằm trong:
-
-```text
-data\logs\startup-watch.log
-data\logs\install-startup-task.log
-```
-
-## Kiểm tra nhanh
-
-Kiểm tra cú pháp server và frontend:
-
-```powershell
-npm run check
-```
-
-Kiểm tra server đang sống:
-
-```powershell
-Invoke-RestMethod http://127.0.0.1:3210/health
-```
-
-Kết quả đúng sẽ có dạng:
-
-```json
-{"ok":true}
-```
-
-## Cấu trúc thư mục
-
-```text
-public/      Giao diện web
-server.js    Backend xử lý job, tải video, TTS, phụ đề và render
-scripts/     Script tự khởi động Windows
-data/        Dữ liệu tạm, job, output và log runtime
-.env.example Mẫu cấu hình API
-```
-
-## Ghi chú vận hành
-
-- Không đưa `.env`, file video, job output hoặc dữ liệu trong `data/jobs` lên Git.
-- Nếu render video dài, hãy giữ máy không sleep trong lúc xử lý.
-- Chế độ `Chỉ tải/gộp video` không cần API AI.
-- Chế độ `Tạo phụ đề + lồng tiếng` cần Gemini API và TTS API tương ứng.
-- Có thể dùng OpenAI TTS để giọng tự nhiên hơn, hoặc Edge Neural làm phương án dự phòng.
-
-## Gợi ý tạo release v1.0.0
-
-Sau khi test ổn định, có thể tạo release đầu tiên trên GitHub:
-
-```powershell
-git tag -a v1.0.0 -m "Phát hành VietDub AI v1.0.0"
-git push origin v1.0.0
-```
-
-Sau đó vào tab `Releases` trên GitHub, chọn tag `v1.0.0`, ghi chú các tính năng chính và bấm publish.
+Xem [ghi chú phát hành](RELEASE_NOTES.md) để theo dõi thay đổi hoặc [tài liệu bàn giao](handoff.md) để tiếp tục phát triển.
