@@ -192,3 +192,32 @@ body[data-view="publish"] .status { display: none; }
 #tiktokHistoryModal .tiktok-history-table th { background: var(--bg-subtle) !important; }
 #tiktokHistoryModal .tiktok-modal-body, #tiktokPublishCompleteModal .tiktok-modal-body { color: var(--ink); }
 #tiktokPublishCompleteModal .tiktok-modal-btn.primary { background: var(--brand-gradient) !important; color: #fff !important; box-shadow: none !important; }
+
+/* History: full readable captions and stable column widths. */
+#tiktokHistoryModal .tiktok-modal-body { max-height: none !important; overflow-x: hidden !important; padding: 20px !important; }
+.history-table-scroll { overflow: auto; width: 100%; border: 1px solid var(--line); border-radius: 10px; }
+#tiktokHistoryModal .tiktok-history-table { table-layout: fixed; width: 100%; min-width: 1150px; }
+.history-col-select { width: 90px; }
+.history-col-account { width: 200px; }
+.history-col-time { width: 135px; }
+.history-col-status { width: 175px; }
+#tiktokHistoryModal .tiktok-history-table td { padding: 18px 14px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+#tiktokHistoryModal .tiktok-history-table th { padding: 12px 14px; text-align: left; }
+#tiktokHistoryModal .tiktok-history-caption { background: var(--bg-surface) !important; color: var(--ink) !important; border: 1px solid var(--line); margin: 12px 0; padding: 14px; text-align: left; white-space: pre-wrap; overflow-wrap: anywhere; word-break: normal; line-height: 1.75; font-size: 14px; max-height: none; overflow: visible; opacity: 1; }
+.history-file-name { overflow-wrap: anywhere; word-break: normal; line-height: 1.6; font-size: 14px; }
+#tiktokHistoryModal .history-account-cell strong { display: block; font-size: 14px; line-height: 1.6; overflow-wrap: anywhere; }
+#tiktokHistoryModal .history-account-cell div { margin-top: 6px; overflow-wrap: anywhere; font-size: 13px; }
+.history-time-cell time, .history-time-cell span { display: block; white-space: nowrap; line-height: 1.8; }
+.history-time-cell span { color: var(--muted); }
+.history-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+#tiktokHistoryModal .tiktok-history-tag { color: var(--ink); background: var(--bg-subtle); border: 1px solid var(--line-strong); padding: 4px 8px; margin: 0; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+#tiktokHistoryModal .tiktok-history-badge { white-space: nowrap !important; padding: 6px 10px; font-size: 12px; border: none; }
+#tiktokHistoryModal .tiktok-history-badge.is-public { background: #dcfce7 !important; color: #166534 !important; }
+#tiktokHistoryModal .tiktok-history-badge.is-pending { background: #fff0c2 !important; color: #744500 !important; }
+#tiktokHistoryModal .tiktok-history-badge.is-review { background: #ffe7e7 !important; color: #a61b27 !important; }
+#tiktokHistoryModal .history-status-cell a { display: inline-block; padding: 10px 0; white-space: nowrap; font-size: 13px; }
+#tiktokHistoryModal .history-check-cell { vertical-align: top; }
+#tiktokHistoryModal .history-selection-toolbar { position: sticky; top: -20px; z-index: 2; background: var(--bg-surface) !important; }
+
+#tiktokHistoryModal .tiktok-history-table td .tiktok-history-caption { color: var(--ink) !important; }
+#tiktokHistoryModal #clearTikTokHistoryBtn { color: var(--ink) !important; border-color: var(--line-strong) !important; }

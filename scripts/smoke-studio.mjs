@@ -78,7 +78,7 @@ try {
     await page.locator('button[data-view="publish"]').click();
   }
   await page.screenshot({ path: path.join(output, 'studio-direct-1440.png'), fullPage: true });
-  await page.route('**/api/tiktok/history', route => route.fulfill({ contentType: 'application/json', body: JSON.stringify({ ok: true, history: [{ id: 'history-qa', fileName: 'clip.mp4', accountName: 'QA', status: 'processing', postUrl: 'https://www.tiktok.com/@qa/video/123', publishedAt: new Date().toISOString() }] }) }));
+  await page.route('**/api/tiktok/history', route => route.fulfill({ contentType: 'application/json', body: JSON.stringify({ ok: true, history: [{ id: 'history-qa', fileName: 'youtube_SYLen0gnFmc.mp4', caption: 'Một góc nhìn nhẹ nhàng.\n\nNội dung dài để kiểm tra độ tương phản và bố cục. '.repeat(5), hashtags: ['#chuyennho', '#cuocsong', '#khoanhkhac'], accountName: 'Khải Hoàn Pharma', accountUsername: '@khaihoanpharma', status: 'processing', postUrl: 'https://www.tiktok.com/@qa/video/123', publishedAt: new Date().toISOString() }] }) }));
   let refreshCalls = 0;
   await page.route('**/api/tiktok/history/refresh', route => { refreshCalls++; return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ok:true,updated:0,errors:[]}) }); });
   posting = false;
@@ -86,7 +86,7 @@ try {
   assert.match(await page.locator('#tiktokCompleteModalSubtitle').innerText(), /1 TikTok đang xử lý/);
   await page.locator('#tiktokCompleteViewHistoryBtn').click();
   await page.locator('#tiktokHistoryModal').waitFor({ state: 'visible' });
-  assert.match(await page.locator('#tiktokHistoryListContainer').innerText(), /TikTok đang xử lý/);
+  assert.match(await page.locator('#tiktokHistoryListContainer').innerText(), /Đang xử lý/);
   assert.match(await page.locator('#tiktokViewHistoryBtn').innerText(), /\(1\)/);
   await page.locator('#refreshHistoryStatusBtn').click();
   await page.waitForFunction(() => document.getElementById('historyRefreshStatus').textContent.includes('Đã cập nhật'));
@@ -138,6 +138,11 @@ try {
     await page.evaluate(() => openTikTokHistoryModal(false));
     await page.locator('#selectAllHistory').check();
     await page.locator('#deleteSelectedHistoryBtn').click();
+    const captionStyle = await page.locator('.tiktok-history-caption').evaluate(el => ({ background: getComputedStyle(el).backgroundColor, text: getComputedStyle(el).color, content: el.textContent }));
+    assert.equal(captionStyle.background, theme === 'light' ? 'rgb(255, 255, 255)' : 'rgb(18, 28, 42)');
+    assert.ok(captionStyle.content.startsWith('Một góc nhìn'));
+    assert.equal(captionStyle.text, theme === 'light' ? 'rgb(23, 39, 60)' : 'rgb(238, 243, 250)');
+    assert.equal(await page.locator('.tiktok-history-badge').evaluate(el => getComputedStyle(el).whiteSpace), 'nowrap');
     await page.screenshot({ path: path.join(output, `history-selection-${theme}.png`) });
     await page.locator('#closeTikTokHistoryModalBtn').click();
   }

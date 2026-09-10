@@ -192,3 +192,17 @@ test('caption uses prompt without transcript, accepts legacy context flag with v
     await assert.rejects(generateTikTokMetadata([], 'Chăm sóc vườn', opts), /Không tạo được caption/);
   } finally { globalThis.fetch = originalFetch; }
 });
+
+
+test('channel identity never changes the caption request; user prompt controls topic', async () => {
+  const { generateTikTokMetadata } = await import('../services/tiktokPublisher.js');
+  const oldFetch = globalThis.fetch, requests = [];
+  try {
+    globalThis.fetch = async (_url, init) => { requests.push(JSON.parse(init.body)); return { ok: true, json: async () => ({ candidates: [{ content: { parts: [{ text: JSON.stringify({ caption: 'Một ngày vui cùng thú cưng.', hashtags: [] }) }] } }] }) }; };
+    for (const accountName of ['Kênh giải trí', 'Khải Hoàn Pharma']) await generateTikTokMetadata([], 'clip', { geminiApiKey: 'test', captionPrompt: 'Viết về niềm vui cùng thú cưng', accountName, accountUsername: '@pharma' }, () => {});
+    assert.deepEqual(requests[0], requests[1]);
+    assert.equal(JSON.stringify(requests).includes('Pharma'), false);
+    assert.equal(JSON.stringify(requests).includes('@pharma'), false);
+    assert.match(requests[0].contents[0].parts[0].text, /Prompt người dùng quyết định chủ đề/);
+  } finally { globalThis.fetch = oldFetch; }
+});

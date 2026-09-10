@@ -361,3 +361,10 @@ Validation: npm run check, npm test (27), npm run test:ui (bao gồm chọn/xóa
 - Popup có tiêu đề đúng kết quả, 3 bộ đếm công khai/đang xử lý/cần kiểm tra, chi tiết lỗi lấy từ directPublisher. Màu sắc đồng bộ theme. CSS mới phải thắng legacy !important trong style.css.
 - Lịch sử có toolbar chọn/xóa, checkbox có nhãn, tô sáng dòng chọn, xác nhận xóa local. Không xóa bài TikTok hoặc video nguồn.
 - Kiểm thử: 28 logic, UI gồm theme sáng/tối và màn nhỏ, 7 DOM fixtures; chụp ảnh dist/qa/result-error-*.png và history-selection-*.png. Không đăng bài thật khi kiểm thử.
+
+
+## Cập nhật 2.2.6 — Prompt độc lập tên kênh và lịch sử dễ đọc
+- Tên kênh/username không được gửi cho Gemini. Prompt quyết định chủ đề và giọng văn; title/transcript chỉ phụ trợ khi phù hợp. Cùng input, đổi tên kênh không đổi request AI (test hồi quy).
+- Bảng lịch sử rộng theo cửa sổ; cột kênh/ngày giờ/trạng thái cố định, caption hiển thị nguyên văn không thêm khoảng trắng template, nền đặc và chữ theo theme. Hashtag rõ chữ, badge không ngắt dòng, nội dung dài cuộn trong modal.
+- Áp dụng cho caption tạo mới; không sửa caption bài đã đăng hoặc lịch sử cũ. Không đổi dịch/TTS/render, phân bổ 1:1 và Post/Post now.
+- Kiểm tra 29 test logic, UI sáng/tối với caption dài và tên Pharma, 7 DOM fixtures. Không đăng bài thật trong kiểm thử.

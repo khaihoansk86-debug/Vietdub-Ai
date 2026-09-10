@@ -2193,15 +2193,16 @@ async function openTikTokHistoryModal(autoRefresh = true) {
           <button id="confirmSelectedHistoryBtn" class="tiktok-modal-btn danger">Xóa bản ghi đã chọn</button>
           <button id="cancelSelectedHistoryBtn" class="tiktok-modal-btn secondary">Hủy</button></div>
         </div>
-        <div style="overflow-x: auto; width: 100%;">
-          <table class="tiktok-history-table" style="width: 100%;">
+        <div class="history-table-scroll">
+          <table class="tiktok-history-table">
+            <colgroup><col class="history-col-select"><col class="history-col-content"><col class="history-col-account"><col class="history-col-time"><col class="history-col-status"></colgroup>
             <thead>
               <tr>
                 <th class="history-check-cell"><label class="history-check"><input type="checkbox" id="selectAllHistory" aria-label="Chọn tất cả bài trong lịch sử"><span>Tất cả</span></label></th>
-                <th style="min-width: 320px;">Video & Nội Dung (Caption)</th>
-                <th style="min-width: 150px;">Kênh Đăng</th>
-                <th style="min-width: 150px;">Thời Gian</th>
-                <th style="min-width: 125px; text-align: center;">Chế Độ</th>
+                <th>Video & nội dung</th>
+                <th>Kênh đăng</th>
+                <th>Thời gian</th>
+                <th>Trạng thái</th>
               </tr>
             </thead>
             <tbody>
@@ -2210,32 +2211,30 @@ async function openTikTokHistoryModal(autoRefresh = true) {
                 return `
                 <tr>
                   <td class="history-check-cell"><label class="history-check"><input type="checkbox" class="history-row-select" value="${escapeHtml(h.id || '')}" ${selectedHistoryIds.has(h.id) ? 'checked' : ''} ${h.id ? '' : 'disabled'} aria-label="Chọn ${escapeHtml(h.fileName)}"><span>Chọn</span></label></td>
-                  <td style="max-width: 520px;">
+                  <td class="history-content-cell">
                     <div style="display: flex; align-items: center; gap: 8px;">
                       <span style="font-size: 1.1rem;">🎬</span>
-                      <strong style="color: #ffffff; word-break: break-all; font-size: 0.9rem;">${escapeHtml(h.fileName)}</strong>
+                      <strong class="history-file-name">${escapeHtml(h.fileName)}</strong>
                     </div>
                     ${h.caption ? `
-                      <div class="tiktok-history-caption">
-                        ${escapeHtml(h.caption)}
-                      </div>
+                      <div class="tiktok-history-caption">${escapeHtml(h.caption)}</div>
                     ` : ''}
                     ${tags.length > 0 ? `
-                      <div style="margin-top: 6px; display: flex; flex-wrap: wrap;">
+                      <div class="history-tags">
                         ${tags.map((t) => `<span class="tiktok-history-tag">${escapeHtml(t.startsWith('#') ? t : `#${t}`)}</span>`).join('')}
                       </div>
                     ` : ''}
                   </td>
-                  <td>
-                    <div style="font-weight: 600; color: #f1f5f9; font-size: 0.88rem;">${escapeHtml(h.accountName)}</div>
-                    <div style="color: #38bdf8; font-size: 0.8rem; margin-top: 2px;">${escapeHtml(h.accountUsername || '@tiktok')}</div>
+                  <td class="history-account-cell">
+                    <strong>${escapeHtml(h.accountName)}</strong>
+                    <div>${escapeHtml(h.accountUsername || '@tiktok')}</div>
                   </td>
-                  <td style="white-space: nowrap; color: #94a3b8; font-size: 0.82rem;">
-                    ${new Date(h.publishedAt).toLocaleString('vi-VN')}
+                  <td class="history-time-cell">
+                    <time>${new Date(h.publishedAt).toLocaleDateString('vi-VN')}</time><span>${new Date(h.publishedAt).toLocaleTimeString('vi-VN')}</span>
                   </td>
-                  <td style="text-align: center; white-space: nowrap;">
-                    <span class="tiktok-history-badge">
-                      ${h.status === 'processing' ? '⏳ Đã gửi · TikTok đang xử lý' : h.status === 'success' ? '✅ Đã công khai' : 'Chưa xác nhận công khai'}
+                  <td class="history-status-cell">
+                    <span class="tiktok-history-badge ${h.status === 'success' ? 'is-public' : h.status === 'processing' ? 'is-pending' : 'is-review'}">
+                      ${h.status === 'processing' ? 'Đang xử lý' : h.status === 'success' ? 'Đã công khai' : 'Cần xác minh'}
                     </span>
                     ${/^https:\/\/www\.tiktok\.com\/@[\w.-]+\/video\/\d+$/.test(h.postUrl || '') ? `<br><a href="${escapeHtml(h.postUrl)}" target="_blank" rel="noopener noreferrer">Mở bài đăng ↗</a>` : ''}
                   </td>
