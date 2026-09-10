@@ -67,6 +67,33 @@ try {
     await page.locator('button[data-view="publish"]').click();
     if (width === 375) await page.screenshot({ path: path.join(output, 'studio-mobile-375.png'), fullPage: true });
   }
+  // One click must prepare AI content and start, without publishing to a real account.
+  assert.equal(await page.title(), 'VietDub AI Studio');
+  assert.equal(await page.locator('.view-tabs').evaluate(el => getComputedStyle(el, '::before').content), '"VietDub AI Studio"');
+  let prepareCalls = 0, startCalls = 0, allowPrepare = true;
+  await page.route('**/api/tiktok/runs/preview', async route => {
+    prepareCalls++;
+    const input = route.request().postDataJSON();
+    assert.equal(input.captionPrompt, 'Prompt QA content');
+    assert.ok(input.accountIds.length > 0);
+    await new Promise(resolve => setTimeout(resolve, 150));
+    await route.fulfill({ status: allowPrepare ? 200 : 422, contentType: 'application/json', body: JSON.stringify(allowPrepare ? { ok: true, run, checks: [] } : { ok: false, checks: [{ status: 'error', label: 'Kho video', message: 'Không đủ video' }] }) });
+  });
+  await page.route('**/api/tiktok/runs/qa-run/start', route => {
+    startCalls++;
+    return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ ok: true }) });
+  });
+  await page.locator('.tiktok-account-card').first().evaluate(el => el.classList.add('selected'));
+  await page.locator('#warehouseFolderPath').fill(temp);
+  await page.locator('#tiktokCaptionPrompt').fill('Prompt QA content');
+  await page.locator('#warehouseDistributeBtn').evaluate(el => { el.click(); el.click(); });
+  await page.waitForFunction(() => document.getElementById('pubNotice').textContent.startsWith('Đã bắt đầu đăng video.'));
+  assert.equal(prepareCalls, 1); assert.equal(startCalls, 1);
+  await page.waitForFunction(() => !document.getElementById('warehouseDistributeBtn').disabled);
+  allowPrepare = false;
+  await page.locator('#warehouseDistributeBtn').click();
+  await page.waitForFunction(() => document.getElementById('pubNotice').textContent.startsWith('Chưa thể đăng video.'));
+  assert.equal(prepareCalls, 2); assert.equal(startCalls, 1);
   // DOM adapter integration: no real TikTok account or publication is involved.
   const fixture = await browser.newPage();
   const videoId = String((BigInt(Math.floor(Date.now() / 1000)) << 32n) + 123n);

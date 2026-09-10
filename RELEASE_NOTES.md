@@ -1,3 +1,12 @@
+# VietDub AI Studio 2.1.3 — Đăng video một nút
+
+- Hiển thị đúng tên VietDub AI Studio ở thanh bên và tiêu đề cửa sổ.
+- Thay Kiểm tra & tạo lượt đăng bằng Đăng video: tự chọn video, tạo content AI theo prompt và bắt đầu đăng sau một cú bấm.
+- Giữ chống trùng, lưu tiến độ và xác minh bài công khai; không thay đổi dịch/TTS/render.
+- Kiểm thử UI bao phủ prompt, bấm liên tiếp và lỗi chuẩn bị trước khi gửi.
+
+---
+
 # VietDub AI Studio 2.1.2 — Sửa thao tác Đăng
 
 - Sửa nhận diện quyền hiển thị TikTok Studio: hỗ trợ nhãn “Who can see this post” và container `video_visibility_container` hiện hành.

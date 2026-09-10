@@ -23,9 +23,10 @@
     $('pubProgressText').textContent = `${successes} / ${items.length} đã công khai`;
     const locked = busy || preparing || requesting;
     $('warehouseDistributeBtn').disabled = locked;
-    $('warehouseDistributeBtn').textContent = preparing ? 'Đang kiểm tra & tạo nội dung…' : 'Kiểm tra & tạo lượt đăng';
+    $('warehouseDistributeBtn').textContent = preparing ? 'Đang tạo content AI…' : busy ? 'Đang đăng video…' : 'Đăng video';
     $('pubStart').disabled = locked || !items.some(i => i.status === 'queued');
-    $('pubStart').textContent = run?.status === 'preview' ? 'Bắt đầu đăng công khai' : 'Tiếp tục phần chưa gửi';
+    $('pubStart').hidden = locked || !items.some(i => i.status === 'queued');
+    $('pubStart').textContent = 'Tiếp tục phần chưa gửi';
     $('pubPause').disabled = !run || run.status !== 'running' || !!run.pauseRequested || requesting;
     $('pubRetry').disabled = locked || !items.some(i => ['failed', 'needs_action'].includes(i.status));
     $('pubReconcile').disabled = locked || !items.some(i => ['needs_review', 'processing'].includes(i.status));
@@ -36,7 +37,7 @@
     const shown = items.filter(i => filter === 'all' || filter === 'attention' && attention.includes(i.status) || filter === 'success' && i.status === 'success' || filter === 'pending' && !attention.includes(i.status) && !['success', 'cancelled'].includes(i.status));
     const rowsHtml = shown.map(item => `<tr><td><strong>${escape(item.accountName)}</strong><small>${escape(item.accountUsername)}</small></td><td><strong class="video-name" title="${escape(item.video)}">${escape(item.video)}</strong><details><summary>Xem caption & hashtag</summary><p class="caption-copy">${escape(item.caption)}</p><p class="tags-copy">${escape(item.hashtags.join(' '))}</p></details></td><td><span class="run-badge ${escape(item.status)}">${escape(labels[item.status] || item.status)}</span><small>${item.attempts ? `Lần thực hiện ${item.attempts}` : 'Chưa gửi'}</small></td><td>${/^https:\/\/www\.tiktok\.com\/@[\w.-]+\/video\/\d+$/.test(item.postUrl || '') ? `<a href="${escape(item.postUrl)}" target="_blank" rel="noopener noreferrer">Mở bài đăng ↗</a>` : '<span class="muted">Chưa có liên kết</span>'}${item.error ? `<p class="row-error">${escape(item.error)}</p>` : ''}${item.events?.length ? `<details><summary>Nhật ký thao tác</summary><ol class="item-events">${item.events.map(event => `<li><time>${escape(new Date(event.at).toLocaleTimeString('vi-VN'))}</time> ${escape(labels[event.message] || event.message)}</li>`).join('')}</ol></details>` : ''}${item.status === 'needs_action' ? `<button type="button" class="secondary" data-login="${escape(item.accountId)}">Mở đăng nhập kênh</button>` : ''}</td></tr>`).join('');
     // Preserve expanded captions and focus during polling when data is unchanged.
-    const html = rowsHtml || '<tr><td colspan="4"><div class="studio-empty"><span aria-hidden="true">▤</span><strong>' + (items.length ? 'Không có video trong bộ lọc này' : 'Sẵn sàng cho lượt đăng đầu tiên') + '</strong><p>Chọn kênh và kho video bên dưới, sau đó chọn “Kiểm tra & tạo lượt đăng”.</p></div></td></tr>';
+    const html = rowsHtml || '<tr><td colspan="4"><div class="studio-empty"><span aria-hidden="true">▤</span><strong>' + (items.length ? 'Không có video trong bộ lọc này' : 'Sẵn sàng cho lượt đăng đầu tiên') + '</strong><p>Chọn kênh và kho video bên dưới, sau đó chọn “Đăng video”.</p></div></td></tr>';
     if ($('pubRows').dataset.rendered !== html) { $('pubRows').innerHTML = html; $('pubRows').dataset.rendered = html; }
     const checks = currentChecks || run?.checks || [];
     $('pubCheckSummary').textContent = checks.length ? `· ${checks.filter(c => c.status === 'pass').length}/${checks.length} đạt` : '';
@@ -54,18 +55,22 @@
   $('pubRunSelect').addEventListener('change', e => { activeId = e.target.value; currentChecks = null; notice(''); render(); });
   $('pubFilter').addEventListener('change', render);
   $('warehouseDistributeBtn').addEventListener('click', async () => {
-    if (preparing || busy) return;
+    if (preparing || busy || requesting) return;
     const accountIds = [...document.querySelectorAll('.tiktok-account-card.selected')].map(c => c.dataset.id);
     const folderPath = $('warehouseFolderPath').value.trim();
     if (!folderPath || !accountIds.length) { notice('Chọn thư mục kho và ít nhất một kênh TikTok.', true); $('pubNotice').scrollIntoView({ block: 'center' }); return; }
     preparing = true; currentChecks = null; render();
-    notice('Đang đọc video, mở Chrome kiểm tra lần lượt từng kênh và tạo caption AI. Chưa đăng bài.');
+    notice('Đang chọn video và tạo content AI theo prompt. Tool sẽ tự đăng công khai lên các kênh đã chọn.');
     $('pubNotice').scrollIntoView({ block: 'center' });
     try {
       const data = await api('/preview', { folderPath, accountIds, channelDelaySeconds: $('tiktokChannelDelay').value, captionPrompt: $('tiktokCaptionPrompt').value, extraHashtags: $('tiktokHashtags').value, geminiApiKey: $('geminiApiKey').value, geminiModel: $('geminiModel')?.value });
       currentChecks = data.checks;
-      if (data.ok) { activeId = data.run.id; notice('Bản phân bổ đã sẵn sàng. Xem caption từng video, sau đó chọn “Bắt đầu đăng công khai”.'); }
-      else { notice('Chưa đủ điều kiện tạo lượt. Xem các mục cần sửa trong Kiểm tra sẵn sàng.', true); $('pubChecksDetails').open = true; }
+      if (data.ok) {
+        activeId = data.run.id;
+        await api(`/${activeId}/start`, {});
+        notice('Đã bắt đầu đăng video. Tool tự tải video, điền content AI và xác nhận bài công khai.');
+      }
+      else { notice('Chưa thể đăng video. Xem nguyên nhân bên dưới.', true); $('pubChecksDetails').open = true; }
     } catch (err) { notice(err.message, true); }
     finally { preparing = false; await refresh(); }
   });

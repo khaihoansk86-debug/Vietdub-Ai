@@ -1,3 +1,10 @@
+# Bản 2.1.3 — Đăng video một nút
+
+- Tên thanh bên và cửa sổ: VietDub AI Studio.
+- `warehouseDistributeBtn` tự gọi prepare rồi start sau một cú bấm Đăng video; không dừng chờ xem trước/xác nhận. Prompt, hashtag và cấu hình AI được truyền như cũ.
+- Vẫn lưu tiến độ, kiểm tra chống trùng và xác minh công khai. Nút tiếp tục chỉ xuất hiện khi có phần chưa gửi cần phục hồi.
+- Kiểm thử UI mô phỏng xác nhận một cú bấm gọi prepare/start đúng một lần, truyền prompt và không start khi chuẩn bị lỗi. Không đăng bài thật trong kiểm thử này.
+
 # Bản vá 2.1.2 — 10/09/2026
 
 - Đã quan sát trực tiếp DOM TikTok: quyền hiển thị dùng `video_visibility_container`, nhãn “Who can see this post”, nút combobox Everyone; hàng bài đăng dùng `data-tt="components_RowLayout_FlexRow"`.

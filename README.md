@@ -11,12 +11,12 @@ VietDub AI kết hợp tải video, xử lý phụ đề, tạo giọng đọc v
 
 ## Tải và cài đặt
 
-Phiên bản hiện tại: **2.1.2**.
+Phiên bản hiện tại: **2.1.3**.
 
 | Nền tảng | Bộ cài |
 | --- | --- |
-| Windows x64 | [VietDub-AI-Setup-2.1.2.exe](https://github.com/khaihoansk86-debug/Vietdub-Ai/releases/download/v2.1.2/VietDub-AI-Setup-2.1.2.exe) |
-| macOS Apple Silicon — arm64 | [VietDub-AI-2.1.2-macOS-arm64.dmg](https://github.com/khaihoansk86-debug/Vietdub-Ai/releases/download/v2.1.2/VietDub-AI-2.1.2-macOS-arm64.dmg) |
+| Windows x64 | [VietDub-AI-Setup-2.1.3.exe](https://github.com/khaihoansk86-debug/Vietdub-Ai/releases/download/v2.1.3/VietDub-AI-Setup-2.1.3.exe) |
+| macOS Apple Silicon — arm64 | [VietDub-AI-2.1.3-macOS-arm64.dmg](https://github.com/khaihoansk86-debug/Vietdub-Ai/releases/download/v2.1.3/VietDub-AI-2.1.3-macOS-arm64.dmg) |
 
 Trang release có tệp `SHA256SUMS` để đối chiếu tính toàn vẹn bộ cài. Hiện chưa cung cấp bộ cài cho Mac Intel.
 
@@ -65,9 +65,9 @@ Giao diện chia thành các màn hình xuất bản, sản xuất và cài đ�
 
 ```mermaid
 flowchart LR
-    A[Chọn kênh và kho video] --> B[Kiểm tra sẵn sàng]
-    B --> C[Xem trước phân bổ và caption]
-    C --> D[Bắt đầu đăng Công khai]
+    A[Chọn kênh và kho video] --> B[Bấm Đăng video]
+    B --> C[Tự chọn video và tạo content AI theo prompt]
+    C --> D[Tự đăng Công khai]
     D --> E[Xác minh bài đăng]
     E --> F[Đã công khai]
     E --> G[Cần đối soát hoặc đang xử lý]
@@ -75,8 +75,8 @@ flowchart LR
 
 1. **Chuẩn bị kênh:** thêm tài khoản, đăng nhập qua Chrome, đóng cửa sổ đăng nhập và đồng bộ kênh.
 2. **Chọn nguồn:** chọn kênh nhận và thư mục video. Các video đã đăng hoặc đang giữ chỗ trong lượt khác được loại khỏi phân bổ mới.
-3. **Tạo bản xem trước:** chọn **Kiểm tra & tạo lượt đăng**. Kho cần đủ video riêng biệt cho số kênh được chọn.
-4. **Kiểm tra nội dung:** xem caption/hashtag trong bảng, sau đó chọn **Bắt đầu đăng công khai**.
+3. **Thiết lập nội dung:** nhập prompt AI và hashtag bổ sung. Kho cần đủ video riêng biệt cho số kênh được chọn.
+4. **Đăng ngay:** bấm **Đăng video** một lần. Tool tự chọn video, tạo content theo prompt và đăng công khai, không yêu cầu xác nhận lượt riêng.
 5. **Theo dõi:** các kênh chạy tuần tự, có thời gian chờ và nhật ký từng video.
 
 | Trạng thái | Thao tác phù hợp |
@@ -195,7 +195,7 @@ Vietdub-Ai/
 
 GitHub Actions kiểm tra và đóng gói trên Windows/macOS khi push tag `v*`, sau đó tải bộ cài cùng checksum lên Releases. Dùng tag mới cho mỗi phiên bản.
 
-Bản 2.1.2 có 16 kiểm thử logic và 6 tình huống DOM hồi quy, cùng kiểm thử API/giao diện và khởi động bản Windows đóng gói. Đã kiểm chứng một bài đăng thật qua Post → Post now → đối soát Công khai trên TikTok Studio. Giao diện macOS chưa được nghiệm thu trên máy Mac thật; TikTok có thể tiếp tục thay đổi giao diện.
+Bản 2.1.3 có 16 kiểm thử logic và 6 tình huống DOM hồi quy, cùng kiểm thử API/giao diện và khởi động bản Windows đóng gói. Đã kiểm chứng một bài đăng thật qua Post → Post now → đối soát Công khai trên TikTok Studio. Giao diện macOS chưa được nghiệm thu trên máy Mac thật; TikTok có thể tiếp tục thay đổi giao diện.
 
 ## Hỗ trợ
 

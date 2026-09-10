@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>VietDub AI — Studio xuất bản</title>
+    <title>VietDub AI Studio</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ctext y='50' font-size='48'%3E%F0%9F%A4%96%3C/text%3E%3C/svg%3E">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -22,7 +22,7 @@
             </div>
             <div class="brand-info">
               <h1>
-                <span>VietDub AI</span>
+                <span>VietDub AI Studio</span>
                 <span class="pro-badge">STUDIO 2.1</span>
               </h1>
               <p>Không gian sản xuất & xuất bản nội dung</p>
@@ -43,7 +43,7 @@
           <button class="tab-btn active" type="button" data-view="publish"><span aria-hidden="true">▤</span><span>Xuất bản TikTok</span></button>
           <button class="tab-btn" type="button" data-view="process"><span aria-hidden="true">▷</span><span>Sản xuất video</span></button>
           <button class="tab-btn" type="button" data-view="settings"><span aria-hidden="true">⚙</span><span>Cài đặt & API</span></button>
-          <div class="nav-footer"><span class="status-dot ready"></span> Workspace local<br><small>VietDub AI Studio · 2.1.2</small></div>
+          <div class="nav-footer"><span class="status-dot ready"></span> Workspace local<br><small>VietDub AI Studio · 2.1.3</small></div>
         </nav>
 
         <form id="jobForm" class="panel">
@@ -384,7 +384,7 @@
               <div class="run-toolbar">
                 <label>Hiển thị<select id="pubFilter"><option value="all">Tất cả video</option><option value="attention">Cần chú ý</option><option value="success">Đã công khai</option><option value="pending">Đang chờ / xử lý</option></select></label>
                 <div class="run-buttons">
-                  <button type="button" id="pubStart" class="primary" disabled>Bắt đầu đăng công khai</button>
+                  <button type="button" id="pubStart" class="primary" disabled hidden>Tiếp tục phần chưa gửi</button>
                   <button type="button" id="pubPause" class="secondary" disabled>Dừng sau kênh hiện tại</button>
                   <button type="button" id="pubRetry" class="secondary" disabled>Thử lại mục lỗi</button>
                   <button type="button" id="pubReconcile" class="secondary" disabled>Đối soát bài đã gửi</button>
@@ -392,7 +392,7 @@
                 </div>
               </div>
               <div class="run-progress"><progress id="pubProgress" max="1" value="0" aria-label="Tiến độ xác nhận công khai"></progress><span id="pubProgressText">0 / 0 video</span></div>
-              <div class="run-table-wrap"><table class="run-table"><thead><tr><th scope="col">Kênh nhận</th><th scope="col">Video & nội dung</th><th scope="col">Trạng thái</th><th scope="col">Kết quả</th></tr></thead><tbody id="pubRows"><tr><td colspan="4"><div class="studio-empty"><span aria-hidden="true">▤</span><strong>Sẵn sàng cho lượt đăng đầu tiên</strong><p>Chọn kênh và kho video bên dưới, sau đó chọn “Kiểm tra & tạo lượt đăng”.</p></div></td></tr></tbody></table></div>
+              <div class="run-table-wrap"><table class="run-table"><thead><tr><th scope="col">Kênh nhận</th><th scope="col">Video & nội dung</th><th scope="col">Trạng thái</th><th scope="col">Kết quả</th></tr></thead><tbody id="pubRows"><tr><td colspan="4"><div class="studio-empty"><span aria-hidden="true">▤</span><strong>Sẵn sàng cho lượt đăng đầu tiên</strong><p>Chọn kênh và kho video bên dưới, sau đó chọn “Đăng video”.</p></div></td></tr></tbody></table></div>
               <details class="preflight-details" id="pubChecksDetails"><summary>Kiểm tra sẵn sàng <span id="pubCheckSummary"></span></summary><ul id="pubChecks"><li>Kiểm tra Chrome, phiên đăng nhập, video và nội dung AI trước khi đăng.</li></ul></details>
             </section>
             <!-- TIKTOK AUTO PUBLISHER (MULTI-ACCOUNT) -->
@@ -447,7 +447,7 @@
                     <span>🔍</span> Quét Lại Kho
                   </button>
                   <button type="button" class="primary tiktok-btn-sm" id="warehouseDistributeBtn" style="height: 40px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; white-space: nowrap; font-weight: 600;">
-                    Kiểm tra & tạo lượt đăng
+                    Đăng video
                   </button>
                   <button type="button" class="secondary tiktok-btn-sm" id="tiktokViewHistoryBtn" style="height: 40px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; font-weight: 500;">
                     <span>📜</span> Lịch Sử Đã Đăng (0)

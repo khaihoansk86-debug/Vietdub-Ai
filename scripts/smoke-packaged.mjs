@@ -10,7 +10,7 @@ try {
   app = await electron.launch({ executablePath: path.join(root, 'dist', 'win-unpacked', 'VietDub AI.exe'), args: [`--user-data-dir=${temp}`], env: { ...process.env, VIETDUB_SKIP_KOKORO_AUTOSTART: '1', PORT: '3298' }, timeout: 30000 });
   const info = await app.evaluate(({ app }) => ({ version: app.getVersion(), userData: app.getPath('userData'), packaged: app.isPackaged }));
   assert.equal(path.resolve(info.userData), path.resolve(temp), 'Smoke must use an isolated profile');
-  assert.equal(info.version, '2.1.2'); assert.equal(info.packaged, true);
+  assert.equal(info.version, '2.1.3'); assert.equal(info.packaged, true);
   const window = await app.firstWindow(); await window.waitForSelector('#pubRunState');
   await window.waitForFunction(() => document.querySelector('#pubRunState').textContent === 'Chưa có lượt đăng');
   assert.equal(await window.locator('#viewPublish').isVisible(), true);
