@@ -27,7 +27,8 @@ import {
   getDirectPublisher,
   getPublishHistory,
   refreshPublishHistory,
-  clearPublishHistory
+  clearPublishHistory,
+  deleteSelectedHistory
 } from './services/tiktokPublisher.js';
 
 const app = express();
@@ -575,6 +576,11 @@ app.get('/api/tiktok/history', (_req, res) => {
   }
 });
 
+app.post('/api/tiktok/history/delete-selected', (req, res) => {
+  if (req.headers.origin && req.headers.origin !== `http://${req.headers.host}`) return res.status(403).json({ ok: false });
+  try { res.json(deleteSelectedHistory(req.body.ids)); }
+  catch (error) { res.status(409).json({ ok: false, message: error.message }); }
+});
 app.delete('/api/tiktok/history', (_req, res) => {
   try {
     const result = clearPublishHistory();

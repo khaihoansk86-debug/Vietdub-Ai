@@ -78,7 +78,7 @@ try {
     await page.locator('button[data-view="publish"]').click();
   }
   await page.screenshot({ path: path.join(output, 'studio-direct-1440.png'), fullPage: true });
-  await page.route('**/api/tiktok/history', route => route.fulfill({ contentType: 'application/json', body: JSON.stringify({ ok: true, history: [{ fileName: 'clip.mp4', accountName: 'QA', status: 'processing', postUrl: 'https://www.tiktok.com/@qa/video/123', publishedAt: new Date().toISOString() }] }) }));
+  await page.route('**/api/tiktok/history', route => route.fulfill({ contentType: 'application/json', body: JSON.stringify({ ok: true, history: [{ id: 'history-qa', fileName: 'clip.mp4', accountName: 'QA', status: 'processing', postUrl: 'https://www.tiktok.com/@qa/video/123', publishedAt: new Date().toISOString() }] }) }));
   let refreshCalls = 0;
   await page.route('**/api/tiktok/history/refresh', route => { refreshCalls++; return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ok:true,updated:0,errors:[]}) }); });
   posting = false;
@@ -91,6 +91,20 @@ try {
   await page.locator('#refreshHistoryStatusBtn').click();
   await page.waitForFunction(() => document.getElementById('historyRefreshStatus').textContent.includes('Đã cập nhật'));
   assert.equal(refreshCalls, 1);
+  await page.locator('.history-row-select').check();
+  await page.locator('#deleteSelectedHistoryBtn').click();
+  await page.locator('#selectedHistoryConfirm').waitFor({ state: 'visible' });
+  await page.locator('#cancelSelectedHistoryBtn').click();
+  assert.equal(await page.locator('#selectedHistoryConfirm').isVisible(), false);
+  let deletedIds;
+  await page.route('**/api/tiktok/history/delete-selected', route => {
+    deletedIds = route.request().postDataJSON().ids;
+    return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ ok: true, deleted: 1 }) });
+  });
+  await page.locator('#deleteSelectedHistoryBtn').click();
+  await page.locator('#confirmSelectedHistoryBtn').click();
+  await page.waitForFunction(() => document.getElementById('selectedHistoryCount')?.textContent === 'Đã chọn 0 bài');
+  assert.deepEqual(deletedIds, ['history-qa']);
   // DOM adapter integration: no real TikTok account or publication is involved.
   const fixture = await browser.newPage();
   const videoId = String((BigInt(Math.floor(Date.now() / 1000)) << 32n) + 123n);
@@ -100,6 +114,12 @@ try {
   const evidence = selectEvidence(rows, { caption: 'Nội dung đúng', hashtags: ['#tag'], accountUsername: '@studio_demo', baselineIds: [], submittedAt: new Date().toISOString() });
   assert.equal(evidence.status, 'success');
   await fixture.setContent('<div id="captcha">Verify</div>'); await assert.rejects(assertSession(fixture), /xác minh/);
+  const migration = await page.evaluate(() => {
+    localStorage.setItem(PROMPT_PRESETS_STORAGE_KEY, JSON.stringify({ viral_sales: LEGACY_PROMPT_PRESETS.viral_sales, custom: { id: 'custom', name: 'Mẫu riêng', prompt: 'Giọng văn của tôi' } }));
+    const presets = getPromptPresets();
+    return { migrated: presets.viral_sales.prompt === DEFAULT_PROMPT_PRESETS.viral_sales.prompt, custom: presets.custom.prompt };
+  });
+  assert.deepEqual(migration, { migrated: true, custom: 'Giọng văn của tôi' });
   assert.deepEqual(errors, []);
   fs.writeFileSync(path.join(output, 'smoke-report.json'), JSON.stringify({ ok: true, date: new Date().toISOString(), viewports: [375, 768, 1024, 1440, 1920, 2560], themes: ['dark', 'light'], checks: ['real API isolation', 'CSRF', 'invalid preview', 'stored recovery', 'XSS escaping', 'filters', 'processing form retained', 'all navigation tabs', 'DOM public verification', 'CAPTCHA detection'], errors }, null, 2));
   console.log(`PASS: API + UI + DOM smoke. Artifacts: ${output}`);

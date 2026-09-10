@@ -1,9 +1,19 @@
+import { reportContentWarning } from '../services/tiktokPublisher.js';
 import { chromium } from 'playwright-core';
 import assert from 'node:assert/strict';
 import { ensurePublic, loadStudioContent, readStudioRows } from '../services/tiktokVerification.js';
 const browser = await chromium.launch({ channel: 'chrome', headless: true });
 try {
   const page = await browser.newPage();
+  const warnings = [];
+  await page.setContent('<h2 hidden>Content may be restricted</h2>');
+  assert.equal(await reportContentWarning(page, text => warnings.push(text)), false);
+  await page.locator('h2').evaluate(el => el.hidden = false);
+  assert.equal(await reportContentWarning(page, text => warnings.push(text)), true);
+  await reportContentWarning(page, text => warnings.push(text));
+  assert.equal(warnings.length, 1);
+  assert.match(warnings[0], /video nguồn/);
+  console.log('PASS: visible content warning reported once; hidden warning ignored');
   await page.setContent('<section><h3>Who can watch this post</h3><div><button role="combobox">Everyone</button></div></section><button id="post">Post</button>');
   await ensurePublic(page);
   await page.getByRole('button', { name: 'Post', exact: true }).click();

@@ -346,3 +346,10 @@ gh run view <run-id>
    - `error-handling`: Khi cần bổ sung cơ chế retry hoặc bắt lỗi mạng/DOM.
    - `ui-ux-pro-max`: Khi cần tinh chỉnh giao diện người dùng, màu sắc, bố cục CSS.
    - `agent-introspection-debugging`: Khi cần tự chẩn đoán và phân tích nguyên nhân lỗi logic.
+
+
+## Cập nhật 2.2.4 (2026-09-10)
+Caption: prompt biên tập trung tính, nhiệt độ 0.35, dữ liệu đầu vào đóng gói JSON; kiểm tra schema, giới hạn độ dài, hashtag và thiếu ngữ cảnh. Bỏ fallback giật tít. Không đổi luồng dịch/TTS/render.
+UI: migrate đúng nguyên văn preset mặc định cũ, giữ prompt tùy chỉnh. Lịch sử chọn từng bài/chọn tất cả, xác nhận xóa local; API POST /api/tiktok/history/delete-selected dùng khóa chung khi sửa lịch sử, bảo toàn kho và bài thật. Xóa xong quét lại, không tự đăng ngay.
+Cảnh báo TikTok về video nguồn được ghi log một lần mỗi trang khi hiển thị; vẫn giữ quy trình đăng được TikTok cho phép, không hứa caption giúp hết hạn chế.
+Validation: npm run check, npm test (27), npm run test:ui (bao gồm chọn/xóa), npm run test:post (7 fixtures). Không đăng bài thật cho kiểm thử này.

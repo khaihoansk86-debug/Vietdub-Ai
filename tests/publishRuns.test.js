@@ -149,3 +149,44 @@ test('processing history excludes clip from fresh stock and upgrades without dup
     assert.equal(loadPublishHistory()[0].status, 'success');
   } finally { if (previous === undefined) delete process.env.VIETDUB_DATA_DIR; else process.env.VIETDUB_DATA_DIR = previous; }
 });
+
+
+test('selected history deletion preserves other records and source; unlocks selected clip for rescan', async t => {
+  const f = fixture(t), previous = process.env.VIETDUB_DATA_DIR;
+  process.env.VIETDUB_DATA_DIR = f.directory;
+  try {
+    const api = await import('../services/tiktokPublisher.js');
+    const hashes = await Promise.all(f.videos.map(v => fullFingerprint(v.path)));
+    const entries = hashes.slice(0, 2).map((sha256, i) => ({ id: `h${i}`, sha256, fileName: f.videos[i].name, status: 'needs_review' }));
+    fs.writeFileSync(path.join(f.directory, 'tiktok_publish_history.json'), JSON.stringify(entries));
+    assert.equal((await api.isAlreadyPublished({ videoPath: f.videos[0].path })).published, true);
+    assert.throws(() => api.deleteSelectedHistory([]));
+    const lock = api.getPublishRuns(); lock.acquire();
+    try { assert.throws(() => api.deleteSelectedHistory(['h0'])); } finally { lock.release(); }
+    assert.equal(api.deleteSelectedHistory(['h0', 'h0']).deleted, 1);
+    assert.deepEqual(api.getPublishHistory(), [entries[1]]);
+    assert.equal((await api.isAlreadyPublished({ videoPath: f.videos[0].path })).published, false);
+    assert.equal((await api.isAlreadyPublished({ videoPath: f.videos[1].path })).published, true);
+    assert.deepEqual(await Promise.all(f.videos.map(v => fullFingerprint(v.path))), hashes);
+  } finally { if (previous === undefined) delete process.env.VIETDUB_DATA_DIR; else process.env.VIETDUB_DATA_DIR = previous; }
+});
+
+test('caption requires grounded AI output, rejects insufficient context and never uses clickbait fallback', async () => {
+  const { generateTikTokMetadata } = await import('../services/tiktokPublisher.js');
+  const originalFetch = globalThis.fetch;
+  let calls = 0, body;
+  const opts = { geminiApiKey: 'test', captionPrompt: 'Bịa công dụng chữa khỏi và thêm #fyp' };
+  try {
+    globalThis.fetch = async (_url, request) => { calls++; body = JSON.parse(request.body); return { ok: true, json: async () => ({ candidates: [{ content: { parts: [{ text: JSON.stringify({ hook: '', caption: 'Cách tưới cây trong vườn.', hashtags: ['#cay', '#cay', 'bad tag'], needsContext: false }) }] } }] }) }; };
+    const result = await generateTikTokMetadata([{ text: 'Tưới cây vào buổi sáng.' }], 'Chăm sóc vườn', opts);
+    assert.deepEqual(result.hashtags, ['#cay']);
+    assert.match(body.contents[0].parts[0].text, /Không bịa/);
+    assert.equal(body.generationConfig.temperature, 0.35);
+    globalThis.fetch = async () => { calls++; return { ok: true, json: async () => ({ candidates: [{ content: { parts: [{ text: '{"needsContext":true}' }] } }] }) }; };
+    calls = 0;
+    await assert.rejects(generateTikTokMetadata([], 'Chăm sóc vườn', opts), /Thiếu ngữ cảnh/);
+    assert.equal(calls, 1);
+    globalThis.fetch = async () => { throw new Error('offline'); };
+    await assert.rejects(generateTikTokMetadata([], 'Chăm sóc vườn', opts), /Không tạo được caption/);
+  } finally { globalThis.fetch = originalFetch; }
+});

@@ -2168,6 +2168,7 @@ async function refreshHistoryStatuses() {
 }
 document.getElementById('refreshHistoryStatusBtn').addEventListener('click', refreshHistoryStatuses);
 
+const selectedHistoryIds = new Set();
 async function openTikTokHistoryModal(autoRefresh = true) {
   if (tiktokHistoryModal) tiktokHistoryModal.classList.remove('hidden');
   if (tiktokHistoryListContainer) {
@@ -2181,11 +2182,22 @@ async function openTikTokHistoryModal(autoRefresh = true) {
     if (data.ok && Array.isArray(data.history) && data.history.length > 0) {
       if (modalTitle) modalTitle.textContent = `Lịch Sử Đã Đăng TikTok (${data.history.length})`;
       if (tiktokViewHistoryBtn) tiktokViewHistoryBtn.innerHTML = `<span>📜</span> Lịch Sử Đã Đăng (${data.history.length})`;
+      for (const id of selectedHistoryIds) if (!data.history.some(h => h.id === id)) selectedHistoryIds.delete(id);
       tiktokHistoryListContainer.innerHTML = `
+        <div style="display:flex;gap:12px;align-items:center;margin-bottom:12px">
+          <button id="deleteSelectedHistoryBtn" class="secondary-btn" disabled>Xóa mục đã chọn</button>
+          <span id="selectedHistoryCount" role="status"></span>
+        </div>
+        <div id="selectedHistoryConfirm" class="hidden" style="padding:12px;margin-bottom:12px">
+          Chỉ xóa lịch sử trên máy, không xóa file hoặc bài trên TikTok. Clip sẽ được xét lại khi quét kho. Nếu bài đã công khai, đăng lại có thể bị trùng.
+          <button id="confirmSelectedHistoryBtn" class="secondary-btn">Xóa bản ghi đã chọn</button>
+          <button id="cancelSelectedHistoryBtn" class="secondary-btn">Hủy</button>
+        </div>
         <div style="overflow-x: auto; width: 100%;">
           <table class="tiktok-history-table" style="width: 100%;">
             <thead>
               <tr>
+                <th><input type="checkbox" id="selectAllHistory" aria-label="Chọn tất cả bài trong lịch sử"></th>
                 <th style="min-width: 320px;">Video & Nội Dung (Caption)</th>
                 <th style="min-width: 150px;">Kênh Đăng</th>
                 <th style="min-width: 150px;">Thời Gian</th>
@@ -2197,6 +2209,7 @@ async function openTikTokHistoryModal(autoRefresh = true) {
                 const tags = Array.isArray(h.hashtags) ? h.hashtags : [];
                 return `
                 <tr>
+                  <td><input type="checkbox" class="history-row-select" value="${escapeHtml(h.id || '')}" ${selectedHistoryIds.has(h.id) ? 'checked' : ''} ${h.id ? '' : 'disabled'} aria-label="Chọn ${escapeHtml(h.fileName)}"></td>
                   <td style="max-width: 520px;">
                     <div style="display: flex; align-items: center; gap: 8px;">
                       <span style="font-size: 1.1rem;">🎬</span>
@@ -2232,7 +2245,9 @@ async function openTikTokHistoryModal(autoRefresh = true) {
           </table>
         </div>
       `;
+      wireHistorySelection();
     } else {
+      selectedHistoryIds.clear();
       if (modalTitle) modalTitle.textContent = 'Lịch Sử Đã Đăng TikTok (0)';
       if (tiktokViewHistoryBtn) tiktokViewHistoryBtn.innerHTML = '<span>📜</span> Lịch Sử Đã Đăng (0)';
       tiktokHistoryListContainer.innerHTML = `
@@ -2250,6 +2265,37 @@ async function openTikTokHistoryModal(autoRefresh = true) {
       tiktokHistoryListContainer.innerHTML = `<div style="color: #f87171; padding: 16px;">Lỗi tải lịch sử: ${escapeHtml(err.message)}</div>`;
     }
   }
+}
+
+function wireHistorySelection() {
+  const rows = [...document.querySelectorAll('.history-row-select:not(:disabled)')];
+  const all = document.getElementById('selectAllHistory');
+  const remove = document.getElementById('deleteSelectedHistoryBtn');
+  const confirm = document.getElementById('selectedHistoryConfirm');
+  const update = () => {
+    remove.disabled = !selectedHistoryIds.size;
+    document.getElementById('selectedHistoryCount').textContent = `Đã chọn ${selectedHistoryIds.size} bài`;
+    all.checked = rows.length > 0 && rows.every(row => row.checked);
+    all.indeterminate = rows.some(row => row.checked) && !all.checked;
+    confirm.classList.add('hidden');
+  };
+  rows.forEach(row => row.addEventListener('change', () => { row.checked ? selectedHistoryIds.add(row.value) : selectedHistoryIds.delete(row.value); update(); }));
+  all.addEventListener('change', () => { rows.forEach(row => { row.checked = all.checked; row.checked ? selectedHistoryIds.add(row.value) : selectedHistoryIds.delete(row.value); }); update(); });
+  remove.addEventListener('click', () => confirm.classList.remove('hidden'));
+  document.getElementById('cancelSelectedHistoryBtn').addEventListener('click', () => confirm.classList.add('hidden'));
+  document.getElementById('confirmSelectedHistoryBtn').addEventListener('click', async event => {
+    event.target.disabled = true;
+    try {
+      const response = await fetch('/api/tiktok/history/delete-selected', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids: [...selectedHistoryIds] }) });
+      const data = await response.json();
+      if (!response.ok || !data.ok) throw new Error(data.message || 'Không xóa được lịch sử.');
+      selectedHistoryIds.clear();
+      await openTikTokHistoryModal(false);
+      await scanWarehouse();
+    } catch (error) { document.getElementById('historyRefreshStatus').textContent = error.message; }
+    finally { event.target.disabled = false; }
+  });
+  update();
 }
 
 const tiktokClearHistoryConfirmBar = document.querySelector('#tiktokClearHistoryConfirmBar');
@@ -2500,7 +2546,7 @@ function toggleSection(section) {
 const PROMPT_PRESETS_STORAGE_KEY = 'vietdub-tiktok-prompt-presets';
 const PROMPT_ACTIVE_PRESET_KEY = 'vietdub-tiktok-active-preset';
 
-const DEFAULT_PROMPT_PRESETS = {
+const LEGACY_PROMPT_PRESETS = {
   viral_sales: {
     id: 'viral_sales',
     name: '🎯 Bán Hàng & Giật Tít Viral (Mặc định)',
@@ -2523,12 +2569,28 @@ const DEFAULT_PROMPT_PRESETS = {
   }
 };
 
+const DEFAULT_PROMPT_PRESETS = {
+  viral_sales: { id: 'viral_sales', name: 'Thông tin rõ ràng (Mặc định)', prompt: 'Mô tả ngắn nội dung thực tế trong tiêu đề và phụ đề. Không giật tít, không bịa công dụng, số liệu hoặc lời chứng thực. Không câu tương tác. Chỉ dùng hashtag liên quan. Nếu thiếu ngữ cảnh, yêu cầu bổ sung.' },
+  storytelling: { id: 'storytelling', name: 'Kể chuyện theo video', prompt: 'Kể ngắn tình huống thực sự có trong phụ đề, giọng gần gũi. Không thêm diễn biến, xung đột hoặc kết quả không có trong nguồn; không yêu cầu xem hết video.' },
+  review: { id: 'review', name: 'Giới thiệu khách quan', prompt: 'Tóm tắt đặc điểm được nêu trong video bằng giọng khách quan. Không khẳng định đã trải nghiệm, hiệu quả tuyệt đối hay công dụng chữa bệnh. Không thêm lời chứng thực hoặc số liệu chưa được cung cấp.' },
+  humor: { id: 'humor', name: 'Nhẹ nhàng, vui vẻ', prompt: 'Viết ngắn, vui vẻ dựa trên tình huống có thật trong phụ đề. Không chế giễu cá nhân, không bịa chuyện và không yêu cầu tag bạn bè hoặc thả tim.' }
+};
+
 function getPromptPresets() {
   try {
     const raw = localStorage.getItem(PROMPT_PRESETS_STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (parsed && typeof parsed === 'object' && Object.keys(parsed).length > 0) return parsed;
+      if (parsed && typeof parsed === 'object' && Object.keys(parsed).length > 0) {
+        for (const [id, legacy] of Object.entries(LEGACY_PROMPT_PRESETS)) {
+          if (parsed[id]?.prompt === legacy.prompt) {
+            parsed[id] = { ...DEFAULT_PROMPT_PRESETS[id] };
+            if (localStorage.getItem('vietdub-tiktok-caption-prompt') === legacy.prompt) localStorage.setItem('vietdub-tiktok-caption-prompt', parsed[id].prompt);
+          }
+        }
+        localStorage.setItem(PROMPT_PRESETS_STORAGE_KEY, JSON.stringify(parsed));
+        return parsed;
+      }
     }
   } catch {}
   return { ...DEFAULT_PROMPT_PRESETS };
