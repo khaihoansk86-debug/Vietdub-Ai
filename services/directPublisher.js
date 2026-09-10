@@ -76,9 +76,9 @@ export class DirectPublisher {
             }
           } catch (error) { this.log(`${account.name}: chưa cập nhật được trạng thái: ${error.message}`); }
         }
-        this.state.results.push({ account: account.name, video: video.name, status: result.status, postUrl: result.postUrl });
+        this.state.results.push({ account: account.name, video: video.name, status: result.status, postUrl: result.postUrl, message: result.message || '' });
         this.log(`${account.name}: ${result.status === 'success' ? 'Đã đăng công khai.' : result.message || 'Đã gửi, chưa xác nhận công khai. Kiểm tra TikTok Studio.'}`);
-      } catch (error) { this.log(`${account.name}: ${error.message}`); this.state.results.push({ account: account.name, video: video.name, status: 'error' }); }
+      } catch (error) { this.log(`${account.name}: ${error.message}`); this.state.results.push({ account: account.name, video: video.name, status: 'error', message: error.message }); }
       if (++index < accounts.length && candidates.length) await this.deps.delay(Math.min(300, Math.max(0, Number(options.channelDelaySeconds) || 0)) * 1000);
     }
     const results = this.state.results;

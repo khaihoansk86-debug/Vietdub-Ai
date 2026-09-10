@@ -171,7 +171,7 @@ test('selected history deletion preserves other records and source; unlocks sele
   } finally { if (previous === undefined) delete process.env.VIETDUB_DATA_DIR; else process.env.VIETDUB_DATA_DIR = previous; }
 });
 
-test('caption requires grounded AI output, rejects insufficient context and never uses clickbait fallback', async () => {
+test('caption uses prompt without transcript, accepts legacy context flag with valid text and reports API failures', async () => {
   const { generateTikTokMetadata } = await import('../services/tiktokPublisher.js');
   const originalFetch = globalThis.fetch;
   let calls = 0, body;
@@ -182,9 +182,11 @@ test('caption requires grounded AI output, rejects insufficient context and neve
     assert.deepEqual(result.hashtags, ['#cay']);
     assert.match(body.contents[0].parts[0].text, /Không bịa/);
     assert.equal(body.generationConfig.temperature, 0.35);
-    globalThis.fetch = async () => { calls++; return { ok: true, json: async () => ({ candidates: [{ content: { parts: [{ text: '{"needsContext":true}' }] } }] }) }; };
+    assert.match(body.contents[0].parts[0].text, /Không từ chối chỉ vì thiếu phụ đề/);
+    globalThis.fetch = async () => { calls++; return { ok: true, json: async () => ({ candidates: [{ content: { parts: [{ text: '{"needsContext":true,"caption":"Một góc nhìn nhẹ nhàng cho hôm nay.","hashtags":[]}' }] } }] }) }; };
     calls = 0;
-    await assert.rejects(generateTikTokMetadata([], 'Chăm sóc vườn', opts), /Thiếu ngữ cảnh/);
+    const neutral = await generateTikTokMetadata([], 'clip', { ...opts, captionPrompt: 'Viết lời chia sẻ nhẹ nhàng' });
+    assert.match(neutral.caption, /góc nhìn/);
     assert.equal(calls, 1);
     globalThis.fetch = async () => { throw new Error('offline'); };
     await assert.rejects(generateTikTokMetadata([], 'Chăm sóc vườn', opts), /Không tạo được caption/);

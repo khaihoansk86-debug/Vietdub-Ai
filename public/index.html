@@ -43,7 +43,7 @@
           <button class="tab-btn active" type="button" data-view="publish"><span aria-hidden="true">▤</span><span>Xuất bản TikTok</span></button>
           <button class="tab-btn" type="button" data-view="process"><span aria-hidden="true">▷</span><span>Sản xuất video</span></button>
           <button class="tab-btn" type="button" data-view="settings"><span aria-hidden="true">⚙</span><span>Cài đặt & API</span></button>
-          <div class="nav-footer"><span class="status-dot ready"></span> Workspace local<br><small>VietDub AI Studio · 2.2.4</small></div>
+          <div class="nav-footer"><span class="status-dot ready"></span> Workspace local<br><small>VietDub AI Studio · 2.2.5</small></div>
         </nav>
 
         <form id="jobForm" class="panel">
@@ -805,7 +805,7 @@
 
         <div class="tiktok-modal-body" style="padding: 16px 20px; max-height: 560px; overflow-y: auto; overflow-x: auto;">
           <button type="button" class="secondary" id="refreshHistoryStatusBtn">Quét lại trạng thái</button><p id="historyRefreshStatus" role="status"></p>
-          <div id="tiktokHistoryListContainer" style="min-width: 780px;">
+          <div id="tiktokHistoryListContainer">
             <div style="text-align: center; color: var(--muted); padding: 24px;">Đang tải lịch sử...</div>
           </div>
         </div>
@@ -842,68 +842,24 @@
       </div>
     </div>
 
-    <!-- TIKTOK PUBLISH COMPLETED POPUP MODAL (PROMINENT FOR ADMIN) -->
-    <div id="tiktokPublishCompleteModal" class="tiktok-modal-backdrop hidden">
+    <div id="tiktokPublishCompleteModal" class="tiktok-modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="tiktokCompleteTitle">
       <div class="tiktok-modal-card publish-complete-card">
-        <div class="tiktok-modal-header" style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.18), rgba(14, 165, 233, 0.18)) !important; border-bottom: 1px solid rgba(16, 185, 129, 0.3) !important;">
-          <div style="display: flex; align-items: center; gap: 12px;">
-            <span style="font-size: 2rem;">🎉</span>
-            <div>
-              <h3 class="tiktok-modal-title" style="color: #10b981; font-size: 1.25rem; font-weight: 800;">
-                Hoàn Tất Đăng Video TikTok!
-              </h3>
-              <div class="tiktok-modal-subtitle" id="tiktokCompleteModalSubtitle" style="font-size: 0.85rem; color: var(--muted); margin-top: 2px;">
-                Tất cả các kênh TikTok đã chọn đã được xử lý xuất bản hoàn tất 100%.
-              </div>
-            </div>
-          </div>
-          <button type="button" id="closeTikTokCompleteModalBtn" class="tiktok-modal-close" title="Đóng">&times;</button>
+        <div class="tiktok-modal-header">
+          <div class="publish-outcome-heading"><span id="tiktokCompleteOutcomeIcon" aria-hidden="true">✓</span><div><h3 class="tiktok-modal-title" id="tiktokCompleteTitle">Kết quả đăng video</h3><p id="tiktokCompleteModalSubtitle" class="tiktok-modal-subtitle"></p></div></div>
+          <button type="button" id="closeTikTokCompleteModalBtn" class="tiktok-modal-close" aria-label="Đóng kết quả">&times;</button>
         </div>
-
-        <div class="tiktok-modal-body" style="padding: 20px 24px;">
-          <!-- Highlight stats row -->
-          <div class="complete-stats-row">
-            <div class="complete-stat-badge">
-              <span class="stat-icon">🎯</span>
-              <div class="stat-info">
-                <div class="stat-label">Tổng Kênh Đã Đăng</div>
-                <strong class="stat-val" id="tiktokCompleteStatChannels">0 Kênh</strong>
-              </div>
-            </div>
-            <div class="complete-stat-badge">
-              <span class="stat-icon">💾</span>
-              <div class="stat-info">
-                <div class="stat-label">Chế Độ Xuất Bản</div>
-                <strong class="stat-val" id="tiktokCompleteStatMode">Bản Nháp</strong>
-              </div>
-            </div>
-            <div class="complete-stat-badge success">
-              <span class="stat-icon">✅</span>
-              <div class="stat-info">
-                <div class="stat-label">Trạng Thái</div>
-                <strong class="stat-val" id="tiktokCompleteStatStatus">100% Hoàn Thành</strong>
-              </div>
-            </div>
+        <div class="tiktok-modal-body">
+          <div class="publish-result-stats">
+            <div><strong id="tiktokCompleteStatChannels">0</strong><span>Đã công khai</span></div>
+            <div><strong id="tiktokCompleteStatMode">0</strong><span>Đang xử lý</span></div>
+            <div><strong id="tiktokCompleteStatStatus">0</strong><span>Cần kiểm tra</span></div>
           </div>
-
-          <!-- List of published items -->
-          <div class="complete-details-box">
-            <div class="complete-details-header">
-              <span>📋 Chi tiết video & kênh đã xuất bản:</span>
-            </div>
-            <div id="tiktokCompleteDetailsList" class="complete-details-list">
-              <!-- Injected dynamically by JS -->
-            </div>
-          </div>
+          <h4 class="publish-details-title">Chi tiết từng kênh</h4>
+          <div id="tiktokCompleteDetailsList"></div>
         </div>
-
-        <div class="tiktok-modal-footer" style="justify-content: space-between; gap: 14px; padding: 14px 24px;">
-          <button type="button" class="tiktok-modal-btn secondary" id="tiktokCompleteViewHistoryBtn" style="min-width: 170px;">
-            <span>📜</span> Mở Xem Lịch Sử Đã Đăng
-          </button>
-          <button type="button" class="tiktok-modal-btn primary" id="tiktokCompleteConfirmBtn" style="min-width: 170px;">
-            <span>✨</span> Tuyệt Vời / Đã Xong
-          </button>
+        <div class="tiktok-modal-footer">
+          <button type="button" class="tiktok-modal-btn secondary" id="tiktokCompleteViewHistoryBtn">Xem lịch sử</button>
+          <button type="button" class="tiktok-modal-btn primary" id="tiktokCompleteConfirmBtn">Đóng</button>
         </div>
       </div>
     </div>

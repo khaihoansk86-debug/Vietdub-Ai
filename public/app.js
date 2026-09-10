@@ -2184,20 +2184,20 @@ async function openTikTokHistoryModal(autoRefresh = true) {
       if (tiktokViewHistoryBtn) tiktokViewHistoryBtn.innerHTML = `<span>📜</span> Lịch Sử Đã Đăng (${data.history.length})`;
       for (const id of selectedHistoryIds) if (!data.history.some(h => h.id === id)) selectedHistoryIds.delete(id);
       tiktokHistoryListContainer.innerHTML = `
-        <div style="display:flex;gap:12px;align-items:center;margin-bottom:12px">
-          <button id="deleteSelectedHistoryBtn" class="secondary-btn" disabled>Xóa mục đã chọn</button>
+        <div class="history-selection-toolbar">
+          <button id="deleteSelectedHistoryBtn" class="tiktok-modal-btn danger" disabled>Xóa mục đã chọn</button>
           <span id="selectedHistoryCount" role="status"></span>
         </div>
-        <div id="selectedHistoryConfirm" class="hidden" style="padding:12px;margin-bottom:12px">
-          Chỉ xóa lịch sử trên máy, không xóa file hoặc bài trên TikTok. Clip sẽ được xét lại khi quét kho. Nếu bài đã công khai, đăng lại có thể bị trùng.
-          <button id="confirmSelectedHistoryBtn" class="secondary-btn">Xóa bản ghi đã chọn</button>
-          <button id="cancelSelectedHistoryBtn" class="secondary-btn">Hủy</button>
+        <div id="selectedHistoryConfirm" class="history-delete-confirm hidden">
+          <div><strong>Xóa bản ghi đã chọn?</strong><p>Chỉ xóa lịch sử trên máy. File video và bài TikTok vẫn được giữ. Clip sẽ được quét lại; hãy kiểm tra bài đã công khai để tránh đăng trùng.</p></div><div class="history-confirm-actions">
+          <button id="confirmSelectedHistoryBtn" class="tiktok-modal-btn danger">Xóa bản ghi đã chọn</button>
+          <button id="cancelSelectedHistoryBtn" class="tiktok-modal-btn secondary">Hủy</button></div>
         </div>
         <div style="overflow-x: auto; width: 100%;">
           <table class="tiktok-history-table" style="width: 100%;">
             <thead>
               <tr>
-                <th><input type="checkbox" id="selectAllHistory" aria-label="Chọn tất cả bài trong lịch sử"></th>
+                <th class="history-check-cell"><label class="history-check"><input type="checkbox" id="selectAllHistory" aria-label="Chọn tất cả bài trong lịch sử"><span>Tất cả</span></label></th>
                 <th style="min-width: 320px;">Video & Nội Dung (Caption)</th>
                 <th style="min-width: 150px;">Kênh Đăng</th>
                 <th style="min-width: 150px;">Thời Gian</th>
@@ -2209,7 +2209,7 @@ async function openTikTokHistoryModal(autoRefresh = true) {
                 const tags = Array.isArray(h.hashtags) ? h.hashtags : [];
                 return `
                 <tr>
-                  <td><input type="checkbox" class="history-row-select" value="${escapeHtml(h.id || '')}" ${selectedHistoryIds.has(h.id) ? 'checked' : ''} ${h.id ? '' : 'disabled'} aria-label="Chọn ${escapeHtml(h.fileName)}"></td>
+                  <td class="history-check-cell"><label class="history-check"><input type="checkbox" class="history-row-select" value="${escapeHtml(h.id || '')}" ${selectedHistoryIds.has(h.id) ? 'checked' : ''} ${h.id ? '' : 'disabled'} aria-label="Chọn ${escapeHtml(h.fileName)}"><span>Chọn</span></label></td>
                   <td style="max-width: 520px;">
                     <div style="display: flex; align-items: center; gap: 8px;">
                       <span style="font-size: 1.1rem;">🎬</span>
@@ -2381,77 +2381,27 @@ function closePublishCompleteModal() {
 
 function showPublishCompleteModal(result) {
   if (!tiktokPublishCompleteModal) return;
-
   const items = Array.isArray(result?.results) ? result.results : [];
-  const total = items.length;
-  const successItems = items.filter((it) => it.status === 'success');
-  const successCount = successItems.length;
-  const errorCount = total - successCount;
-  const processingCount = items.filter(it => it.status === 'processing').length;
-
-  // Post mode display
-  const postModeVal = document.querySelector('#tiktokPostMode')?.value || 'public';
-  const modeLabels = {
-    draft: '💾 Bản Nháp (Draft)',
-    public: '🚀 Đăng Công Khai (Public)',
-    private: '🔒 Chỉ Mình Tôi (Private)'
-  };
-  const modeText = modeLabels[postModeVal] || '🚀 Đăng Công Khai';
-
-  if (tiktokCompleteStatChannels) {
-    tiktokCompleteStatChannels.textContent = `${successCount + processingCount}/${total} kênh đã gửi`;
-  }
-  if (tiktokCompleteStatMode) {
-    tiktokCompleteStatMode.textContent = modeText;
-  }
-  if (tiktokCompleteStatStatus) {
-    if (errorCount === 0 && total > 0) {
-      tiktokCompleteStatStatus.textContent = '100% Hoàn Thành';
-      tiktokCompleteStatStatus.closest('.complete-stat-badge')?.classList.add('success');
-    } else if (successCount > 0) {
-      tiktokCompleteStatStatus.textContent = `${successCount} Thành Công`;
-    } else {
-      tiktokCompleteStatStatus.textContent = 'Có Lỗi Xảy Ra';
-    }
-  }
-  if (tiktokCompleteModalSubtitle) {
-    tiktokCompleteModalSubtitle.textContent = total ? `${successCount} công khai · ${processingCount} TikTok đang xử lý · ${total - successCount - processingCount} cần kiểm tra.` : 'Không có video mới để đăng. Thêm clip vào kho rồi thử lại.';
-  }
-  tiktokCompleteStatStatus?.closest('.complete-stat-badge')?.classList.toggle('success', total > 0 && successCount === total);
-  if (tiktokCompleteStatStatus) tiktokCompleteStatStatus.textContent = !total ? 'Chưa có clip mới' : processingCount ? 'Đã gửi · Còn bài đang xử lý' : errorCount ? 'Hoàn tất · Cần kiểm tra' : 'Hoàn thành';
-
-  // Render detail rows
-  if (tiktokCompleteDetailsList) {
-    if (items.length === 0) {
-      tiktokCompleteDetailsList.innerHTML = `<div style="text-align: center; color: var(--muted); padding: 16px;">Không có video nào được đăng trong lượt này.</div>`;
-    } else {
-      tiktokCompleteDetailsList.innerHTML = items.map((it) => {
-        const isSuccess = ['success', 'processing'].includes(it.status);
-        const badgeClass = isSuccess ? 'tag-badge success' : 'tag-badge error';
-        const badgeIcon = it.status === 'processing' ? '⏳ Đã gửi · Đang xử lý' : isSuccess ? '✅ Công khai' : '⚠️ Cần kiểm tra';
-        return `
-          <div class="complete-detail-item" style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: var(--bg-card); border: 1px solid var(--line); border-radius: 8px; margin-bottom: 8px; gap: 12px;">
-            <div style="display: flex; align-items: center; gap: 10px; min-width: 0;">
-              <span style="font-size: 1.1rem;">${isSuccess ? '🎬' : '⚠️'}</span>
-              <div style="min-width: 0;">
-                <div style="font-weight: 600; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 320px;" title="${escapeHtml(it.video || '')}">
-                  ${escapeHtml(it.video || 'Video')}
-                </div>
-                <div style="font-size: 0.8rem; color: var(--muted); margin-top: 2px;">
-                  👤 Kênh: <b style="color: var(--ink);">${escapeHtml(it.account || 'Tài khoản')}</b>
-                </div>
-              </div>
-            </div>
-            <span class="${badgeClass}" style="flex-shrink: 0; font-size: 0.82rem; padding: 4px 10px; border-radius: 6px; font-weight: 600; ${isSuccess ? 'background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3);' : 'background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3);'}">
-              ${badgeIcon}
-            </span>
-          </div>
-        `;
-      }).join('');
-    }
-  }
-
+  const success = items.filter(it => it.status === 'success').length;
+  const processing = items.filter(it => it.status === 'processing').length;
+  const errors = items.length - success - processing;
+  const outcome = !items.length ? 'empty' : success === items.length ? 'success' : errors === items.length ? 'error' : 'pending';
+  tiktokPublishCompleteModal.dataset.outcome = outcome;
+  document.getElementById('tiktokCompleteTitle').textContent = { empty: 'Chưa có video mới', success: 'Đã đăng công khai', error: 'Chưa đăng được video', pending: 'Kết quả đăng video' }[outcome];
+  document.getElementById('tiktokCompleteOutcomeIcon').textContent = { empty: '—', success: '✓', error: '!', pending: '…' }[outcome];
+  tiktokCompleteModalSubtitle.textContent = items.length ? `${success} công khai · ${processing} TikTok đang xử lý · ${errors} cần kiểm tra.` : 'Thêm clip vào kho rồi quét lại để đăng.';
+  tiktokCompleteStatChannels.textContent = success;
+  tiktokCompleteStatMode.textContent = processing;
+  tiktokCompleteStatStatus.textContent = errors;
+  tiktokCompleteDetailsList.innerHTML = items.length ? items.map(it => {
+    const status = it.status === 'success' ? 'success' : it.status === 'processing' ? 'pending' : 'error';
+    const label = { success: 'Đã công khai', pending: 'Đang xử lý', error: it.status === 'error' ? 'Chưa đăng được' : 'Cần xác minh' }[status];
+    const message = it.message || (status === 'pending' ? 'TikTok đã nhận bài. Quét lại trạng thái trong lịch sử để cập nhật.' : status === 'error' ? 'Kiểm tra nhật ký đăng video để biết nguyên nhân trước khi thử lại.' : 'Đã xác nhận bài hiển thị công khai.');
+    const link = /^https:\/\/www\.tiktok\.com\/@[\w.-]+\/video\/\d+$/.test(it.postUrl || '') ? `<a href="${escapeHtml(it.postUrl)}" target="_blank" rel="noopener noreferrer">Mở bài đăng ↗</a>` : '';
+    return `<article class="publish-result-item"><div class="publish-result-heading"><strong>${escapeHtml(it.video || 'Video')}</strong><span class="result-status ${status}">${label}</span></div><div class="publish-result-account">${escapeHtml(it.account || 'Tài khoản')}</div><p>${escapeHtml(message)}</p>${link}</article>`;
+  }).join('') : '<p class="publish-empty">Không có bài nào được gửi trong lần này.</p>';
   tiktokPublishCompleteModal.classList.remove('hidden');
+  tiktokCompleteConfirmBtn?.focus();
 }
 
 closeTikTokCompleteModalBtn?.addEventListener('click', closePublishCompleteModal);
@@ -2569,8 +2519,9 @@ const LEGACY_PROMPT_PRESETS = {
   }
 };
 
+const PREVIOUS_DEFAULT_CAPTION = 'Mô tả ngắn nội dung thực tế trong tiêu đề và phụ đề. Không giật tít, không bịa công dụng, số liệu hoặc lời chứng thực. Không câu tương tác. Chỉ dùng hashtag liên quan. Nếu thiếu ngữ cảnh, yêu cầu bổ sung.';
 const DEFAULT_PROMPT_PRESETS = {
-  viral_sales: { id: 'viral_sales', name: 'Thông tin rõ ràng (Mặc định)', prompt: 'Mô tả ngắn nội dung thực tế trong tiêu đề và phụ đề. Không giật tít, không bịa công dụng, số liệu hoặc lời chứng thực. Không câu tương tác. Chỉ dùng hashtag liên quan. Nếu thiếu ngữ cảnh, yêu cầu bổ sung.' },
+  viral_sales: { id: 'viral_sales', name: 'Thông tin rõ ràng (Mặc định)', prompt: 'Viết caption ngắn, rõ ràng theo chủ đề được cung cấp. Ưu tiên tiêu đề và phụ đề nếu có. Nếu thiếu dữ liệu video, viết lời chia sẻ độc lập theo prompt; nếu chưa có chủ đề, viết lời giới thiệu trung tính. Không bịa chi tiết video, công dụng, số liệu hoặc lời chứng thực. Không giật tít hay câu tương tác. Chỉ dùng hashtag liên quan.' },
   storytelling: { id: 'storytelling', name: 'Kể chuyện theo video', prompt: 'Kể ngắn tình huống thực sự có trong phụ đề, giọng gần gũi. Không thêm diễn biến, xung đột hoặc kết quả không có trong nguồn; không yêu cầu xem hết video.' },
   review: { id: 'review', name: 'Giới thiệu khách quan', prompt: 'Tóm tắt đặc điểm được nêu trong video bằng giọng khách quan. Không khẳng định đã trải nghiệm, hiệu quả tuyệt đối hay công dụng chữa bệnh. Không thêm lời chứng thực hoặc số liệu chưa được cung cấp.' },
   humor: { id: 'humor', name: 'Nhẹ nhàng, vui vẻ', prompt: 'Viết ngắn, vui vẻ dựa trên tình huống có thật trong phụ đề. Không chế giễu cá nhân, không bịa chuyện và không yêu cầu tag bạn bè hoặc thả tim.' }
@@ -2583,9 +2534,9 @@ function getPromptPresets() {
       const parsed = JSON.parse(raw);
       if (parsed && typeof parsed === 'object' && Object.keys(parsed).length > 0) {
         for (const [id, legacy] of Object.entries(LEGACY_PROMPT_PRESETS)) {
-          if (parsed[id]?.prompt === legacy.prompt) {
+          if (parsed[id]?.prompt === legacy.prompt || id === 'viral_sales' && parsed[id]?.prompt === PREVIOUS_DEFAULT_CAPTION) {
             parsed[id] = { ...DEFAULT_PROMPT_PRESETS[id] };
-            if (localStorage.getItem('vietdub-tiktok-caption-prompt') === legacy.prompt) localStorage.setItem('vietdub-tiktok-caption-prompt', parsed[id].prompt);
+            if ([legacy.prompt, PREVIOUS_DEFAULT_CAPTION].includes(localStorage.getItem('vietdub-tiktok-caption-prompt'))) localStorage.setItem('vietdub-tiktok-caption-prompt', parsed[id].prompt);
           }
         }
         localStorage.setItem(PROMPT_PRESETS_STORAGE_KEY, JSON.stringify(parsed));

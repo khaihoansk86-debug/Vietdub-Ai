@@ -78,3 +78,14 @@ test('upload result account display name cannot overwrite the account identity i
   publisher.start({ accountIds: ['a'] }); await publisher.task;
   assert.equal(saved.account.id, 'a');
 });
+
+
+test('caption API failure stays unsent and includes the actionable error in popup results', async () => {
+  const { publisher, calls } = setup();
+  publisher.deps.metadata = async () => { throw new Error('Gemini hết quota. Kiểm tra API key.'); };
+  publisher.start({ accountIds: ['a'] });
+  await publisher.task;
+  assert.equal(publisher.state.results[0].status, 'error');
+  assert.match(publisher.state.results[0].message, /Gemini hết quota/);
+  assert.equal(calls.includes('history'), false);
+});

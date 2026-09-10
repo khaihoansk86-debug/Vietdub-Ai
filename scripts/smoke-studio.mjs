@@ -120,6 +120,31 @@ try {
     return { migrated: presets.viral_sales.prompt === DEFAULT_PROMPT_PRESETS.viral_sales.prompt, custom: presets.custom.prompt };
   });
   assert.deepEqual(migration, { migrated: true, custom: 'Giọng văn của tôi' });
+  await page.locator('#closeTikTokHistoryModalBtn').click();
+  for (const theme of ['light', 'dark']) {
+    await page.evaluate(theme => document.documentElement.dataset.theme = theme, theme);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.evaluate(() => showPublishCompleteModal({ results: [{ status: 'error', account: 'Kênh kiểm thử', video: 'video-ten-dai-de-kiem-tra-hien-thi-ro-rang.mp4', message: 'Không kết nối được Gemini. Kiểm tra kết nối hoặc API key rồi thử lại.' }] }));
+    assert.equal(await page.locator('#tiktokCompleteTitle').innerText(), 'Chưa đăng được video');
+    assert.match(await page.locator('#tiktokCompleteDetailsList').innerText(), /Không kết nối được Gemini/);
+    const colors = await page.locator('.publish-result-heading strong').evaluate(el => ({ text: getComputedStyle(el).color, background: getComputedStyle(el.closest('article')).backgroundColor }));
+    assert.notEqual(colors.text, colors.background);
+    assert.equal(await page.locator('.publish-complete-card').evaluate(el => getComputedStyle(el).backgroundColor), theme === 'light' ? 'rgb(255, 255, 255)' : 'rgb(18, 28, 42)');
+    await page.screenshot({ path: path.join(output, `result-error-${theme}.png`) });
+    await page.setViewportSize({ width: 375, height: 800 });
+    assert.equal(await page.locator('.publish-complete-card').evaluate(el => el.scrollWidth <= el.clientWidth + 1), true);
+    await page.locator('#tiktokCompleteConfirmBtn').click();
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.evaluate(() => openTikTokHistoryModal(false));
+    await page.locator('#selectAllHistory').check();
+    await page.locator('#deleteSelectedHistoryBtn').click();
+    await page.screenshot({ path: path.join(output, `history-selection-${theme}.png`) });
+    await page.locator('#closeTikTokHistoryModalBtn').click();
+  }
+  await page.evaluate(() => showPublishCompleteModal({ results: [{ status: 'success', account: 'QA', video: 'clip.mp4' }, { status: 'processing', account: 'QA2', video: 'clip2.mp4' }] }));
+  assert.equal(await page.locator('#tiktokCompleteStatChannels').innerText(), '1');
+  assert.equal(await page.locator('#tiktokCompleteStatMode').innerText(), '1');
+  assert.equal(await page.locator('#tiktokCompleteStatStatus').innerText(), '0');
   assert.deepEqual(errors, []);
   fs.writeFileSync(path.join(output, 'smoke-report.json'), JSON.stringify({ ok: true, date: new Date().toISOString(), viewports: [375, 768, 1024, 1440, 1920, 2560], themes: ['dark', 'light'], checks: ['real API isolation', 'CSRF', 'invalid preview', 'stored recovery', 'XSS escaping', 'filters', 'processing form retained', 'all navigation tabs', 'DOM public verification', 'CAPTCHA detection'], errors }, null, 2));
   console.log(`PASS: API + UI + DOM smoke. Artifacts: ${output}`);

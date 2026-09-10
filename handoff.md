@@ -353,3 +353,11 @@ Caption: prompt biên tập trung tính, nhiệt độ 0.35, dữ liệu đầu 
 UI: migrate đúng nguyên văn preset mặc định cũ, giữ prompt tùy chỉnh. Lịch sử chọn từng bài/chọn tất cả, xác nhận xóa local; API POST /api/tiktok/history/delete-selected dùng khóa chung khi sửa lịch sử, bảo toàn kho và bài thật. Xóa xong quét lại, không tự đăng ngay.
 Cảnh báo TikTok về video nguồn được ghi log một lần mỗi trang khi hiển thị; vẫn giữ quy trình đăng được TikTok cho phép, không hứa caption giúp hết hạn chế.
 Validation: npm run check, npm test (27), npm run test:ui (bao gồm chọn/xóa), npm run test:post (7 fixtures). Không đăng bài thật cho kiểm thử này.
+
+
+## Cập nhật 2.2.5 (2026-09-10) — thay thế chặn ngữ cảnh ở 2.2.4
+- Không bắt buộc có transcript/title: AI viết theo chủ đề prompt; nếu prompt không có chủ đề thì lời giới thiệu trung tính. Không bịa nội dung cụ thể của video. Không dùng needsContext để chặn caption hợp lệ; API lỗi thật vẫn báo lỗi.
+- Migrate chính xác preset mặc định 2.2.4; giữ mẫu tùy chỉnh. Không đổi dịch/TTS/render hay click Post/Post now.
+- Popup có tiêu đề đúng kết quả, 3 bộ đếm công khai/đang xử lý/cần kiểm tra, chi tiết lỗi lấy từ directPublisher. Màu sắc đồng bộ theme. CSS mới phải thắng legacy !important trong style.css.
+- Lịch sử có toolbar chọn/xóa, checkbox có nhãn, tô sáng dòng chọn, xác nhận xóa local. Không xóa bài TikTok hoặc video nguồn.
+- Kiểm thử: 28 logic, UI gồm theme sáng/tối và màn nhỏ, 7 DOM fixtures; chụp ảnh dist/qa/result-error-*.png và history-selection-*.png. Không đăng bài thật khi kiểm thử.
