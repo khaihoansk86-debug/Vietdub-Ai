@@ -41,7 +41,7 @@ try {
   assert.equal(await page.title(), 'VietDub AI Studio');
   assert.equal(await page.locator('#pubRunSelect').count(), 0);
   assert.equal(await page.locator('#viewPublish').isVisible(), true);
-  await page.route('**/api/tiktok/accounts/*/login', route => route.fulfill({ contentType: 'application/json', body: JSON.stringify({ ok: true, message: 'Opening Studio' }) }));
+  await page.route('**/api/tiktok/accounts/*/login', route => { assert.equal(route.request().postDataJSON().mode, 'studio'); return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ ok: true, message: 'Opening Studio' }) }); });
   await page.locator('.tiktok-studio-btn').first().click();
   assert.equal(await page.locator('#tiktokAutoUpload').count(), 0);
   assert.equal(await page.locator('select[name="tiktokDistributionStrategy"]').count(), 0);

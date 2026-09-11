@@ -206,3 +206,12 @@ test('channel identity never changes the caption request; user prompt controls t
     assert.match(requests[0].contents[0].parts[0].text, /Prompt người dùng quyết định chủ đề/);
   } finally { globalThis.fetch = oldFetch; }
 });
+
+
+test('Open Studio targets Studio directly while login modes retain their destinations', async () => {
+  const { getLoginUrlForMode } = await import('../services/tiktokPublisher.js');
+  assert.equal(getLoginUrlForMode('studio'), 'https://www.tiktok.com/tiktokstudio');
+  assert.equal(getLoginUrlForMode('all'), 'https://www.tiktok.com/login');
+  assert.equal(getLoginUrlForMode('qr'), 'https://www.tiktok.com/login/qrcode');
+  assert.equal(getLoginUrlForMode('email'), 'https://www.tiktok.com/login/phone-or-email');
+});

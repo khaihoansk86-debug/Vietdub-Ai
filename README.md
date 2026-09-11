@@ -11,12 +11,12 @@ VietDub AI kết hợp tải video, xử lý phụ đề, tạo giọng đọc v
 
 ## Tải và cài đặt
 
-Phiên bản hiện tại: **2.2.7**.
+Phiên bản hiện tại: **2.2.8**.
 
 | Nền tảng | Bộ cài |
 | --- | --- |
-| Windows x64 | [VietDub-AI-Setup-2.2.7.exe](https://github.com/khaihoansk86-debug/Vietdub-Ai/releases/download/v2.2.7/VietDub-AI-Setup-2.2.7.exe) |
-| macOS Apple Silicon — arm64 | [VietDub-AI-2.2.7-macOS-arm64.dmg](https://github.com/khaihoansk86-debug/Vietdub-Ai/releases/download/v2.2.7/VietDub-AI-2.2.7-macOS-arm64.dmg) |
+| Windows x64 | [VietDub-AI-Setup-2.2.8.exe](https://github.com/khaihoansk86-debug/Vietdub-Ai/releases/download/v2.2.8/VietDub-AI-Setup-2.2.8.exe) |
+| macOS Apple Silicon — arm64 | [VietDub-AI-2.2.8-macOS-arm64.dmg](https://github.com/khaihoansk86-debug/Vietdub-Ai/releases/download/v2.2.8/VietDub-AI-2.2.8-macOS-arm64.dmg) |
 
 Trang release có tệp `SHA256SUMS` để đối chiếu tính toàn vẹn bộ cài. Hiện chưa cung cấp bộ cài cho Mac Intel.
 
@@ -185,7 +185,7 @@ Vietdub-Ai/
 
 GitHub Actions kiểm tra và đóng gói trên Windows/macOS khi push tag `v*`, sau đó tải bộ cài cùng checksum lên Releases. Dùng tag mới cho mỗi phiên bản.
 
-Bản 2.2.7 có 32 kiểm thử logic và 7 tình huống DOM hồi quy, cùng kiểm thử API/giao diện và khởi động bản Windows đóng gói. Luồng Post → Post now đã được kiểm chứng trên bài thật ở bản trước. Bản 2.2.7 kiểm thử 24 kênh bằng dữ liệu mô phỏng; chưa chạy một đợt đăng thật với 24 kênh. Giao diện macOS chưa được nghiệm thu trên máy Mac thật; TikTok có thể tiếp tục thay đổi giao diện.
+Bản 2.2.8 có 33 kiểm thử logic và 7 tình huống DOM hồi quy, cùng kiểm thử API/giao diện và khởi động bản Windows đóng gói. Luồng Post → Post now đã được kiểm chứng trên bài thật ở bản trước. Bản 2.2.8 kiểm thử 24 kênh bằng dữ liệu mô phỏng; chưa chạy một đợt đăng thật với 24 kênh. Giao diện macOS chưa được nghiệm thu trên máy Mac thật; TikTok có thể tiếp tục thay đổi giao diện.
 
 ## Hỗ trợ
 
@@ -194,7 +194,7 @@ Khi [báo lỗi](https://github.com/khaihoansk86-debug/Vietdub-Ai/issues), cung 
 Xem [ghi chú phát hành](RELEASE_NOTES.md) để theo dõi thay đổi hoặc [tài liệu bàn giao](handoff.md) để tiếp tục phát triển.
 
 
-### Cập nhật 2.2.7 — Caption và lịch sử đăng
+### Cập nhật 2.2.8 — Caption và lịch sử đăng
 
 - Caption bám tiêu đề/phụ đề, không thêm lời chứng thực, công dụng hay câu tương tác thiếu căn cứ. Mẫu mặc định cũ được chuyển sang mẫu trung tính; mẫu tùy chỉnh được giữ lại.
 - Không có phụ đề/tiêu đề mô tả: AI vẫn viết theo chủ đề trong prompt, hoặc lời giới thiệu trung tính nếu chưa có chủ đề. Lỗi API thật vẫn được báo rõ. Quy tắc này không bảo đảm TikTok chấp thuận hoặc phân phối video.
@@ -202,17 +202,22 @@ Xem [ghi chú phát hành](RELEASE_NOTES.md) để theo dõi thay đổi hoặc 
 - Nhận diện cảnh báo “Content may be restricted”. Tính nguyên bản, chất lượng và QR thuộc video nguồn, không thể khắc phục chỉ bằng caption. Giữ luồng Post → Post now khi TikTok cho phép.
 - Không thay đổi pipeline dịch, giọng đọc hoặc render. Kiểm thử phiên bản này dùng dữ liệu mô phỏng, không đăng bài thật.
 
-Popup kết quả và lịch sử bản 2.2.7 dùng màu theo giao diện sáng/tối, hiển thị lỗi từng kênh và không báo thành công khi chưa gửi được video. Thanh chọn/xóa có số bài đã chọn, vùng bấm rõ ràng và xác nhận xóa local.
+Popup kết quả và lịch sử bản 2.2.8 dùng màu theo giao diện sáng/tối, hiển thị lỗi từng kênh và không báo thành công khi chưa gửi được video. Thanh chọn/xóa có số bài đã chọn, vùng bấm rõ ràng và xác nhận xóa local.
 
 
-## Cập nhật 2.2.7 — Prompt độc lập tên kênh và lịch sử dễ đọc
+## Cập nhật 2.2.8 — Prompt độc lập tên kênh và lịch sử dễ đọc
 - Tên kênh/username không được gửi cho Gemini. Prompt quyết định chủ đề và giọng văn; title/transcript chỉ phụ trợ khi phù hợp. Cùng input, đổi tên kênh không đổi request AI (test hồi quy).
 - Bảng lịch sử rộng theo cửa sổ; cột kênh/ngày giờ/trạng thái cố định, caption hiển thị nguyên văn không thêm khoảng trắng template, nền đặc và chữ theo theme. Hashtag rõ chữ, badge không ngắt dòng, nội dung dài cuộn trong modal.
 - Áp dụng cho caption tạo mới; không sửa caption bài đã đăng hoặc lịch sử cũ. Không đổi dịch/TTS/render, phân bổ 1:1 và Post/Post now.
 - Kiểm tra 29 test logic, UI sáng/tối với caption dài và tên Pharma, 7 DOM fixtures. Không đăng bài thật trong kiểm thử.
 
 
-## Cập nhật 2.2.7 — Chống caption trùng giữa các kênh/video
+## Cập nhật 2.2.8 — Chống caption trùng giữa các kênh/video
 Nút Đăng video kiểm tra caption với toàn bộ lịch sử local và nội dung đã tạo trong đợt hiện tại. Chuẩn hóa dấu câu, emoji, hashtag; phát hiện trùng chính xác, cùng 7 từ mở đầu hoặc độ giống cụm 2 từ >= 0.58. Gửi tối đa 60 caption cần tránh cho AI, yêu cầu thay cách mở đầu/cấu trúc trong cùng chủ đề prompt; không dùng tên kênh để đổi chủ đề. Tăng temperature lên 0.7.
 AI viết lại tối đa 4 lần. Nếu vẫn gần trùng, không upload clip đó và hiển thị lỗi. Không hứa phát hiện mọi cách diễn đạt cùng nghĩa; lịch sử đã xóa không còn được đối chiếu. Không thay caption bài cũ, dịch/TTS/render hoặc thao tác Post.
 Validation: 32 test logic; UI/DOM và smoke app đóng gói. Chưa đăng bài thật trong lần kiểm thử này.
+
+
+## Cập nhật 2.2.8 — Mở đúng TikTok Studio
+Nút Mở Studio gửi mode studio và mở trực tiếp https://www.tiktok.com/tiktokstudio trong profile của tài khoản đã chọn, không đi qua trang login rồi về trang chủ. Các lựa chọn đăng nhập Google/email/QR giữ nguyên. Không popup thành công khi mở Studio. Không đổi quy trình đăng hoặc tạo caption.
+Kiểm tra: 33 test logic, API/UI smoke xác nhận nút gửi mode studio; khởi động Windows đóng gói. Không đăng bài thật trong kiểm thử.

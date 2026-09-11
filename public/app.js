@@ -1937,7 +1937,7 @@ function attachTikTokAccountListeners() {
   tiktokAccountsContainer.querySelectorAll('.tiktok-studio-btn').forEach((btn) => {
     btn.addEventListener('click', async () => {
       const id = btn.dataset.id;
-      await executeTikTokLogin(id, 'all', true);
+      await executeTikTokLogin(id, 'studio', true);
     });
   });
 

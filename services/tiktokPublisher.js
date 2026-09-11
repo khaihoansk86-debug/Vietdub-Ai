@@ -438,7 +438,8 @@ export function checkProfileHasSession(profileDir) {
   }
 }
 
-function getLoginUrlForMode(mode) {
+export function getLoginUrlForMode(mode) {
+  if (mode === 'studio') return 'https://www.tiktok.com/tiktokstudio';
   if (mode === 'phone-or-email' || mode === 'phone' || mode === 'email') {
     return 'https://www.tiktok.com/login/phone-or-email';
   }
@@ -513,7 +514,9 @@ export async function openTikTokLoginWindow(accountId, mode = 'all') {
     child.unref();
 
     let message = '';
-    if (mode === 'google') {
+    if (mode === 'studio') {
+      message = `Đang mở TikTok Studio cho ${account.name}.`;
+    } else if (mode === 'google') {
       message = `Đang mở Google Chrome cho "${account.name}".\n\n📌 Trình duyệt đang mở ở chế độ Chrome thông thường. Bạn hãy bấm "Tiếp tục với Google" và đăng nhập Gmail thoải mái (Google sẽ không chặn bảo mật nữa)!\n\nSau khi đăng nhập xong, bạn đóng cửa sổ Chrome lại để ứng dụng hoàn tất lưu tài khoản.`;
     } else if (mode === 'phone-or-email' || mode === 'phone' || mode === 'email') {
       message = `Đang mở form đăng nhập Số điện thoại & Email cho "${account.name}".\n\n📌 Nhập Số điện thoại (nhận mã OTP hoặc mật khẩu) hoặc Email và mật khẩu. Sau khi xong, hãy đóng Chrome lại để hoàn tất lưu tài khoản.`;
