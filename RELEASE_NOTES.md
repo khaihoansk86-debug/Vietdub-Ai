@@ -1,3 +1,45 @@
+# VietDub AI Studio v2.0.0 — Bản Phát Hành Chính Thức
+
+Chào mừng bạn đến với phiên bản chính thức **VietDub AI Studio v2.0**! Bản cập nhật này đánh dấu bước tiến lớn với việc tích hợp toàn diện **Voice Studio**, nâng cấp công nghệ phát âm tiếng Việt AI và tối ưu hoá hệ thống xuất bản video đa kênh.
+
+---
+
+### 🌟 Điểm Nổi Bật Trong Phiên Bản v2.0
+
+#### 1. 🎙️ Tích Hợp Toàn Diện Voice Studio (Kokoro Offline & Voice Cloning)
+- **Engine Kokoro Offline ONNX:** Chạy trực tiếp trên thiết bị (CPU/GPU) tại cổng 8889, không phụ thuộc API ngoài, hoàn toàn bảo mật và miễn phí.
+- **14 Giọng Đọc AI Chuẩn 3 Miền:** Hỗ trợ đầy đủ giọng đọc Bắc - Trung - Nam cho nhiều thể loại: review sản phẩm, kể chuyện, thuyết minh, phóng sự, vlog đời sống.
+- **AI Voice Cloning:** Trích xuất âm sắc từ file mẫu 5s - 30s và huấn luyện hồ sơ giọng mới chỉ với 1 cú click. Giọng clone dùng chung cho toàn bộ tính năng lồng tiếng video.
+- **Định Dạng Âm Thanh Chuẩn Phòng Thu:** Tuỳ chọn xuất file `.WAV` (24kHz Studio) và `.MP3` (320kbps High Quality).
+
+#### 2. 🇻🇳 Chuẩn Hoá Ngữ Âm & Số Tiếng Việt Cấp Chuyên Gia
+- Khắc phục triệt để lỗi SEA-G2P phát âm sai các từ đồng âm không dấu (`to lớn`, `tự do`, `so sánh`, `ăn no`, `quả me`, `be bé`...).
+- Bộ chuyển đổi số thành chữ tiếng Việt tự động đọc chuẩn số đếm, phần trăm (`100%`), tiền tệ (`50k`, `100tr`, `đô la`), số thập phân (`1.5`) và từ viết tắt (`TP.HCM`, `BS.`, `ĐH`).
+
+#### 3. 🎬 Sản Xuất Video & Lồng Tiếng Tự Động
+- Tải video từ YouTube, TikTok, Douyin.
+- Tạo phụ đề, dịch ngôn ngữ sang tiếng Việt bằng Google Gemini AI.
+- Đồng bộ giọng đọc tự động theo timeline phụ đề, xử lý âm lượng nền thông minh.
+
+#### 4. 🚀 Trung Tâm Xuất Bản TikTok Đa Kênh (1:1 Direct Publisher)
+- Quản lý profile Chrome độc lập cho từng kênh.
+- Phân bổ 1:1 từ kho video, chống trùng lặp bằng thuật toán băm SHA-256 toàn file.
+- Tự động sinh caption và hashtag chuẩn SEO theo prompt ngữ cảnh.
+- Xác minh đăng bài trực tiếp đến trạng thái Đã Công Khai.
+
+---
+
+### 📦 Tải Về & Cài Đặt
+
+| Tệp cài đặt | Nền tảng | Dung lượng | SHA-256 Checksum |
+| :--- | :---: | :---: | :--- |
+| **VietDub-AI-Setup-2.0.0.exe** | Windows 10/11 (64-bit) | ~142 MB | `ED6E51BDAC08AE7483A4CA3F6776A9396430D3A2C71D7100A213A9D7835E128B` |
+
+*Tải file `VietDub-AI-Setup-2.0.0.exe` bên dưới và tiến hành cài đặt để trải nghiệm ngay.*
+
+
+---
+
 # VietDub AI Studio 2.2.3 — Giao diện giãn cửa sổ
 
 - Nội dung giãn theo chiều rộng cửa sổ, thanh bên giữ lề 16px.
