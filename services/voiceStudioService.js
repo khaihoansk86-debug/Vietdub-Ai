@@ -207,56 +207,63 @@ export function resolveEmotionAcoustics(emotionPrompt = '', userSpeed = 1.0, use
   let promptPitchSemitones = 0;
   const audioFilters = [];
 
-  // 1. Kịch tính / Hồi hộp / Gay cấn / Hành động / Phim / Trailer / Gấp gáp
-  if (/kịch tính|hồi hộp|gay cấn|hành động|phim|trailer|căng thẳng|gấp gáp|dồn dập/.test(p)) {
-    speedMultiplier = 1.10; // Tiết tấu dồn dập, hồi hộp
-    promptPitchSemitones = -1.2; // Gằn giọng đanh điện ảnh
+  // 1. TRỤC TỐC ĐỘ (TEMPO / PACING)
+  const isFast = /nhanh|gấp|dồn dập|sôi nổi|hào hứng|khẩn cấp|vội|hối hả|hoảng loạn|thể thao|livestream/.test(p);
+  const isSlow = /chậm|từ tốn|thong thả|tâm sự|sâu lắng|mệt mỏi|uể oải|buồn|thì thầm|triết lý|trầm ngâm|thư giãn/.test(p);
+  if (isFast && !isSlow) speedMultiplier *= 1.12;
+  else if (isSlow && !isFast) speedMultiplier *= 0.88;
+
+  // 2. TRỤC CAO ĐỘ (PITCH / TONALITY)
+  const isHigh = /cao|véo von|trẻ|vui|sáng|hài hước|dí dỏm|phấn khích|hốt hoảng|ngọt ngào/.test(p);
+  const isDeep = /trầm|sâu|thấp|nghiêm|gằn|nam|uy lực|đe dọa|lạnh lùng|quyền lực|tối|nguy hiểm/.test(p);
+  if (isHigh && !isDeep) promptPitchSemitones += 1.8;
+  else if (isDeep && !isHigh) promptPitchSemitones -= 1.6;
+
+  // 3. TRỤC NĂNG LƯỢNG & ĐỘ NÉN ĐIỆN ẢNH (CINEMATIC COMPRESSION)
+  if (/kịch tính|hành động|gay cấn|hồi hộp|quảng cáo|trailer|mạnh|dứt khoát|bán hàng|phim|chiến đấu/.test(p)) {
     audioFilters.push(
       'compand=attacks=0.02:decays=0.15:points=-75/-75|-42/-22|-18/-8|0/-1.5:gain=3.5',
-      'equalizer=f=95:width_type=q:w=1.2:g=4.5', // Sub-bass rền vang
-      'equalizer=f=480:width_type=q:w=1.5:g=-3.0', // Cắt đục om tai
-      'equalizer=f=3300:width_type=q:w=1.2:g=4.2' // Rõ từng hơi thở và phụ âm
+      'equalizer=f=95:width_type=q:w=1.2:g=4.5', // Sub-bass rền
+      'equalizer=f=480:width_type=q:w=1.5:g=-3.0', // Cắt đục hộp
+      'equalizer=f=3300:width_type=q:w=1.2:g=4.2' // Rõ từng phụ âm
     );
   }
-  // 2. Trầm ấm / Sâu lắng / Chậm rãi / Tâm sự / Kể chuyện / Tự sự
-  else if (/trầm|sâu lắng|chậm|tâm sự|kể chuyện|tự sự|nhẹ nhàng|suy ngẫm|triết lý/.test(p)) {
-    speedMultiplier = 0.90; // Chậm rãi truyền cảm
-    promptPitchSemitones = -1.6; // Hạ âm vực trầm ấm
+
+  // 4. TRỤC ẤM ÁP & TRẦM ĐẶC (WARMTH & CHEST RESONANCE)
+  if (/ấm|trầm|dày|ngực|mộc|tâm sự|kể chuyện|truyền cảm|sâu sắc/.test(p)) {
     audioFilters.push(
-      'equalizer=f=130:width_type=q:w=1.4:g=5.5', // Ngực trầm cộng hưởng ấm áp
-      'equalizer=f=6000:width_type=q:w=1.0:g=-3.0', // Dịu dải cao
-      'aecho=0.8:0.85:30:0.18' // Không gian phòng thu ấm
+      'equalizer=f=135:width_type=q:w=1.4:g=5.0', // Ngực trầm cộng hưởng
+      'equalizer=f=6000:width_type=q:w=1.0:g=-2.5' // Dịu dải cao
     );
   }
-  // 3. Hào hứng / Sôi nổi / Vui vẻ / Năng lượng / Viral / Nhiệt huyết
-  else if (/hào hứng|sôi nổi|năng lượng|vui vẻ|viral|tươi vui|nhiệt huyết/.test(p)) {
-    speedMultiplier = 1.12; // Nhịp điệu tươi nhanh
-    promptPitchSemitones = 1.5; // Cao độ sáng bổng
+
+  // 5. TRỤC TƯƠI SÁNG & NĂNG LƯỢNG (EXCITER & PRESENCE)
+  if (/sáng|trong|năng lượng|tươi|bén|rõ|hào hứng|nhiệt huyết/.test(p)) {
     audioFilters.push(
-      'equalizer=f=2600:width_type=q:w=1.4:g=4.0', // Tươi sáng năng lượng
-      'equalizer=f=7500:width_type=q:w=1.2:g=3.2', // Độ air bén
-      'compand=attacks=0.03:decays=0.2:points=-65/-65|-30/-15|0/-1:gain=2'
+      'equalizer=f=2600:width_type=q:w=1.4:g=3.8',
+      'equalizer=f=7500:width_type=q:w=1.2:g=3.0'
     );
   }
-  // 4. Trang trọng / Dứt khoát / Tin tức / Thời sự / Chuyên nghiệp
-  else if (/trang trọng|dứt khoát|tin tức|thời sự|chuyên nghiệp|phát thanh|mc/.test(p)) {
-    speedMultiplier = 1.0;
-    promptPitchSemitones = 0;
+
+  // 6. TRỤC KHÔNG GIAN PHÒNG THU HOẶC MA MỊ (REVERB / AMBIENCE)
+  if (/ma mị|bí ẩn|kinh dị|lạnh lẽo|hư ảo|vũ trụ|xa xăm|vang|rùng rợn/.test(p)) {
+    audioFilters.push('aecho=0.8:0.88:60|120:0.35|0.22');
+  } else if (/tâm sự|kể chuyện|nhẹ nhàng|suy ngẫm/.test(p)) {
+    audioFilters.push('aecho=0.8:0.85:28:0.15'); // Vang phòng thu ấm nhẹ
+  }
+
+  // 7. TRỤC TRANG TRỌNG / PHÁT THANH / BÌNH LUẬN (BROADCAST)
+  if (/trang trọng|tin tức|thời sự|chuyên nghiệp|phát thanh|mc|bình luận viên/.test(p)) {
     audioFilters.push(
       'highpass=f=85',
       'equalizer=f=220:width_type=q:w=1.5:g=2.5',
-      'equalizer=f=3200:width_type=q:w=1.2:g=3.2',
-      'compand=attacks=0.05:decays=0.25:points=-60/-60|-30/-14|0/-1:gain=1.5'
+      'equalizer=f=3200:width_type=q:w=1.2:g=3.0'
     );
   }
-  // 5. Hài hước / Dí dỏm / Vui nhộn / Troll
-  else if (/hài hước|dí dỏm|vui nhộn|troll|hài kịch/.test(p)) {
-    speedMultiplier = 1.08;
-    promptPitchSemitones = 2.4;
-    audioFilters.push(
-      'equalizer=f=1800:width_type=q:w=1.5:g=3.5',
-      'equalizer=f=4000:width_type=q:w=1.2:g=3.0'
-    );
+
+  // 8. TRỤC LOA PHÁT THANH / ĐIỆN THOẠI (TELEPHONE / MEGAPHONE)
+  if (/điện thoại|loa phát thanh|radio cổ|cổ điển|bộ đàm/.test(p)) {
+    audioFilters.push('highpass=f=350,lowpass=f=3200,volume=1.2');
   }
 
   const effectiveSpeed = Math.max(0.5, Math.min(2.0, (Number(userSpeed) || 1.0) * speedMultiplier));
