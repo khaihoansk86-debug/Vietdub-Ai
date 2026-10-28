@@ -229,7 +229,7 @@ const i18n = {
     savePreset: '💾 Lưu cấu hình',
     loadPreset: '⚡ Áp dụng',
     deletePreset: '🗑️ Xóa',
-    processTab: 'Quy trình Xử lý',
+    processTab: 'Sản xuất video',
     settingsTab: 'Cài đặt & API',
     quickPresetTitle: 'Preset Thiết Lập Nhanh',
     quickPresetDesc: 'Chọn nhanh cấu hình tối ưu cho từng nền tảng trước khi xuất video.',
