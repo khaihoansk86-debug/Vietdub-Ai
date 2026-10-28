@@ -30,6 +30,17 @@ import {
   clearPublishHistory,
   deleteSelectedHistory
 } from './services/tiktokPublisher.js';
+import {
+  listVoiceProfiles,
+  saveVoiceProfiles,
+  getVoiceProfile,
+  createVoiceProfile,
+  deleteVoiceProfile,
+  checkVoiceStudioEngineStatus,
+  synthesizeVoiceStudioAudio,
+  getVoiceStudioOutputDir,
+  openFileInExplorer
+} from './services/voiceStudioService.js';
 
 const app = express();
 const PORT = Number(process.env.PORT || 3210);
@@ -397,6 +408,163 @@ app.post('/api/kokoro/retry', (_req, res) => {
   res.json({ success: true });
 });
 
+// ==================== VOICE STUDIO API ROUTES ====================
+app.get('/api/voice-studio/profiles', (_req, res) => {
+  try {
+    const profiles = listVoiceProfiles();
+    res.json({ success: true, profiles });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/voice-studio/profiles', upload.single('sampleAudio'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, error: 'Vui lòng tải lên file âm thanh giọng mẫu.' });
+    }
+    const { name, description, prompt, tags } = req.body;
+    const profile = await createVoiceProfile({
+      name,
+      description,
+      prompt,
+      tags,
+      sourceAudioPath: req.file.path,
+      originalName: req.file.originalname
+    });
+    res.json({ success: true, profile });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  } finally {
+    if (req.file?.path && fss.existsSync(req.file.path)) {
+      try { await fs.unlink(req.file.path); } catch {}
+    }
+  }
+});
+
+app.delete('/api/voice-studio/profiles/:id', async (req, res) => {
+  try {
+    const result = await deleteVoiceProfile(req.params.id);
+    res.json({ success: result.ok, message: result.message });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.get('/api/voice-studio/profiles/:id/audio', (req, res) => {
+  try {
+    const profile = getVoiceProfile(req.params.id);
+    if (!profile || !profile.samplePath || !fss.existsSync(profile.samplePath)) {
+      return res.status(404).json({ success: false, error: 'Không tìm thấy file audio mẫu.' });
+    }
+    res.sendFile(path.resolve(profile.samplePath));
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.get('/api/voice-studio/engine-status', async (req, res) => {
+  try {
+    const url = req.query.url || process.env.VOICESTUDIO_URL || 'http://127.0.0.1:8000';
+    const status = await checkVoiceStudioEngineStatus(url);
+    res.json({ success: true, ...status });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/voice-studio/synthesize', async (req, res) => {
+  try {
+    const { text, profileId, voice, speed, pitch, volume, emotionPrompt, format, voiceStudioUrl } = req.body;
+    const result = await synthesizeVoiceStudioAudio({
+      text,
+      profileId,
+      voice,
+      speed,
+      pitch,
+      volume,
+      emotionPrompt,
+      format: format || 'wav',
+      savePermanent: false,
+      synthesizeTtsTextFn: synthesizeTtsText,
+      voiceStudioUrl: voiceStudioUrl || process.env.VOICESTUDIO_URL
+    });
+
+    res.json({
+      success: true,
+      filename: result.filename,
+      filePath: result.filePath,
+      audioUrl: `/api/voice-studio/audio/${result.filename}`,
+      sizeMB: result.sizeMB,
+      message: result.message
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/voice-studio/export', async (req, res) => {
+  try {
+    const { text, profileId, voice, speed, pitch, volume, emotionPrompt, format, outputDir, voiceStudioUrl } = req.body;
+    const result = await synthesizeVoiceStudioAudio({
+      text,
+      profileId,
+      voice,
+      speed,
+      pitch,
+      volume,
+      emotionPrompt,
+      format: format || 'wav',
+      outputDir,
+      savePermanent: true,
+      synthesizeTtsTextFn: synthesizeTtsText,
+      voiceStudioUrl: voiceStudioUrl || process.env.VOICESTUDIO_URL
+    });
+
+    res.json({
+      success: true,
+      filename: result.filename,
+      filePath: result.filePath,
+      audioUrl: `/api/voice-studio/audio/${result.filename}`,
+      sizeMB: result.sizeMB,
+      outputDir: path.dirname(result.filePath),
+      message: `Đã xuất file âm thanh thành công: ${result.filename}`
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.get('/api/voice-studio/audio/:filename', (req, res) => {
+  try {
+    const safeName = path.basename(req.params.filename);
+    const outDir = getVoiceStudioOutputDir();
+    const candidatePath = path.join(outDir, safeName);
+    const tempPath = path.join(os.tmpdir(), safeName);
+
+    if (fss.existsSync(candidatePath)) {
+      return res.sendFile(path.resolve(candidatePath));
+    }
+    if (fss.existsSync(tempPath)) {
+      return res.sendFile(path.resolve(tempPath));
+    }
+    res.status(404).json({ success: false, error: 'Không tìm thấy file audio.' });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/voice-studio/open-folder', (req, res) => {
+  try {
+    const { filePath } = req.body;
+    const target = filePath || getVoiceStudioOutputDir();
+    const result = openFileInExplorer(target);
+    res.json({ success: true, message: result.message });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 app.get('/api/tiktok/accounts', async (_req, res) => {
   try {
     const accounts = await checkAllAccountsStatus();
@@ -671,12 +839,14 @@ async function processJob(job, payload) {
 }
 
 function parseTtsOptions(body) {
-  const provider = ['edge-neural', 'openai-tts', 'kokoro-local'].includes(body.ttsProvider) ? body.ttsProvider : 'edge-neural';
+  const provider = ['edge-neural', 'openai-tts', 'kokoro-local', 'voice-studio'].includes(body.ttsProvider) ? body.ttsProvider : 'edge-neural';
   const requestedVoice = String(body.voice || '');
   const style = TTS_STYLES.has(String(body.ttsStyle || '')) ? String(body.ttsStyle) : 'natural';
   const originalVolumeRaw = clampNumber(body.originalVolume, 0, 150, 52);
   let voice;
-  if (provider === 'openai-tts') {
+  if (provider === 'voice-studio' || requestedVoice.startsWith('vp_')) {
+    voice = requestedVoice;
+  } else if (provider === 'openai-tts') {
     voice = OPENAI_VOICES.has(requestedVoice) ? requestedVoice : 'nova';
   } else if (provider === 'kokoro-local') {
     voice = KOKORO_VOICES.has(requestedVoice) ? requestedVoice : 'diem_trinh';
@@ -1176,6 +1346,19 @@ async function createTtsFiles(job, cues, tts) {
 
 async function synthesizeTtsText(text, target, tts, job, cueIndex = 0) {
   try {
+    if (tts.provider === 'voice-studio' || (tts.voice && String(tts.voice).startsWith('vp_'))) {
+      const vsRes = await synthesizeVoiceStudioAudio({
+        text,
+        profileId: String(tts.voice).startsWith('vp_') ? tts.voice : null,
+        voice: tts.voice,
+        speed: tts.speed,
+        volume: tts.volume,
+        format: 'mp3',
+        synthesizeTtsTextFn: (t, f, opt) => synthesizeEdgeTts(t, f, opt, job)
+      });
+      await fs.copyFile(vsRes.filePath, target);
+      return;
+    }
     if (tts.provider === 'google-translate') return await synthesizeGoogleTts(text, target);
     if (tts.provider === 'openai-tts') return await synthesizeOpenAiTts(text, target, tts);
     if (tts.provider === 'kokoro-local') return await synthesizeKokoroTts(text, target, tts);

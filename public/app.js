@@ -522,6 +522,26 @@ const voiceLabels = {
 function refreshVoices() {
   if (!ttsProvider || !voiceSelect) return;
   const current = voiceSelect.value;
+  if (ttsProvider.value === 'voice-studio') {
+    document.querySelector('#ttsStyleField')?.classList.add('hidden');
+    voiceSelect.innerHTML = '';
+    const profiles = window.voiceStudioProfiles || [];
+    if (profiles.length > 0) {
+      for (const p of profiles) {
+        const option = document.createElement('option');
+        option.value = p.id;
+        option.textContent = '🎙️ ' + p.name + (p.description ? ' (' + p.description + ')' : '');
+        voiceSelect.appendChild(option);
+      }
+      voiceSelect.value = profiles.some(p => p.id === current) ? current : profiles[0].id;
+    } else {
+      const option = document.createElement('option');
+      option.value = '';
+      option.textContent = 'Chưa có giọng clone - Mở tab Voice Studio để tạo';
+      voiceSelect.appendChild(option);
+    }
+    return;
+  }
   const voices = voiceCatalog[ttsProvider.value] || voiceCatalog['kokoro-local'];
   document.querySelector('#ttsStyleField')?.classList.toggle('hidden', ttsProvider.value !== 'openai-tts');
   voiceSelect.innerHTML = '';
@@ -1084,11 +1104,14 @@ function initViews() {
 }
 
 function setView(view) {
-  const normalized = ['settings', 'publish', 'process'].includes(view) ? view : 'publish';
+  const normalized = ['settings', 'publish', 'process', 'voice-studio'].includes(view) ? view : 'publish';
   localStorage.setItem('vietdub-view', normalized);
   document.body.dataset.view = normalized;
   viewTabs.forEach(button => { button.classList.toggle('active', button.dataset.view === normalized); button.setAttribute('aria-current', button.dataset.view === normalized ? 'page' : 'false'); });
-  for (const [name, id] of Object.entries({ process: 'viewProcess', settings: 'viewSettings', publish: 'viewPublish' })) document.getElementById(id)?.classList.toggle('hidden', name !== normalized);
+  for (const [name, id] of Object.entries({ process: 'viewProcess', settings: 'viewSettings', publish: 'viewPublish', 'voice-studio': 'viewVoiceStudio' })) document.getElementById(id)?.classList.toggle('hidden', name !== normalized);
+  if (normalized === 'voice-studio' && typeof loadVoiceStudioProfiles === 'function') {
+    loadVoiceStudioProfiles();
+  }
 }
 
 function applyQuickPreset(name) {
@@ -2696,3 +2719,410 @@ if (document.readyState === 'loading') {
 
 
 
+
+
+
+// ============================================================================
+// VOICE STUDIO - AI VOICE CLONING, PROMPT TTS & STUDIO AUDIO EXPORT CONTROLLER
+// ============================================================================
+window.voiceStudioProfiles = [];
+let vsLastExportedFile = null;
+
+// escapeHtml already defined earlier
+
+async function loadVoiceStudioProfiles() {
+  const vsEngineBadge = document.querySelector('#vsEngineBadge');
+  try {
+    const res = await fetch('/api/voice-studio/profiles');
+    const data = await res.json();
+    if (data.ok && Array.isArray(data.profiles)) {
+      window.voiceStudioProfiles = data.profiles;
+      renderVsProfiles(data.profiles);
+      updateVsVoiceSelect(data.profiles);
+      if (typeof refreshVoices === 'function' && ttsProvider && ttsProvider.value === 'voice-studio') {
+        refreshVoices();
+      }
+    }
+  } catch (err) {
+    console.warn('Lỗi tải hồ sơ giọng Voice Studio:', err);
+  }
+
+  try {
+    const sRes = await fetch('/api/voice-studio/engine-status');
+    const sData = await sRes.json();
+    if (vsEngineBadge && sData.ok) {
+      if (sData.hasVoiceStudio) {
+        vsEngineBadge.innerHTML = '⚡ VoiceStudio Engine: Sẵn sàng (Local API)';
+        vsEngineBadge.style.color = '#10b981';
+        vsEngineBadge.style.background = 'rgba(16, 185, 129, 0.15)';
+      } else {
+        vsEngineBadge.innerHTML = '⚡ Engine: Neural + Studio EQ (Tích hợp)';
+        vsEngineBadge.style.color = '#38bdf8';
+        vsEngineBadge.style.background = 'rgba(56, 189, 248, 0.15)';
+      }
+    }
+  } catch (_) {}
+}
+
+function renderVsProfiles(profiles) {
+  const vsProfilesList = document.querySelector('#vsProfilesList');
+  const vsEmptyPlaceholder = document.querySelector('#vsEmptyPlaceholder');
+  const vsVoiceSelect = document.querySelector('#vsVoiceSelect');
+  if (!vsProfilesList) return;
+
+  vsProfilesList.innerHTML = '';
+  if (!profiles || profiles.length === 0) {
+    if (vsEmptyPlaceholder) {
+      vsEmptyPlaceholder.classList.remove('hidden');
+      vsProfilesList.appendChild(vsEmptyPlaceholder);
+    }
+    return;
+  }
+  if (vsEmptyPlaceholder) vsEmptyPlaceholder.classList.add('hidden');
+
+  profiles.forEach(p => {
+    const card = document.createElement('div');
+    card.className = 'vs-profile-card';
+    card.dataset.profileId = p.id;
+
+    const tagsHtml = (p.tags || []).map(t => '<span class="vs-tag-badge">' + escapeHtml(t) + '</span>').join('');
+
+    card.innerHTML = `
+      <div class="vs-card-top">
+        <div class="vs-card-avatar">🎙️</div>
+        <div class="vs-card-info">
+          <div class="vs-card-name">${escapeHtml(p.name)}</div>
+          <div class="vs-card-desc">${escapeHtml(p.description || 'Hồ sơ giọng mẫu phòng thu')}</div>
+          <div class="vs-card-tags">${tagsHtml}</div>
+        </div>
+      </div>
+      <div class="vs-card-sample">
+        <audio controls preload="none" src="/api/voice-studio/profiles/${p.id}/audio" style="width: 100%; height: 32px;"></audio>
+      </div>
+      <div class="vs-card-actions">
+        <button type="button" class="vs-use-voice-btn primary-subtle" data-id="${p.id}">Dùng giọng này ➔</button>
+        <button type="button" class="vs-del-voice-btn icon-danger" data-id="${p.id}" title="Xoá hồ sơ giọng">🗑️</button>
+      </div>
+    `;
+
+    card.querySelector('.vs-use-voice-btn')?.addEventListener('click', () => {
+      if (vsVoiceSelect) {
+        vsVoiceSelect.value = p.id;
+        vsVoiceSelect.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        vsVoiceSelect.classList.add('highlight-glow');
+        setTimeout(() => vsVoiceSelect.classList.remove('highlight-glow'), 1200);
+      }
+    });
+
+    card.querySelector('.vs-del-voice-btn')?.addEventListener('click', async () => {
+      if (!confirm('Bạn có chắc muốn xoá giọng AI "' + p.name + '" không?')) return;
+      try {
+        const delRes = await fetch('/api/voice-studio/profiles/' + p.id, { method: 'DELETE' });
+        if (delRes.ok) {
+          await loadVoiceStudioProfiles();
+        } else {
+          alert('Không thể xoá hồ sơ giọng này.');
+        }
+      } catch (e) {
+        alert('Lỗi: ' + (e.message || e));
+      }
+    });
+
+    vsProfilesList.appendChild(card);
+  });
+}
+
+function updateVsVoiceSelect(profiles) {
+  const vsClonedGroup = document.querySelector('#vsClonedGroup');
+  const vsVoiceSelect = document.querySelector('#vsVoiceSelect');
+  if (!vsClonedGroup || !vsVoiceSelect) return;
+
+  const current = vsVoiceSelect.value;
+  vsClonedGroup.innerHTML = '';
+  if (profiles && profiles.length > 0) {
+    profiles.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p.id;
+      opt.textContent = '🎙️ ' + p.name;
+      vsClonedGroup.appendChild(opt);
+    });
+    if (profiles.some(p => p.id === current)) {
+      vsVoiceSelect.value = current;
+    } else if (current.startsWith('vp_') && profiles.length > 0) {
+      vsVoiceSelect.value = profiles[0].id;
+    }
+  }
+}
+
+function initVoiceStudio() {
+  const vsRefreshProfilesBtn = document.querySelector('#vsRefreshProfilesBtn');
+  const vsProfileName = document.querySelector('#vsProfileName');
+  const vsProfileDesc = document.querySelector('#vsProfileDesc');
+  const vsProfileTags = document.querySelector('#vsProfileTags');
+  const vsDropzone = document.querySelector('#vsDropzone');
+  const vsSampleFile = document.querySelector('#vsSampleFile');
+  const vsDropzoneContent = document.querySelector('#vsDropzoneContent');
+  const vsSamplePreviewBox = document.querySelector('#vsSamplePreviewBox');
+  const vsSampleFileName = document.querySelector('#vsSampleFileName');
+  const vsSampleAudioPlayer = document.querySelector('#vsSampleAudioPlayer');
+  const vsCreateProfileBtn = document.querySelector('#vsCreateProfileBtn');
+  const vsVoiceSelect = document.querySelector('#vsVoiceSelect');
+  const vsEmotionPrompt = document.querySelector('#vsEmotionPrompt');
+  const vsScriptText = document.querySelector('#vsScriptText');
+  const vsCharCount = document.querySelector('#vsCharCount');
+  const vsSpeedRange = document.querySelector('#vsSpeedRange');
+  const vsSpeedVal = document.querySelector('#vsSpeedVal');
+  const vsPitchRange = document.querySelector('#vsPitchRange');
+  const vsPitchVal = document.querySelector('#vsPitchVal');
+  const vsVolumeRange = document.querySelector('#vsVolumeRange');
+  const vsVolumeVal = document.querySelector('#vsVolumeVal');
+  const vsFormat = document.querySelector('#vsFormat');
+  const vsPreviewBtn = document.querySelector('#vsPreviewBtn');
+  const vsExportBtn = document.querySelector('#vsExportBtn');
+  const vsLoadingBox = document.querySelector('#vsLoadingBox');
+  const vsLoadingText = document.querySelector('#vsLoadingText');
+  const vsPlayerBox = document.querySelector('#vsPlayerBox');
+  const vsPlayingTitle = document.querySelector('#vsPlayingTitle');
+  const vsAudioTime = document.querySelector('#vsAudioTime');
+  const vsMainAudioPlayer = document.querySelector('#vsMainAudioPlayer');
+  const vsExportResultCard = document.querySelector('#vsExportResultCard');
+  const vsExportPathText = document.querySelector('#vsExportPathText');
+  const vsOpenFolderBtn = document.querySelector('#vsOpenFolderBtn');
+  const vsDirectDownloadLink = document.querySelector('#vsDirectDownloadLink');
+
+  // Sliders binding
+  vsSpeedRange?.addEventListener('input', () => {
+    if (vsSpeedVal) vsSpeedVal.textContent = vsSpeedRange.value + 'x';
+  });
+  vsPitchRange?.addEventListener('input', () => {
+    const val = Number(vsPitchRange.value);
+    if (vsPitchVal) vsPitchVal.textContent = (val > 0 ? '+' : '') + val + 'Hz';
+  });
+  vsVolumeRange?.addEventListener('input', () => {
+    if (vsVolumeVal) vsVolumeVal.textContent = vsVolumeRange.value + '%';
+  });
+
+  // Prompt Pills
+  document.querySelectorAll('#viewVoiceStudio .vs-pill').forEach(pill => {
+    pill.addEventListener('click', () => {
+      const promptText = pill.dataset.prompt;
+      if (vsEmotionPrompt && promptText) {
+        vsEmotionPrompt.value = promptText;
+        vsEmotionPrompt.focus();
+      }
+    });
+  });
+
+  // Script character counter
+  vsScriptText?.addEventListener('input', () => {
+    if (!vsScriptText || !vsCharCount) return;
+    const txt = vsScriptText.value.trim();
+    const chars = vsScriptText.value.length;
+    const words = txt ? txt.split(/\s+/).length : 0;
+    vsCharCount.textContent = chars + ' ký tự (~' + words + ' từ)';
+  });
+
+  // File Dropzone
+  vsDropzone?.addEventListener('click', (e) => {
+    if (e.target !== vsSampleAudioPlayer && !vsSampleAudioPlayer?.contains(e.target)) {
+      vsSampleFile?.click();
+    }
+  });
+
+  vsDropzone?.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    vsDropzone.classList.add('dragover');
+  });
+
+  vsDropzone?.addEventListener('dragleave', () => {
+    vsDropzone.classList.remove('dragover');
+  });
+
+  vsDropzone?.addEventListener('drop', (e) => {
+    e.preventDefault();
+    vsDropzone.classList.remove('dragover');
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      if (vsSampleFile) {
+        vsSampleFile.files = e.dataTransfer.files;
+        handleSampleFileSelected();
+      }
+    }
+  });
+
+  vsSampleFile?.addEventListener('change', handleSampleFileSelected);
+
+  function handleSampleFileSelected() {
+    const file = vsSampleFile?.files?.[0];
+    if (!file) return;
+    if (vsSampleFileName) {
+      vsSampleFileName.textContent = file.name + ' (' + (file.size / (1024 * 1024)).toFixed(2) + ' MB)';
+    }
+    if (vsSampleAudioPlayer) {
+      vsSampleAudioPlayer.src = URL.createObjectURL(file);
+    }
+    vsSamplePreviewBox?.classList.remove('hidden');
+    vsDropzoneContent?.classList.add('hidden');
+  }
+
+  // Create Profile
+  vsCreateProfileBtn?.addEventListener('click', async () => {
+    const name = vsProfileName?.value?.trim();
+    const file = vsSampleFile?.files?.[0];
+    if (!name) {
+      alert('Vui lòng nhập Tên giọng nói (VD: MC Khánh Vy, Reviewer Tuấn...)');
+      vsProfileName?.focus();
+      return;
+    }
+    if (!file) {
+      alert('Vui lòng chọn hoặc kéo thả 1 file âm thanh mẫu (5s - 30s)');
+      return;
+    }
+
+    const originalBtnText = vsCreateProfileBtn.innerHTML;
+    vsCreateProfileBtn.disabled = true;
+    vsCreateProfileBtn.innerHTML = '⏳ Đang trích xuất & huấn luyện AI...';
+
+    try {
+      const formData = new FormData();
+      formData.append('name', name);
+      formData.append('description', vsProfileDesc?.value?.trim() || '');
+      formData.append('tags', vsProfileTags?.value?.trim() || '');
+      formData.append('sampleAudio', file);
+
+      const res = await fetch('/api/voice-studio/profiles', {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Lỗi khi tạo hồ sơ giọng');
+
+      if (vsProfileName) vsProfileName.value = '';
+      if (vsProfileDesc) vsProfileDesc.value = '';
+      if (vsProfileTags) vsProfileTags.value = '';
+      if (vsSampleFile) vsSampleFile.value = '';
+      if (vsSamplePreviewBox) vsSamplePreviewBox.classList.add('hidden');
+      if (vsDropzoneContent) vsDropzoneContent.classList.remove('hidden');
+
+      await loadVoiceStudioProfiles();
+      if (vsVoiceSelect && data.profile?.id) {
+        vsVoiceSelect.value = data.profile.id;
+      }
+      alert('🎉 Đã huấn luyện thành công hồ sơ giọng: "' + name + '"! Giờ bạn có thể nhập kịch bản và phát giọng ngay.');
+    } catch (err) {
+      alert('❌ Huấn luyện giọng thất bại: ' + (err.message || err));
+    } finally {
+      vsCreateProfileBtn.disabled = false;
+      vsCreateProfileBtn.innerHTML = originalBtnText;
+    }
+  });
+
+  // Synthesize / Preview & Export
+  async function runSynthesis(isExport = false) {
+    const text = vsScriptText?.value?.trim();
+    if (!text) {
+      alert('Vui lòng nhập văn bản hoặc kịch bản cần phát giọng!');
+      vsScriptText?.focus();
+      return;
+    }
+    const voice = vsVoiceSelect?.value || 'diem_trinh';
+    const prompt = vsEmotionPrompt?.value?.trim() || '';
+    const speed = Number(vsSpeedRange?.value || 1.0);
+    const pitch = Number(vsPitchRange?.value || 0);
+    const volume = Number(vsVolumeRange?.value || 100);
+    const format = vsFormat?.value || 'wav';
+
+    const activeBtn = isExport ? vsExportBtn : vsPreviewBtn;
+    const originalBtnText = activeBtn?.innerHTML;
+    if (activeBtn) {
+      activeBtn.disabled = true;
+      activeBtn.innerHTML = isExport ? '⏳ Đang xuất studio...' : '⏳ Đang tạo giọng...';
+    }
+    if (vsLoadingBox) {
+      vsLoadingBox.classList.remove('hidden');
+      if (vsLoadingText) {
+        vsLoadingText.textContent = isExport
+          ? 'Đang trích xuất audio phòng thu chất lượng cao (WAV 24kHz / MP3)...'
+          : 'Đang xử lý âm sắc và cảm xúc giọng nói...';
+      }
+    }
+    if (vsPlayerBox) vsPlayerBox.classList.add('hidden');
+
+    try {
+      const endpoint = isExport ? '/api/voice-studio/export' : '/api/voice-studio/synthesize';
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, voice, prompt, speed, pitch, volume, format })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Lỗi khi tạo âm thanh');
+
+      if (vsMainAudioPlayer && data.audioUrl) {
+        vsMainAudioPlayer.src = data.audioUrl;
+        vsMainAudioPlayer.currentTime = 0;
+        vsMainAudioPlayer.play().catch(() => {});
+      }
+      if (vsPlayingTitle) vsPlayingTitle.textContent = data.voiceName || 'Giọng đọc Studio';
+      if (vsAudioTime) {
+        vsAudioTime.textContent = (data.duration ? data.duration.toFixed(1) + 's' : 'Đã xong') +
+          ' (' + (data.sampleRate ? data.sampleRate / 1000 + 'kHz' : '24kHz') + ' · ' + format.toUpperCase() + ')';
+      }
+      if (vsPlayerBox) vsPlayerBox.classList.remove('hidden');
+
+      if (isExport && data.filePath) {
+        vsLastExportedFile = data.filePath;
+        if (vsExportPathText) vsExportPathText.textContent = data.filePath;
+        if (vsDirectDownloadLink) {
+          vsDirectDownloadLink.href = data.audioUrl;
+          vsDirectDownloadLink.download = data.filename;
+        }
+        if (vsExportResultCard) {
+          vsExportResultCard.classList.remove('hidden');
+          vsExportResultCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+      }
+    } catch (err) {
+      alert('❌ Lỗi phát/xuất giọng: ' + (err.message || err));
+    } finally {
+      if (vsLoadingBox) vsLoadingBox.classList.add('hidden');
+      if (activeBtn) {
+        activeBtn.disabled = false;
+        activeBtn.innerHTML = originalBtnText;
+      }
+    }
+  }
+
+  vsPreviewBtn?.addEventListener('click', () => runSynthesis(false));
+  vsExportBtn?.addEventListener('click', () => runSynthesis(true));
+
+  vsOpenFolderBtn?.addEventListener('click', async () => {
+    try {
+      const res = await fetch('/api/voice-studio/open-folder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filePath: vsLastExportedFile || '' })
+      });
+      const data = await res.json();
+      if (!res.ok) alert('Không thể mở thư mục: ' + (data.error || 'Lỗi'));
+    } catch (e) {
+      alert('Lỗi: ' + (e.message || e));
+    }
+  });
+
+  vsRefreshProfilesBtn?.addEventListener('click', async () => {
+    vsRefreshProfilesBtn.disabled = true;
+    vsRefreshProfilesBtn.textContent = '⏳ Đang làm mới...';
+    await loadVoiceStudioProfiles();
+    vsRefreshProfilesBtn.disabled = false;
+    vsRefreshProfilesBtn.textContent = '🔄 Làm mới';
+  });
+
+  loadVoiceStudioProfiles();
+}
+
+// Attach to DOM ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initVoiceStudio);
+} else {
+  initVoiceStudio();
+}

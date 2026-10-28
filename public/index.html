@@ -42,6 +42,7 @@
           <div class="nav-caption">KHÔNG GIAN LÀM VIỆC</div>
           <button class="tab-btn active" type="button" data-view="publish"><span aria-hidden="true">▤</span><span>Xuất bản TikTok</span></button>
           <button class="tab-btn" type="button" data-view="process"><span aria-hidden="true">▷</span><span>Sản xuất video</span></button>
+          <button class="tab-btn" type="button" data-view="voice-studio"><span aria-hidden="true">🎙️</span><span>Voice Studio</span></button>
           <button class="tab-btn" type="button" data-view="settings"><span aria-hidden="true">⚙</span><span>Cài đặt & API</span></button>
           <div class="nav-footer"><span class="status-dot ready"></span> Workspace local<br><small>VietDub AI Studio · 2.2.8</small></div>
         </nav>
@@ -178,6 +179,7 @@
                     <span>Máy chủ TTS</span>
                     <select name="ttsProvider" id="ttsProvider">
                       <option value="kokoro-local" selected>Kokoro TTS (Local Offline) - Siêu nhanh</option>
+                      <option value="voice-studio">🎙️ Giọng Voice Studio (AI Cloned)</option>
                       <option value="edge-neural">Microsoft Edge Neural - Miễn phí Online</option>
                       <option value="openai-tts">OpenAI TTS - Tự nhiên nhất</option>
                     </select>
@@ -607,7 +609,237 @@
               </fieldset>
             </section>
           </div>
-        </form>
+        
+          <!-- TAB 4: VOICE STUDIO (CLONE & PROMPT TTS) -->
+          <div id="viewVoiceStudio" class="view-panel-tab hidden">
+            <div class="vs-header-card">
+              <div class="vs-header-left">
+                <h2><span>🎙️</span> Voice Studio - AI Voice Cloning & Studio TTS</h2>
+                <p class="helper-text">Huấn luyện giọng AI (Voice Cloning), nhập Prompt kịch bản phát giọng và xuất file âm thanh chất lượng phòng thu (.WAV / .MP3) để dựng video.</p>
+              </div>
+              <div class="vs-header-right">
+                <span id="vsEngineBadge" class="badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3);">⚡ Engine: Built-in Neural + Local</span>
+                <button type="button" id="vsRefreshProfilesBtn" class="secondary" style="margin-left: 8px;">🔄 Làm mới</button>
+              </div>
+            </div>
+
+            <div class="vs-grid-layout" style="display: grid; grid-template-columns: 1fr 1.25fr; gap: 16px; margin-top: 14px;">
+              <!-- LEFT COLUMN: VOICE CLONING & PROFILES -->
+              <div class="vs-col-left">
+                <!-- PANEL: IMPORT & CLONE NEW VOICE -->
+                <section class="collapsible-section vs-section" id="section-vs-clone">
+                  <header class="section-header" style="cursor: default;">
+                    <div class="header-left">
+                      <span class="section-icon">📥</span>
+                      <div>
+                        <h3>Tạo & Huấn Luyện Giọng AI Mới</h3>
+                        <p class="section-desc">Import mẫu giọng (5s - 30s) để AI trích xuất âm sắc và tạo hồ sơ giọng.</p>
+                      </div>
+                    </div>
+                  </header>
+                  <div class="section-body" style="padding: 12px 14px;">
+                    <label class="field">
+                      <span>Tên Giọng Nói <small style="color: #ef4444;">*</small></span>
+                      <input type="text" id="vsProfileName" placeholder="VD: Giọng Reviewer Anh Tuấn, MC Khánh Vy..." required />
+                    </label>
+
+                    <label class="field" style="margin-top: 10px;">
+                      <span>Mô tả & Phong cách giọng</span>
+                      <input type="text" id="vsProfileDesc" placeholder="VD: Giọng nam trầm ấm, phát âm chuẩn Hà Nội, chuyên review..." />
+                    </label>
+
+                    <label class="field" style="margin-top: 10px;">
+                      <span>Nhãn phân loại (Tags)</span>
+                      <input type="text" id="vsProfileTags" placeholder="VD: Nam, Trầm, Kể chuyện, Tin tức..." />
+                    </label>
+
+                    <div class="field" style="margin-top: 10px;">
+                      <span>File Âm Thanh Mẫu (.mp3, .wav, .m4a, .ogg) <small style="color: #ef4444;">*</small></span>
+                      <div class="vs-dropzone" id="vsDropzone" style="border: 2px dashed rgba(255,255,255,0.2); border-radius: 8px; padding: 18px; text-align: center; cursor: pointer; background: rgba(0,0,0,0.15); transition: all 0.2s;">
+                        <input type="file" id="vsSampleFile" accept="audio/*,.wav,.mp3,.m4a,.ogg,.flac" style="display: none;" />
+                        <div class="vs-dropzone-content" id="vsDropzoneContent">
+                          <span style="font-size: 28px;">🎵</span>
+                          <p style="margin: 6px 0 2px 0;"><strong>Bấm để chọn file</strong> hoặc kéo thả file âm thanh mẫu vào đây</p>
+                          <small class="helper-text">Khuyên dùng audio sạch 5s - 30s không lẫn nhạc nền để clone chuẩn nhất.</small>
+                        </div>
+                      </div>
+                      <div id="vsSamplePreviewBox" class="vs-sample-preview hidden" style="margin-top: 8px;">
+                        <span id="vsSampleFileName" class="badge" style="background: rgba(59, 130, 246, 0.2); color: #60a5fa;"></span>
+                        <audio id="vsSampleAudioPlayer" controls style="width: 100%; height: 36px; margin-top: 4px;"></audio>
+                      </div>
+                    </div>
+
+                    <button type="button" id="vsCreateProfileBtn" class="primary" style="width: 100%; margin-top: 14px; padding: 10px; font-weight: 600;">
+                      <span>🧠</span> Bắt Đầu Trích Xuất & Lưu Giọng AI (Clone Voice)
+                    </button>
+                  </div>
+                </section>
+
+                <!-- PANEL: SAVED PROFILES LIST -->
+                <section class="collapsible-section vs-section" id="section-vs-profiles" style="margin-top: 14px;">
+                  <header class="section-header" style="cursor: default;">
+                    <div class="header-left">
+                      <span class="section-icon">📋</span>
+                      <div>
+                        <h3>Danh Sách Hồ Sơ Giọng Đã Lưu</h3>
+                        <p class="section-desc">Toàn bộ các giọng AI đã train/clone sẵn sàng dùng để phát giọng hoặc dựng video.</p>
+                      </div>
+                    </div>
+                  </header>
+                  <div class="section-body" style="padding: 10px 14px;">
+                    <div id="vsProfilesList" class="vs-profiles-container" style="display: flex; flex-direction: column; gap: 8px;">
+                      <div class="empty-state" style="padding: 16px; text-align: center;">Đang tải danh sách hồ sơ giọng...</div>
+                    </div>
+                  </div>
+                </section>
+              </div>
+
+              <!-- RIGHT COLUMN: PROMPT TTS & AUDIO EXPORTER -->
+              <div class="vs-col-right">
+                <!-- PANEL: SPEECH GENERATOR -->
+                <section class="collapsible-section vs-section" id="section-vs-speech">
+                  <header class="section-header" style="cursor: default;">
+                    <div class="header-left">
+                      <span class="section-icon">✍️</span>
+                      <div>
+                        <h3>Soạn Kịch Bản & Nhập Prompt Cảm Xúc</h3>
+                        <p class="section-desc">Nhập văn bản và tùy biến cảm xúc để AI phát giọng nói chuẩn xác.</p>
+                      </div>
+                    </div>
+                  </header>
+                  <div class="section-body" style="padding: 12px 14px;">
+                    <label class="field">
+                      <span>Chọn Giọng Đọc AI <small style="color: #ef4444;">*</small></span>
+                      <select id="vsVoiceSelect" style="font-weight: 500;">
+                        <optgroup label="--- GIỌNG ĐÃ CLONE TỪ VOICE STUDIO ---" id="vsClonedGroup">
+                          <option value="">Chưa có giọng clone nào (Hãy import mẫu bên trái)</option>
+                        </optgroup>
+                        <optgroup label="--- GIỌNG NÓI TIẾNG VIỆT CHUẨN (BUILT-IN) ---">
+                          <option value="vi-VN-HoaiMyNeural" selected>Hoài My (Nữ miền Nam, ngọt ngào truyền cảm)</option>
+                          <option value="vi-VN-NamMinhNeural">Nam Minh (Nam miền Bắc, truyền cảm tin cậy)</option>
+                          <option value="diem_trinh">Diễm Trinh (Kokoro VN - Nữ dịu dàng)</option>
+                          <option value="manh_dung">Mạnh Dũng (Kokoro VN - Nam trầm ấm)</option>
+                          <option value="mai_linh">Mai Linh (Kokoro VN - Nữ thanh thoát)</option>
+                          <option value="tuan_ngoc">Tuấn Ngọc (Kokoro VN - Nam kịch tính)</option>
+                        </optgroup>
+                      </select>
+                    </label>
+
+                    <label class="field" style="margin-top: 10px;">
+                      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                        <span>Nội dung kịch bản cần đọc <small style="color: #ef4444;">*</small></span>
+                        <small id="vsCharCount" class="helper-text">0 ký tự | 0 từ</small>
+                      </div>
+                      <textarea id="vsScriptText" rows="5" placeholder="Nhập đoạn văn bản hoặc kịch bản bạn muốn AI đọc vào đây... (Ví dụ: Chào mừng các bạn đã quay trở lại với kênh, hôm nay chúng ta sẽ cùng khám phá một bí mật cực kỳ thú vị...)"></textarea>
+                    </label>
+
+                    <!-- PROMPT EMOTION PILLS -->
+                    <div class="field" style="margin-top: 10px;">
+                      <span>Gợi ý phong cách & cảm xúc (Bấm chọn nhanh):</span>
+                      <div class="vs-prompt-pills" id="vsPromptPills" style="display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0;">
+                        <button type="button" class="vs-pill secondary" data-prompt="Hào hứng, sôi nổi, tràn đầy năng lượng như video triệu view TikTok" style="font-size: 12px; padding: 4px 8px;">🔥 Hào hứng sôi nổi</button>
+                        <button type="button" class="vs-pill secondary" data-prompt="Trầm ấm, sâu lắng, chậm rãi, phong cách kể chuyện tâm tình" style="font-size: 12px; padding: 4px 8px;">🌙 Trầm ấm sâu lắng</button>
+                        <button type="button" class="vs-pill secondary" data-prompt="Kịch tính, hồi hộp, gay cấn, giọng review phim hành động" style="font-size: 12px; padding: 4px 8px;">🎬 Kịch tính gay cấn</button>
+                        <button type="button" class="vs-pill secondary" data-prompt="Tự nhiên, vui vẻ, thân thiện, trò chuyện đời thường" style="font-size: 12px; padding: 4px 8px;">☕ Tự nhiên vui vẻ</button>
+                        <button type="button" class="vs-pill secondary" data-prompt="Trang trọng, dứt khoát, chuyên nghiệp như MC bản tin thời sự" style="font-size: 12px; padding: 4px 8px;">📰 Trang trọng dứt khoát</button>
+                      </div>
+                      <input type="text" id="vsEmotionPrompt" placeholder="Hoặc tự gõ prompt phong cách: VD: Giọng thì thầm bí ẩn, hơi thở nhẹ..." />
+                    </div>
+
+                    <!-- AUDIO CONTROLS (Speed, Volume, Pitch) -->
+                    <div class="vs-controls-row" style="margin-top: 12px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
+                      <label class="field">
+                        <span>Tốc độ: <strong id="vsSpeedVal">1.0x</strong></span>
+                        <input type="range" id="vsSpeedRange" min="0.7" max="1.5" step="0.05" value="1.0" />
+                      </label>
+                      <label class="field">
+                        <span>Âm lượng: <strong id="vsVolumeVal">100%</strong></span>
+                        <input type="range" id="vsVolumeRange" min="0.5" max="1.5" step="0.05" value="1.0" />
+                      </label>
+                      <label class="field">
+                        <span>Cao độ (Pitch): <strong id="vsPitchVal">0</strong></span>
+                        <input type="range" id="vsPitchRange" min="-6" max="6" step="1" value="0" />
+                      </label>
+                    </div>
+
+                    <!-- EXPORT FORMAT OPTIONS -->
+                    <div class="vs-format-row" style="margin-top: 12px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+                      <div style="display: flex; align-items: center; gap: 14px;">
+                        <span>Định dạng xuất:</span>
+                        <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                          <input type="radio" name="vsFormat" value="wav" checked /> <strong>WAV (Phòng thu 24kHz)</strong>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                          <input type="radio" name="vsFormat" value="mp3" /> <strong>MP3 (320kbps)</strong>
+                        </label>
+                      </div>
+                    </div>
+
+                    <!-- ACTION BUTTONS -->
+                    <div class="vs-actions-bar" style="margin-top: 16px; display: flex; gap: 10px;">
+                      <button type="button" id="vsPreviewBtn" class="secondary" style="flex: 1; padding: 10px; font-weight: 600;">
+                        <span>🔊</span> Phát Thử Giọng Nói
+                      </button>
+                      <button type="button" id="vsExportBtn" class="primary" style="flex: 1.2; padding: 10px; font-weight: 600;">
+                        <span>💾</span> Xuất File Âm Thanh Dựng Video
+                      </button>
+                    </div>
+                  </div>
+                </section>
+
+                <!-- PANEL: AUDIO PLAYER & EXPORT RESULT -->
+                <section class="collapsible-section vs-section" id="section-vs-result" style="margin-top: 14px;">
+                  <header class="section-header" style="cursor: default;">
+                    <div class="header-left">
+                      <span class="section-icon">🎧</span>
+                      <div>
+                        <h3>Trình Phát Âm Thanh & Kết Quả Xuất File</h3>
+                        <p class="section-desc">Nghe trực tiếp đoạn audio đã tạo và nhận file đưa vào phần mềm dựng phim.</p>
+                      </div>
+                    </div>
+                  </header>
+                  <div class="section-body" style="padding: 12px 14px;">
+                    <div id="vsLoadingBox" class="vs-loading hidden" style="text-align: center; padding: 16px;">
+                      <div class="spinner"></div>
+                      <p style="margin-top: 8px; font-weight: 500;" id="vsLoadingText">Đang tổng hợp giọng nói AI...</p>
+                    </div>
+
+                    <div id="vsPlayerBox" class="vs-player-container hidden">
+                      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                        <span id="vsPlayingTitle" style="font-weight: 600;">Audio Preview</span>
+                        <span id="vsAudioTime" class="badge" style="background: rgba(255,255,255,0.1);">00:00 / 00:00</span>
+                      </div>
+                      <audio id="vsMainAudioPlayer" controls style="width: 100%; margin-bottom: 10px;"></audio>
+                    </div>
+
+                    <div id="vsExportResultCard" class="vs-export-card hidden" style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; padding: 12px; margin-top: 8px;">
+                      <div style="display: flex; align-items: flex-start; gap: 10px;">
+                        <span style="font-size: 26px;">✅</span>
+                        <div style="flex: 1;">
+                          <h4 style="margin: 0; color: #10b981;">Đã xuất file âm thanh thành công!</h4>
+                          <p id="vsExportPathText" class="helper-text" style="word-break: break-all; margin: 4px 0 8px 0;"></p>
+                          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                            <button type="button" id="vsOpenFolderBtn" class="secondary" style="font-size: 13px; padding: 6px 12px;">
+                              <span>📂</span> Mở Thư Mục Chứa File (CapCut / Premiere)
+                            </button>
+                            <a id="vsDirectDownloadLink" class="secondary" style="font-size: 13px; padding: 6px 12px; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;" download>
+                              <span>⬇️</span> Tải File Về Máy
+                            </a>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div id="vsEmptyPlaceholder" class="empty-state" style="padding: 20px; text-align: center;">
+                      Chưa có âm thanh nào được phát. Hãy nhập kịch bản bên trên và bấm <strong>"Phát Thử Giọng Nói"</strong> hoặc <strong>"Xuất File Âm Thanh"</strong>!
+                    </div>
+                  </div>
+                </section>
+              </div>
+            </div>
+          </div>
+
+</form>
       </section>
 
       <!-- RIGHT SIDEBAR: LIVE MONITOR, NUMBERED QUEUE & TERMINAL -->

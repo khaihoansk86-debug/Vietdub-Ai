@@ -12,7 +12,7 @@
     "build:win": "electron-builder --win nsis --publish never",
     "build:mac": "electron-builder --mac dmg --publish never",
     "check": "node --check server.js && node --check public/app.js && node --check public/publisher.js && node --check services/tiktokPublisher.js && node --check services/publishRuns.js && node --check services/tiktokVerification.js && node --check electron/main.cjs",
-    "test": "node --test tests/publishRuns.test.js tests/directPublisher.test.js",
+    "test": "node --test tests/publishRuns.test.js tests/directPublisher.test.js tests/voiceStudio.test.js",
     "test:ui": "node scripts/smoke-studio.mjs",
     "test:post": "node scripts/test-post-controls.mjs"
   },
