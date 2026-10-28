@@ -412,7 +412,7 @@ app.post('/api/kokoro/retry', (_req, res) => {
 app.get('/api/voice-studio/profiles', (_req, res) => {
   try {
     const profiles = listVoiceProfiles();
-    res.json({ success: true, profiles });
+    res.json({ success: true, ok: true, profiles });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -445,7 +445,7 @@ app.post('/api/voice-studio/profiles', upload.single('sampleAudio'), async (req,
 app.delete('/api/voice-studio/profiles/:id', async (req, res) => {
   try {
     const result = await deleteVoiceProfile(req.params.id);
-    res.json({ success: result.ok, message: result.message });
+    res.json({ success: result.ok, ok: result.ok, message: result.message });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -467,7 +467,7 @@ app.get('/api/voice-studio/engine-status', async (req, res) => {
   try {
     const url = req.query.url || process.env.VOICESTUDIO_URL || 'http://127.0.0.1:8000';
     const status = await checkVoiceStudioEngineStatus(url);
-    res.json({ success: true, ...status });
+    res.json({ success: true, ok: true, ...status });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }

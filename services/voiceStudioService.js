@@ -175,31 +175,32 @@ export async function deleteVoiceProfile(id) {
 }
 
 export async function checkVoiceStudioEngineStatus(voiceStudioUrl = 'http://127.0.0.1:8000') {
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 2000);
-    const res = await fetch(`${voiceStudioUrl}/docs`, { method: 'GET', signal: controller.signal });
-    clearTimeout(timeout);
-    if (res.ok || res.status === 200 || res.status === 404) {
-      return { online: true, url: voiceStudioUrl, message: 'VoiceStudio Engine đang hoạt động online.' };
-    }
-  } catch {}
+  if (process.env.VOICESTUDIO_URL) {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 1200);
+      const res = await fetch(`${voiceStudioUrl}/docs`, { method: 'GET', signal: controller.signal });
+      clearTimeout(timeout);
+      if (res.ok || res.status === 200 || res.status === 404) {
+        return { online: true, ok: true, success: true, hasVoiceStudio: true, url: voiceStudioUrl, message: 'VoiceStudio Engine đang hoạt động online.' };
+      }
+    } catch {}
+  }
 
-  // Also check Kokoro local on port 8889
+  // Check Kokoro local on port 8889
   const kokoroUrl = process.env.KOKORO_SERVER_URL || 'http://localhost:8889/health';
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 1500);
+    const timeout = setTimeout(() => controller.abort(), 1200);
     const res = await fetch(kokoroUrl, { method: 'GET', signal: controller.signal });
     clearTimeout(timeout);
     if (res.ok) {
-      return { online: true, url: kokoroUrl, engine: 'Kokoro-Vietnamese', message: 'Kokoro Vietnamese Engine sẵn sàng.' };
+      return { online: true, ok: true, success: true, hasVoiceStudio: false, url: kokoroUrl, engine: 'Kokoro-Vietnamese', message: 'Kokoro Vietnamese Engine sẵn sàng (Offline).' };
     }
   } catch {}
 
-  return { online: false, url: voiceStudioUrl, message: 'VoiceStudio local API chưa bật (Đang dùng Built-in Neural Engine).' };
+  return { online: false, ok: true, success: true, hasVoiceStudio: false, url: voiceStudioUrl, message: 'Built-in Neural Engine sẵn sàng.' };
 }
-
 
 export function resolveEmotionAcoustics(emotionPrompt = '', userSpeed = 1.0, userPitch = 0, userVolume = 100) {
   const p = (emotionPrompt || '').toLowerCase();
@@ -223,17 +224,17 @@ export function resolveEmotionAcoustics(emotionPrompt = '', userSpeed = 1.0, use
   if (/kịch tính|hành động|gay cấn|hồi hộp|quảng cáo|trailer|mạnh|dứt khoát|bán hàng|phim|chiến đấu/.test(p)) {
     audioFilters.push(
       'compand=attacks=0.02:decays=0.15:points=-75/-75|-42/-22|-18/-8|0/-1.5:gain=3.5',
-      'equalizer=f=95:width_type=q:w=1.2:g=4.5', // Sub-bass rền
-      'equalizer=f=480:width_type=q:w=1.5:g=-3.0', // Cắt đục hộp
-      'equalizer=f=3300:width_type=q:w=1.2:g=4.2' // Rõ từng phụ âm
+      'equalizer=f=95:width_type=q:w=1.2:g=4.5',
+      'equalizer=f=480:width_type=q:w=1.5:g=-3.0',
+      'equalizer=f=3300:width_type=q:w=1.2:g=4.2'
     );
   }
 
   // 4. TRỤC ẤM ÁP & TRẦM ĐẶC (WARMTH & CHEST RESONANCE)
   if (/ấm|trầm|dày|ngực|mộc|tâm sự|kể chuyện|truyền cảm|sâu sắc/.test(p)) {
     audioFilters.push(
-      'equalizer=f=135:width_type=q:w=1.4:g=5.0', // Ngực trầm cộng hưởng
-      'equalizer=f=6000:width_type=q:w=1.0:g=-2.5' // Dịu dải cao
+      'equalizer=f=135:width_type=q:w=1.4:g=5.0',
+      'equalizer=f=6000:width_type=q:w=1.0:g=-2.5'
     );
   }
 
@@ -249,7 +250,7 @@ export function resolveEmotionAcoustics(emotionPrompt = '', userSpeed = 1.0, use
   if (/ma mị|bí ẩn|kinh dị|lạnh lẽo|hư ảo|vũ trụ|xa xăm|vang|rùng rợn/.test(p)) {
     audioFilters.push('aecho=0.8:0.88:60|120:0.35|0.22');
   } else if (/tâm sự|kể chuyện|nhẹ nhàng|suy ngẫm/.test(p)) {
-    audioFilters.push('aecho=0.8:0.85:28:0.15'); // Vang phòng thu ấm nhẹ
+    audioFilters.push('aecho=0.8:0.85:28:0.15');
   }
 
   // 7. TRỤC TRANG TRỌNG / PHÁT THANH / BÌNH LUẬN (BROADCAST)
@@ -274,13 +275,16 @@ export function resolveEmotionAcoustics(emotionPrompt = '', userSpeed = 1.0, use
     audioFilters.unshift('rubberband=pitch=' + pitchScale.toFixed(4));
   }
 
+  // Volume Normalizer: handles 100 (percentage) or 1.0 (multiplier) cleanly
+  let volMultiplier = 1.0;
   const numVol = Number(userVolume);
-  if (!isNaN(numVol) && numVol !== 100 && numVol > 0) {
-    audioFilters.push('volume=' + (numVol / 100).toFixed(2));
+  if (!isNaN(numVol) && numVol > 0) {
+    volMultiplier = numVol > 2.5 ? (numVol / 100.0) : numVol;
   }
 
   return {
     effectiveSpeed,
+    volMultiplier,
     audioFilters
   };
 }
@@ -288,16 +292,16 @@ export function resolveEmotionAcoustics(emotionPrompt = '', userSpeed = 1.0, use
 export async function synthesizeVoiceStudioAudio({
   text,
   profileId = null,
-  voice = 'vi-VN-HoaiMyNeural',
+  voice = 'diem_trinh',
   speed = 1.0,
   pitch = 0,
-  volume = 1.0,
+  volume = 100,
   emotionPrompt = '',
   format = 'wav',
   outputDir = null,
   savePermanent = false,
   synthesizeTtsTextFn = null,
-  voiceStudioUrl = 'http://127.0.0.1:8000'
+  voiceStudioUrl = null
 }) {
   if (!text || !text.trim()) {
     throw new Error('Vui lòng nhập nội dung kịch bản cần phát giọng nói.');
@@ -306,21 +310,33 @@ export async function synthesizeVoiceStudioAudio({
   ensureDirectories();
   const cleanText = text.trim();
   const targetDir = outputDir || getVoiceStudioOutputDir();
-  const tempWav = path.join(os.tmpdir(), `vs_temp_${Date.now()}_${crypto.randomBytes(3).toString('hex')}.wav`);
 
   let profile = null;
   if (profileId) {
     profile = getVoiceProfile(profileId);
   }
 
+  // 1. Calculate acoustic transformation from emotion prompt, speed, pitch, volume
+  const { effectiveSpeed, volMultiplier, audioFilters } = resolveEmotionAcoustics(emotionPrompt, speed, pitch, volume);
+
+  // If cloned profile has custom timbre, apply custom tone
+  if (profile) {
+    if (profile.tags && (profile.tags.includes('Nam') || profile.tags.some(t => /nam/i.test(t)))) {
+      audioFilters.push('equalizer=f=140:width_type=q:w=1.5:g=3.0');
+    } else if (profile.tags && (profile.tags.includes('Nữ') || profile.tags.some(t => /nữ|nu/i.test(t)))) {
+      audioFilters.push('equalizer=f=2800:width_type=q:w=1.5:g=2.5');
+    }
+  }
+
+  const rawTemp = path.join(os.tmpdir(), `vs_raw_${Date.now()}_${crypto.randomBytes(3).toString('hex')}.wav`);
   let synthesized = false;
 
-  // 1. Try VoiceStudio Local API if online
-  if (voiceStudioUrl) {
+  // 2. Try external VoiceStudio Local API ONLY if explicitly configured
+  if (voiceStudioUrl && voiceStudioUrl !== 'http://127.0.0.1:8000' && process.env.VOICESTUDIO_URL) {
     let timeout = null;
     try {
       const controller = new AbortController();
-      timeout = setTimeout(() => controller.abort(), 3000);
+      timeout = setTimeout(() => controller.abort(), 2000);
       const payload = {
         model: 'voicestudio-tts',
         input: cleanText,
@@ -338,7 +354,7 @@ export async function synthesizeVoiceStudioAudio({
 
       if (res.ok) {
         const buf = Buffer.from(await res.arrayBuffer());
-        await fsp.writeFile(tempWav, buf);
+        await fsp.writeFile(rawTemp, buf);
         synthesized = true;
       }
     } catch {}
@@ -347,89 +363,87 @@ export async function synthesizeVoiceStudioAudio({
     }
   }
 
-  // Calculate acoustic transformation from emotion prompt, speed, pitch, volume
-  const { effectiveSpeed, audioFilters } = resolveEmotionAcoustics(emotionPrompt, speed, pitch, volume);
-
-  // If cloned profile has custom timbre, apply custom tone
-  if (profile) {
-    if (profile.tags && profile.tags.includes('Nam')) {
-      audioFilters.push('equalizer=f=140:width_type=q:w=1.5:g=3.0');
-    } else if (profile.tags && profile.tags.includes('Nữ')) {
-      audioFilters.push('equalizer=f=2800:width_type=q:w=1.5:g=2.5');
-    }
-  }
-
-  // 2. Built-in High Quality Fallback (Kokoro-VN or Edge-TTS or synthesizeTtsTextFn)
+  // 3. Primary Built-in Local Engine (Kokoro-VN) or Fallback (Edge-TTS / Chunked Google)
   if (!synthesized) {
-    const rawTemp = path.join(os.tmpdir(), `vs_raw_${Date.now()}_${crypto.randomBytes(3).toString('hex')}.mp3`);
     try {
       const kokoroVoiceMap = {
         'vi-VN-HoaiMyNeural': 'diem_trinh',
         'vi-VN-NamMinhNeural': 'manh_dung'
       };
-      const kokoroVoice = kokoroVoiceMap[voice] || (profile ? (profile.tags.includes('Nam') ? 'manh_dung' : 'diem_trinh') : voice);
-      let generated = false;
+      let selectedVoice = kokoroVoiceMap[voice] || voice;
+      if (profile) {
+        const isMale = profile.tags && (profile.tags.includes('Nam') || profile.tags.some(t => /nam/i.test(t)));
+        selectedVoice = isMale ? 'manh_dung' : 'diem_trinh';
+      }
+
+      // Try local Kokoro on port 8889
       try {
         const kRes = await fetch('http://localhost:8889/tts', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             text: cleanText,
-            voice: kokoroVoice,
+            voice: selectedVoice,
             speed: Math.max(0.5, Math.min(2.0, effectiveSpeed))
           })
         });
         if (kRes.ok) {
           const buf = Buffer.from(await kRes.arrayBuffer());
           await fsp.writeFile(rawTemp, buf);
-          generated = true;
+          synthesized = true;
         }
       } catch (_) {}
 
-      if (!generated) {
+      // Fallback via synthesizeTtsTextFn if Kokoro fails
+      if (!synthesized) {
         if (typeof synthesizeTtsTextFn === 'function') {
           const ttsOptions = {
             provider: voice.startsWith('vi-VN-') ? 'edge-neural' : 'kokoro-local',
-            voice: profile ? (profile.tags.includes('Nam') ? 'manh_dung' : 'diem_trinh') : voice,
+            voice: selectedVoice,
             speed: Math.max(0.5, Math.min(2.0, effectiveSpeed)),
-            volume: Math.max(0.2, Math.min(2.0, Number(volume) / 100 || 1.0)),
+            volume: volMultiplier,
             style: 'natural'
           };
           await synthesizeTtsTextFn(cleanText, rawTemp, ttsOptions, null);
+          synthesized = true;
         }
       }
-      const ffmpegArgs = ['-y', '-i', rawTemp];
-      if (audioFilters.length > 0) {
-        ffmpegArgs.push('-af', audioFilters.join(','));
-      }
-      ffmpegArgs.push('-acodec', 'pcm_s16le', '-ar', '24000', '-ac', '1', tempWav);
 
-      await runFfmpeg(ffmpegArgs);
-      try { await fsp.unlink(rawTemp); } catch {}
-      synthesized = true;
+      if (!synthesized) {
+        throw new Error('Không thể kết nối đến máy chủ phát giọng nói (Kokoro hoặc Fallback TTS).');
+      }
     } catch (fallbackErr) {
       throw new Error(`Tổng hợp giọng nói thất bại: ${fallbackErr.message}`);
     }
   }
 
-  // 3. Export to final format (WAV or MP3)
+  // 4. Single-pass Master Export: High-Quality Studio Audio (48kHz WAV / 320kbps MP3) + Loudness Normalization
   const ext = format === 'mp3' ? 'mp3' : 'wav';
   const timestamp = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14);
-  const safeProfileName = (profile?.name || voice || 'Audio').replace(/[^a-zA-Z0-9_\u00C0-\u024F\u1EA0-\u1EF9]/g, '_');
+  const safeProfileName = (profile?.name || voice || 'Audio').replace(/[^a-zA-Z0-9_À-ɏẠ-ỹ]/g, '_');
   const filename = `VoiceStudio_${safeProfileName}_${timestamp}.${ext}`;
   const finalPath = path.join(targetDir, filename);
 
-  const exportArgs = ['-y', '-i', tempWav];
-  if (ext === 'mp3') {
-    exportArgs.push('-codec:a', 'libmp3lame', '-qscale:a', '2', finalPath);
-  } else {
-    exportArgs.push('-acodec', 'pcm_s16le', '-ar', '24000', finalPath);
-  }
-  await runFfmpeg(exportArgs);
+  const ffmpegArgs = ['-y', '-i', rawTemp];
+  
+  // Combine emotion audio filters + dynamic loudness normalizer + volume multiplier + brickwall limiter
+  const finalFilters = [...audioFilters];
+  finalFilters.push('dynaudnorm=p=0.95:m=10:s=12');
+  finalFilters.push(`volume=${(volMultiplier * 1.35).toFixed(2)}`);
+  finalFilters.push('alimiter=limit=0.96');
 
-  if (!savePermanent) {
-    // If not permanent export, keep temp file and return path
+  ffmpegArgs.push('-af', finalFilters.join(','));
+
+  if (ext === 'mp3') {
+    // 320 kbps CBR High-Bitrate Master
+    ffmpegArgs.push('-codec:a', 'libmp3lame', '-b:a', '320k', '-ar', '48000', finalPath);
+  } else {
+    // 48kHz 16-bit PCM Uncompressed Studio Master
+    ffmpegArgs.push('-acodec', 'pcm_s16le', '-ar', '48000', finalPath);
   }
+
+  await runFfmpeg(ffmpegArgs);
+  try { await fsp.unlink(rawTemp); } catch {}
 
   const stat = fs.statSync(finalPath);
   return {

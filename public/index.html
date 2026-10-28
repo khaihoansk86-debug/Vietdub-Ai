@@ -215,7 +215,7 @@
 
                 <label class="field" style="margin-top: 10px;">
                   <span>Câu phát thử nghiệm</span>
-                  <input name="previewText" id="previewText" type="text" value="Xin chào, đây là giọng đọc thử nghiệm chất lượng cao của VietDub AI.">
+                  <input name="previewText" id="previewText" type="text" spellcheck="false" value="Xin chào, đây là giọng đọc thử nghiệm chất lượng cao của VietDub AI.">
                 </label>
 
                 <div class="inline-actions">
@@ -640,17 +640,17 @@
                   <div class="section-body" style="padding: 12px 14px;">
                     <label class="field">
                       <span>Tên Giọng Nói <small style="color: #ef4444;">*</small></span>
-                      <input type="text" id="vsProfileName" placeholder="VD: Giọng Reviewer Anh Tuấn, MC Khánh Vy..." required />
+                      <input type="text" id="vsProfileName" placeholder="VD: Giọng Reviewer Anh Tuấn, MC Khánh Vy..." required spellcheck="false" autocomplete="off" />
                     </label>
 
                     <label class="field" style="margin-top: 10px;">
                       <span>Mô tả & Phong cách giọng</span>
-                      <input type="text" id="vsProfileDesc" placeholder="VD: Giọng nam trầm ấm, phát âm chuẩn Hà Nội, chuyên review..." />
+                      <input type="text" id="vsProfileDesc" placeholder="VD: Giọng nam trầm ấm, phát âm chuẩn Hà Nội, chuyên review..." spellcheck="false" autocomplete="off" />
                     </label>
 
                     <label class="field" style="margin-top: 10px;">
                       <span>Nhãn phân loại (Tags)</span>
-                      <input type="text" id="vsProfileTags" placeholder="VD: Nam, Trầm, Kể chuyện, Tin tức..." />
+                      <input type="text" id="vsProfileTags" placeholder="VD: Nam, Trầm, Kể chuyện, Tin tức..." spellcheck="false" autocomplete="off" />
                     </label>
 
                     <div class="field" style="margin-top: 10px;">
@@ -740,7 +740,7 @@
                         <span>Nội dung kịch bản cần đọc <small style="color: #ef4444;">*</small></span>
                         <small id="vsCharCount" class="helper-text">0 ký tự | 0 từ</small>
                       </div>
-                      <textarea id="vsScriptText" rows="5" placeholder="Nhập đoạn văn bản hoặc kịch bản bạn muốn AI đọc vào đây... (Ví dụ: Chào mừng các bạn đã quay trở lại với kênh, hôm nay chúng ta sẽ cùng khám phá một bí mật cực kỳ thú vị...)"></textarea>
+                      <textarea id="vsScriptText" rows="5" spellcheck="false" autocomplete="off" placeholder="Nhập đoạn văn bản hoặc kịch bản bạn muốn AI đọc vào đây... (Ví dụ: Chào mừng các bạn đã quay trở lại với kênh, hôm nay chúng ta sẽ cùng khám phá một bí mật cực kỳ thú vị...)"></textarea>
                     </label>
 
                     <!-- PROMPT EMOTION PILLS -->
@@ -753,7 +753,7 @@
                         <button type="button" class="vs-pill secondary" data-prompt="Tự nhiên, vui vẻ, thân thiện, trò chuyện đời thường" style="font-size: 12px; padding: 4px 8px;">☕ Tự nhiên vui vẻ</button>
                         <button type="button" class="vs-pill secondary" data-prompt="Trang trọng, dứt khoát, chuyên nghiệp như MC bản tin thời sự" style="font-size: 12px; padding: 4px 8px;">📰 Trang trọng dứt khoát</button>
                       </div>
-                      <input type="text" id="vsEmotionPrompt" placeholder="Hoặc tự gõ prompt phong cách: VD: Giọng thì thầm bí ẩn, hơi thở nhẹ..." />
+                      <input type="text" id="vsEmotionPrompt" spellcheck="false" autocomplete="off" placeholder="Hoặc tự gõ prompt phong cách: VD: Giọng thì thầm bí ẩn, hơi thở nhẹ..." />
                     </div>
 
                     <!-- AUDIO CONTROLS (Speed, Volume, Pitch) -->

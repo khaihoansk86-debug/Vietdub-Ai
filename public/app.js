@@ -522,17 +522,21 @@ const voiceLabels = {
 function refreshVoices() {
   if (!ttsProvider || !voiceSelect) return;
   const current = voiceSelect.value;
+  const profiles = window.voiceStudioProfiles || [];
+
   if (ttsProvider.value === 'voice-studio') {
     document.querySelector('#ttsStyleField')?.classList.add('hidden');
     voiceSelect.innerHTML = '';
-    const profiles = window.voiceStudioProfiles || [];
     if (profiles.length > 0) {
+      const grp = document.createElement('optgroup');
+      grp.label = '--- GIỌNG ĐÃ CLONE TỪ VOICE STUDIO ---';
       for (const p of profiles) {
         const option = document.createElement('option');
         option.value = p.id;
         option.textContent = '🎙️ ' + p.name + (p.description ? ' (' + p.description + ')' : '');
-        voiceSelect.appendChild(option);
+        grp.appendChild(option);
       }
+      voiceSelect.appendChild(grp);
       voiceSelect.value = profiles.some(p => p.id === current) ? current : profiles[0].id;
     } else {
       const option = document.createElement('option');
@@ -542,16 +546,38 @@ function refreshVoices() {
     }
     return;
   }
+
   const voices = voiceCatalog[ttsProvider.value] || voiceCatalog['kokoro-local'];
   document.querySelector('#ttsStyleField')?.classList.toggle('hidden', ttsProvider.value !== 'openai-tts');
   voiceSelect.innerHTML = '';
+
+  // Dùng chung toàn bộ tool: Cho phép chọn giọng đã import/clone ở tab Quy trình xử lý
+  if (profiles.length > 0 && (ttsProvider.value === 'kokoro-local' || ttsProvider.value === 'edge-neural')) {
+    const grpCloned = document.createElement('optgroup');
+    grpCloned.label = '🎙️ GIỌNG ĐÃ CLONE (VOICE STUDIO)';
+    for (const p of profiles) {
+      const opt = document.createElement('option');
+      opt.value = p.id;
+      opt.textContent = '⭐ ' + p.name + (p.description ? ' (' + p.description + ')' : '');
+      grpCloned.appendChild(opt);
+    }
+    voiceSelect.appendChild(grpCloned);
+  }
+
+  const grpBuiltIn = document.createElement('optgroup');
+  grpBuiltIn.label = ttsProvider.value === 'kokoro-local'
+    ? '--- GIỌNG NÓI TIẾNG VIỆT CHUẨN (KOKORO OFFLINE) ---'
+    : '--- DANH SÁCH GIỌNG ĐỌC TIÊU CHUẨN ---';
   for (const [value, label] of voices) {
     const option = document.createElement('option');
     option.value = value;
     option.textContent = voiceLabels[currentLang]?.[value] || label;
-    voiceSelect.appendChild(option);
+    grpBuiltIn.appendChild(option);
   }
-  voiceSelect.value = voices.some(([value]) => value === current) ? current : voices[0][0];
+  voiceSelect.appendChild(grpBuiltIn);
+
+  const allOptions = Array.from(voiceSelect.querySelectorAll('option'));
+  voiceSelect.value = allOptions.some(o => o.value === current) ? current : (allOptions[0]?.value || '');
 }
 
 ttsProvider?.addEventListener('change', refreshVoices);
@@ -2742,13 +2768,11 @@ async function loadVoiceStudioProfiles() {
   try {
     const res = await fetch('/api/voice-studio/profiles');
     const data = await res.json();
-    if (data.ok && Array.isArray(data.profiles)) {
+    if ((data.ok || data.success) && Array.isArray(data.profiles)) {
       window.voiceStudioProfiles = data.profiles;
       renderVsProfiles(data.profiles);
       updateVsVoiceSelect(data.profiles);
-      if (typeof refreshVoices === 'function' && ttsProvider && ttsProvider.value === 'voice-studio') {
-        refreshVoices();
-      }
+      refreshVoices();
     }
   } catch (err) {
     console.warn('Lỗi tải hồ sơ giọng Voice Studio:', err);
@@ -2757,13 +2781,13 @@ async function loadVoiceStudioProfiles() {
   try {
     const sRes = await fetch('/api/voice-studio/engine-status');
     const sData = await sRes.json();
-    if (vsEngineBadge && sData.ok) {
+    if (vsEngineBadge && (sData.ok || sData.success)) {
       if (sData.hasVoiceStudio) {
         vsEngineBadge.innerHTML = '⚡ VoiceStudio Engine: Sẵn sàng (Local API)';
         vsEngineBadge.style.color = '#10b981';
         vsEngineBadge.style.background = 'rgba(16, 185, 129, 0.15)';
       } else {
-        vsEngineBadge.innerHTML = '⚡ Engine: Neural + Studio EQ (Tích hợp)';
+        vsEngineBadge.innerHTML = '⚡ Engine: Kokoro Vietnamese (Studio 48kHz)';
         vsEngineBadge.style.color = '#38bdf8';
         vsEngineBadge.style.background = 'rgba(56, 189, 248, 0.15)';
       }
@@ -2773,19 +2797,26 @@ async function loadVoiceStudioProfiles() {
 
 function renderVsProfiles(profiles) {
   const vsProfilesList = document.querySelector('#vsProfilesList');
-  const vsEmptyPlaceholder = document.querySelector('#vsEmptyPlaceholder');
+  const vsProfilesEmpty = document.querySelector('#vsProfilesEmpty');
   const vsVoiceSelect = document.querySelector('#vsVoiceSelect');
   if (!vsProfilesList) return;
 
   vsProfilesList.innerHTML = '';
   if (!profiles || profiles.length === 0) {
-    if (vsEmptyPlaceholder) {
-      vsEmptyPlaceholder.classList.remove('hidden');
-      vsProfilesList.appendChild(vsEmptyPlaceholder);
+    if (vsProfilesEmpty) {
+      vsProfilesEmpty.classList.remove('hidden');
+      vsProfilesList.appendChild(vsProfilesEmpty);
+    } else {
+      vsProfilesList.innerHTML = `
+        <div id="vsProfilesEmpty" class="empty-state vs-empty-box" style="padding: 24px 16px; text-align: center; border: 1px dashed var(--line); border-radius: var(--radius-md); background: rgba(0,0,0,0.1);">
+          <span style="font-size: 28px; display: block; margin-bottom: 6px;">🎙️</span>
+          <strong style="color: var(--ink);">Chưa có hồ sơ giọng clone nào</strong>
+          <p class="helper-text" style="margin: 6px 0 0 0;">Nhập tên và tải file âm thanh mẫu (5s - 30s) ở khung trên để huấn luyện giọng clone đầu tiên!</p>
+        </div>
+      `;
     }
     return;
   }
-  if (vsEmptyPlaceholder) vsEmptyPlaceholder.classList.add('hidden');
 
   profiles.forEach(p => {
     const card = document.createElement('div');
@@ -2808,7 +2839,7 @@ function renderVsProfiles(profiles) {
       </div>
       <div class="vs-card-actions">
         <button type="button" class="vs-use-voice-btn primary-subtle" data-id="${p.id}">Dùng giọng này ➔</button>
-        <button type="button" class="vs-del-voice-btn icon-danger" data-id="${p.id}" title="Xoá hồ sơ giọng">🗑️</button>
+        <button type="button" class="vs-del-voice-btn" data-id="${p.id}" title="Xoá hồ sơ giọng này">🗑️ Xoá giọng</button>
       </div>
     `;
 
@@ -2822,7 +2853,7 @@ function renderVsProfiles(profiles) {
     });
 
     card.querySelector('.vs-del-voice-btn')?.addEventListener('click', async () => {
-      if (!confirm('Bạn có chắc muốn xoá giọng AI "' + p.name + '" không?')) return;
+      if (!confirm('Bạn có chắc muốn xoá hồ sơ giọng clone "' + p.name + '" không?\nThao tác này sẽ xoá hoàn toàn mẫu giọng khỏi hệ thống.')) return;
       try {
         const delRes = await fetch('/api/voice-studio/profiles/' + p.id, { method: 'DELETE' });
         if (delRes.ok) {
@@ -2862,6 +2893,10 @@ function updateVsVoiceSelect(profiles) {
 }
 
 function initVoiceStudio() {
+  document.querySelectorAll('input[type="text"], textarea').forEach(el => {
+    el.setAttribute('spellcheck', 'false');
+    el.setAttribute('autocomplete', 'off');
+  });
   const vsRefreshProfilesBtn = document.querySelector('#vsRefreshProfilesBtn');
   const vsProfileName = document.querySelector('#vsProfileName');
   const vsProfileDesc = document.querySelector('#vsProfileDesc');
