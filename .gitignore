@@ -11,3 +11,6 @@ test_*.png
 tts_audio_test.mp3
 kokoro-vietnamese/
 
+
+__pycache__/
+*.pyc
