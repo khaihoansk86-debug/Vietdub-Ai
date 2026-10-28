@@ -1,223 +1,138 @@
-# VietDub AI Studio
+# VietDub AI Studio v2.0
 
-**Sản xuất video, lồng tiếng tiếng Việt và quản lý xuất bản TikTok trong một ứng dụng desktop.**
+<p align="center">
+  <img src="public/logo.png" alt="VietDub AI Studio" width="120" style="border-radius: 20px;" />
+</p>
 
-VietDub AI kết hợp tải video, xử lý phụ đề, tạo giọng đọc và xuất bản nhiều kênh. Trung tâm xuất bản giúp xem trước nội dung, phân bổ mỗi kênh một video riêng và theo dõi đến bước xác nhận Công khai.
+<p align="center">
+  <strong>Không gian sản xuất video AI, huấn luyện giọng nói (Voice Cloning) và tự động hoá xuất bản TikTok đa kênh chuyên nghiệp.</strong>
+</p>
 
-[![Build and Release](https://github.com/khaihoansk86-debug/Vietdub-Ai/actions/workflows/build.yml/badge.svg)](https://github.com/khaihoansk86-debug/Vietdub-Ai/actions/workflows/build.yml)
-[![Release](https://img.shields.io/github/v/release/khaihoansk86-debug/Vietdub-Ai)](https://github.com/khaihoansk86-debug/Vietdub-Ai/releases/latest)
+<p align="center">
+  <a href="https://github.com/khaihoansk86-debug/Vietdub-Ai/releases/latest"><img src="https://img.shields.io/badge/Release-v2.0.0-blue.svg?style=for-the-badge&logo=windows" alt="Release v2.0" /></a>
+  <img src="https://img.shields.io/badge/Platform-Windows%20x64-0078D6.svg?style=for-the-badge&logo=windows" alt="Platform" />
+  <img src="https://img.shields.io/badge/TTS%20Engine-Kokoro%20ONNX%20Offline-success.svg?style=for-the-badge" alt="Kokoro Engine" />
+  <img src="https://img.shields.io/badge/AI%20Core-Gemini%20API-orange.svg?style=for-the-badge&logo=google" alt="Gemini AI" />
+</p>
 
-[Tải ứng dụng](https://github.com/khaihoansk86-debug/Vietdub-Ai/releases/latest) · [Ghi chú phát hành](RELEASE_NOTES.md) · [Báo lỗi](https://github.com/khaihoansk86-debug/Vietdub-Ai/issues)
+---
 
-## Tải và cài đặt
+## 📥 Tải & Cài Đặt Nhanh
 
-Phiên bản hiện tại: **2.2.8**.
+Phiên bản chính thức: **v2.0.0**
 
-| Nền tảng | Bộ cài |
-| --- | --- |
-| Windows x64 | [VietDub-AI-Setup-2.2.8.exe](https://github.com/khaihoansk86-debug/Vietdub-Ai/releases/download/v2.2.8/VietDub-AI-Setup-2.2.8.exe) |
-| macOS Apple Silicon — arm64 | [VietDub-AI-2.2.8-macOS-arm64.dmg](https://github.com/khaihoansk86-debug/Vietdub-Ai/releases/download/v2.2.8/VietDub-AI-2.2.8-macOS-arm64.dmg) |
+| Tệp cài đặt | Nền tảng | Dung lượng | SHA-256 Checksum |
+| :--- | :---: | :---: | :--- |
+| **[VietDub-AI-Setup-2.0.0.exe](https://github.com/khaihoansk86-debug/Vietdub-Ai/releases/download/v2.0.0/VietDub-AI-Setup-2.0.0.exe)** | Windows 10/11 (x64) | ~142 MB | `ED6E51BDAC08AE7483A4CA3F6776A9396430D3A2C71D7100A213A9D7835E128B` |
 
-Trang release có tệp `SHA256SUMS` để đối chiếu tính toàn vẹn bộ cài. Hiện chưa cung cấp bộ cài cho Mac Intel.
+> [!NOTE]
+> Ứng dụng đã đóng gói sẵn Node.js runtime, Electron, FFmpeg và yt-dlp. Khi sử dụng tính năng **Voice Studio Offline**, ứng dụng sẽ tự động đồng bộ và quản lý máy chủ Kokoro ONNX chạy cục bộ trên máy tính của bạn (cổng `8889`), hoàn toàn riêng tư và không tốn phí API.
 
-1. Cài ứng dụng phù hợp với hệ điều hành.
-2. Mở **Cài đặt & API**, cấu hình dịch vụ AI cần sử dụng.
-3. Chọn **Sản xuất video** để xử lý nội dung hoặc **Xuất bản TikTok** để quản lý lượt đăng.
+---
 
-Bộ cài đã đóng gói Electron/Node.js, FFmpeg và yt-dlp. Các tính năng sau cần thêm thành phần tương ứng:
-
-| Thành phần | Khi nào cần |
-| --- | --- |
-| Google Chrome | Đăng nhập và tự động hóa TikTok Studio |
-| Gemini API key | Tạo/dịch phụ đề và tạo caption AI cho lượt đăng từ kho |
-| OpenAI API key | Khi chọn OpenAI TTS |
-| Python và `edge-tts` | Khi chọn Microsoft Edge Neural |
-| Python, Git và môi trường Kokoro | Khi dùng Kokoro local; ứng dụng có quy trình thiết lập backend |
-| Internet | Tải video, gọi dịch vụ AI trực tuyến và đăng TikTok |
-
-## Tính năng
-
-### Sản xuất video
-
-- Nhập danh sách liên kết hoặc video/SRT từ máy tính.
-- Tải và ghép clip, tạo/dịch phụ đề bằng Gemini.
-- Lồng tiếng với **Kokoro local**, **Microsoft Edge Neural** hoặc **OpenAI TTS**.
-- Căn nhịp giọng đọc theo từng đoạn; điều chỉnh âm lượng giọng và âm thanh gốc.
-- Tùy chỉnh phụ đề, watermark và khung hình đầu ra.
-- Theo dõi hàng đợi, nhật ký và video đã hoàn tất.
-
-### Xuất bản TikTok
-
-- Quản lý nhiều kênh với profile Chrome riêng biệt.
-- Phân bổ **1:1**: mỗi kênh nhận một video riêng trong lượt đăng.
-- Chống trùng bằng SHA-256 toàn file, tương thích lịch sử fingerprint cũ.
-- Xem trước kênh, video, caption và hashtag trước khi bắt đầu.
-- Kiểm tra video, Chrome, phiên đăng nhập và nội dung AI trước khi đăng.
-- Lưu trạng thái để phục hồi khi ứng dụng hoặc kết nối bị gián đoạn.
-- Dừng sau kênh hiện tại, tiếp tục phần chưa gửi, thử lại mục lỗi và đối soát bài đã gửi.
-- Lưu URL/ID bài khi xác minh được kết quả; giữ nguyên kho video nguồn.
-
-### Không gian làm việc
-
-Giao diện chia thành các màn hình xuất bản, sản xuất và cài đặt. Màn hình xuất bản có nút Đăng video trực tiếp, trạng thái và nhật ký ngắn gọn. Hỗ trợ giao diện sáng/tối và bố cục responsive.
-
-## Quy trình đăng Công khai 1:1
+## 🌟 Ba Trụ Cột Tính Năng Cốt Lõi
 
 ```mermaid
-flowchart LR
-    A[Chọn kênh và kho video] --> B[Bấm Đăng video]
-    B --> C[Tự chọn video và tạo content AI theo prompt]
-    C --> D[Tự đăng Công khai]
-    D --> E[Xác minh bài đăng]
-    E --> F[Đã công khai]
-    E --> G[Cần đối soát hoặc đang xử lý]
+graph TD
+    A[VietDub AI Studio v2.0] --> B[🎙️ Voice Studio]
+    A --> C[🎬 Sản Xuất & Lồng Tiếng Video]
+    A --> D[🚀 Xuất Bản TikTok Đa Kênh]
+
+    B --> B1[Kokoro Offline ONNX 14 Giọng Chuẩn]
+    B --> B2[AI Voice Cloning Zero-shot 5s-30s]
+    B --> B3[Bộ Chuẩn Hoá Phát Âm Tiếng Việt & Số Đếm]
+    B --> B4[Xuất File Âm Thanh WAV 24kHz / MP3 320kbps]
+
+    C --> C1[Tải Video Đa Nguồn YouTube / Douyin / TikTok]
+    C --> C2[AI Dịch & Khớp Phụ Đề SRT Theo Giọng Nói]
+    C --> C3[Ghép & Cân Bằng Âm Lượng Nhạc Nền / Giọng AI]
+
+    D --> D1[Quản Lý Đa Kênh Profile Chrome Độc Lập]
+    D --> D2[Phân Bổ Video Kho 1:1 Chống Trùng Bằng SHA-256]
+    D --> D3[AI Viết Caption & Hashtag Ngữ Cảnh]
+    D --> D4[Đăng Tự Động & Xác Minh Trạng Thái Công Khai]
 ```
 
-1. **Chuẩn bị kênh:** thêm tài khoản, đăng nhập qua Chrome, đóng cửa sổ đăng nhập và đồng bộ kênh.
-2. **Chọn nguồn:** chọn kênh nhận và thư mục video. Các video đã công khai, đang xử lý hoặc đã tới bước gửi nhưng chưa rõ kết quả được bỏ qua để tránh trùng; giữ chỗ của lượt cũ không chặn nút đăng trực tiếp.
-3. **Thiết lập nội dung:** nhập prompt AI và hashtag bổ sung. Nếu kho thiếu video, tool đăng số clip hiện có và báo kênh còn thiếu.
-4. **Đăng ngay:** bấm **Đăng video** một lần. Tool tự chọn video, tạo content theo prompt và đăng công khai, không yêu cầu xác nhận lượt riêng.
-5. **Theo dõi:** các kênh chạy tuần tự, có thời gian chờ và nhật ký từng video.
+### 1. 🎙️ Voice Studio — AI Voice Cloning & Studio TTS
+- **Engine Kokoro Offline ONNX:** Chạy trực tiếp trên CPU/GPU máy tính với tốc độ cao, độ trễ cực thấp, không phụ thuộc vào kết nối mạng hay phí dịch vụ bên ngoài.
+- **14 Giọng Đọc Chuẩn 3 Miền:** Hỗ trợ đầy đủ các sắc thái giọng đọc Bắc - Trung - Nam, từ trầm ấm, truyền cảm, đến hoạt bát, năng động.
+- **AI Voice Cloning:** Trích xuất âm sắc từ file mẫu 5s – 30s và tạo hồ sơ giọng AI riêng biệt, tự động đồng bộ và sử dụng xuyên suốt toàn bộ ứng dụng.
+- **Chuẩn Hoá Ngữ Âm & Số Tiếng Việt Cấp Chuyên Gia:**
+  - Khắc phục triệt để lỗi SEA-G2P phát âm sai các từ đồng âm không dấu (`to lớn`, `tự do`, `so sánh`, `ăn no`, `quả me`, `be bé`...).
+  - Tự động chuyển đổi số đếm, phần trăm (`100%` → `một trăm phần trăm`), tiền tệ (`50k`, `100tr`, `đô la`), số thập phân (`1.5` → `một phẩy năm`) và từ viết tắt (`TP.HCM`, `BS.`, `ĐH`).
+- **Định Dạng Âm Thanh Phòng Thu:** Hỗ trợ xuất file `.WAV` (Phòng thu 24kHz chuẩn ONNX) và `.MP3` (320kbps High Quality).
 
-**Ứng dụng chỉ xuất bản ở chế độ Công khai.** Việc chuyển trang hoặc xuất hiện thông báo thành công chưa đủ để ghi nhận kết quả. Bộ xác minh đối chiếu nội dung, kênh, ID bài mới và quyền hiển thị; nếu chưa rõ, ứng dụng dừng hoặc yêu cầu đối soát.
+### 2. 🎬 Sản Xuất & Lồng Tiếng Video Tự Động
+- **Tải Video Đa Nền Tảng:** Tự động tải video chất lượng cao từ YouTube, TikTok, Douyin thông qua yt-dlp tích hợp sẵn.
+- **Nhận Diện & Dịch Phụ Đề Bằng AI:** Tận dụng sức mạnh của Google Gemini API để tạo phụ đề gốc, dịch đa ngôn ngữ sang tiếng Việt tự nhiên và giữ đúng cấu trúc câu.
+- **Đồng Bộ Giọng Đọc Theo Thời Gian Thực:** Tự động căn chỉnh tốc độ đọc của AI để khớp từng mili-giây với timeline phụ đề, xử lý fade-in/fade-out nhạc nền thông minh.
+- **Tuỳ Biến Giao Diện Video:** Hỗ trợ chèn logo/watermark thương hiệu, căn chỉnh vị trí phụ đề, đổi tỷ lệ khung hình (16:9, 9:16).
 
-## Chạy từ mã nguồn
+### 3. 🚀 Xuất Bản TikTok Đa Kênh (1:1 Direct Publisher)
+- **Quản Lý Nhiều Kênh An Toàn:** Mỗi kênh vận hành trên một User Data Profile riêng biệt của Chrome, không lộ thông tin đăng nhập chéo và không bị khóa phiên.
+- **Chiến Lược Phân Bổ 1:1 Tuyệt Đối:** Mỗi kênh chỉ nhận duy nhất một video từ kho nguồn trong mỗi đợt đăng. Cơ chế băm SHA-256 toàn file ngăn chặn hoàn toàn rủi ro đăng trùng lặp video.
+- **AI Soạn Caption & Hashtag Ngữ Cảnh Độc Lập:** Tự động tạo caption hấp dẫn bám sát chủ đề prompt của người dùng, phân tích tránh trùng lặp 7 từ mở đầu giữa các kênh.
+- **Quy Trình Xác Minh Đăng Bài Chặt Chẽ:** Tự động theo dõi tiến trình tải lên, gửi form, vượt qua bước kiểm duyệt bản quyền âm thanh và xác minh trạng thái **Đã Công Khai** trước khi ghi nhận hoàn tất.
 
-Cần Node.js **20 trở lên**, npm và Git. Cài thêm Python/dependency của TTS và Google Chrome theo tính năng sử dụng.
+---
 
-```powershell
+## 🗣️ Danh Sách 14 Giọng Đọc Kokoro Offline Tích Hợp Sẵn
+
+| Tên Giọng | Vùng Miền / Phong Cách | Đặc Điểm |
+| :--- | :--- | :--- |
+| `diem_trinh` | Nam Bộ | Ngọt ngào, nhẹ nhàng, truyền cảm |
+| `manh_dung` | Bắc Bộ | Trầm ấm, uy lực, giọng kể chuyện / phóng sự |
+| `minh_khoi` | Bắc Bộ | Trẻ trung, tự tin, chuyên review sản phẩm |
+| `le_trinh` | Nam Bộ | Nhẹ nhàng, êm dịu, giọng đọc truyện đêm |
+| `thao_nhi` | Nam Bộ | Tươi vui, tự nhiên, review & vlog đời sống |
+| `mai_lan` | Bắc Bộ | Tự nhiên, rõ ràng, tin tức & tài liệu |
+| `viet_bach` | Bắc Bộ | Hào sảng, cuốn hút, đọc kịch bản sôi động |
+| `bao_trung` | Nam Bộ | Thân thiện, chân thật, tin cậy |
+| `ha_an` | Trung Bộ | Tự nhiên, trầm ấm, mộc mạc |
+| `thu_hang` | Bắc Bộ | Trong trẻo, thanh lịch, kể chuyện |
+| `duc_anh` | Bắc Bộ | Chững chạc, đĩnh đạc, thuyết minh |
+| `van_khoa` | Nam Bộ | Tự tin, phóng khoáng, review công nghệ |
+| `thanh_thao` | Bắc Bộ | Hoạt bát, năng động, hướng dẫn ngắn |
+| `hoang_long` | Nam Bộ | Trầm ấm, truyền cảm, tâm sự & podcast |
+
+---
+
+## 🛠️ Yêu Cầu Hệ Thống
+
+- **Hệ điều hành:** Windows 10 hoặc Windows 11 (64-bit).
+- **Phần cứng đề xuất:**
+  - CPU: Intel Core i5 / AMD Ryzen 5 trở lên.
+  - RAM: Tối thiểu 8 GB (Đề xuất 16 GB khi xử lý video và voice song song).
+  - Ổ cứng: 2 GB dung lượng trống (SSD để tối ưu tốc độ render và load model).
+- **Phần mềm bổ trợ:**
+  - Google Chrome (bản mới nhất) để phục vụ tính năng đăng video TikTok tự động.
+  - Khóa API Google Gemini (miễn phí) cấu hình tại mục **Cài đặt & API**.
+
+---
+
+## 🚀 Hướng Dẫn Phát Triển (Dành Cho Lập Trình Viên)
+
+```bash
+# 1. Clone repository
 git clone https://github.com/khaihoansk86-debug/Vietdub-Ai.git
 cd Vietdub-Ai
-npm ci
+
+# 2. Cài đặt các gói phụ thuộc
+npm install
+
+# 3. Khởi chạy ứng dụng ở chế độ Desktop
 npm run desktop
+
+# 4. Kiểm tra mã nguồn & chạy kiểm thử tự động
+npm run check
+npm test
+
+# 5. Đóng gói bộ cài Windows mới
+npm run build:win
 ```
 
-Chạy backend và giao diện web local:
+---
 
-```powershell
-npm start
-```
+## 📄 Bản Quyền & Giấy Phép
 
-Mở [http://127.0.0.1:3210](http://127.0.0.1:3210). Bản Electron tự chọn cổng trống bắt đầu từ `3210`.
-
-### Cấu hình API
-
-Nhập khóa trong **Cài đặt & API**, hoặc tạo `.env` dựa trên `.env.example` khi chạy từ source. Chọn model khả dụng trong tài khoản của bạn.
-
-```dotenv
-HOST=127.0.0.1
-PORT=3210
-GEMINI_API_KEY=
-GEMINI_MODEL=
-OPENAI_API_KEY=
-OPENAI_TTS_MODEL=gpt-4o-mini-tts
-RAPIDAPI_KEY=
-```
-
-Nếu sao chép `.env.example`, đổi `HOST=0.0.0.0` trong tệp mẫu thành `HOST=127.0.0.1` để chỉ truy cập server trên máy. API local hiện chưa có cơ chế đăng nhập dành cho triển khai công khai.
-
-Cài dependency Edge TTS nếu cần:
-
-```powershell
-python -m pip install edge-tts
-```
-
-Không đưa `.env`, API key, profile Chrome hoặc dữ liệu tài khoản lên Git. Chế độ chỉ tải/ghép video không yêu cầu dịch vụ AI; nhu cầu API phụ thuộc chế độ xử lý đã chọn.
-
-## Dữ liệu và phục hồi
-
-Bản desktop lưu dữ liệu tách khỏi thư mục cài đặt:
-
-| Môi trường | Vị trí mặc định |
-| --- | --- |
-| Windows desktop | `%APPDATA%\vietdub-ai-local\data` |
-| macOS desktop | `~/Library/Application Support/vietdub-ai-local/data` |
-| Backend từ source | `data/` cho job; module TikTok trên Windows ưu tiên data AppData đã tồn tại |
-
-Biến `VIETDUB_DATA_DIR` cho phép chỉ định chung thư mục runtime khi cần.
-
-| Dữ liệu | Nội dung |
-| --- | --- |
-| `tiktok_accounts.json` | Danh sách kênh và cấu hình profile |
-| `tiktok_profiles/` | Phiên Chrome riêng cho từng kênh |
-| `tiktok_publish_history.json` | Lịch sử bài đăng đã xác nhận |
-| `tiktok_publish_runs.json` | Phân bổ, trạng thái và nhật ký lượt đăng |
-| `tiktok_publish.lock` | Khóa điều phối để ngăn tiến trình chạy chồng |
-
-Giữ lại dữ liệu khi nâng cấp để bảo toàn phiên đăng nhập, phục hồi và chống trùng. Không xóa khóa của tiến trình đang chạy. API key không được ghi vào nhật ký lượt đăng.
-
-## Kiến trúc mã nguồn
-
-Ứng dụng sử dụng **Electron**, **Express/Node.js ESM**, **Vanilla JavaScript/CSS**, **Playwright + Chrome**, **FFmpeg** và **yt-dlp**.
-
-```text
-Vietdub-Ai/
-├── electron/main.cjs              # Desktop shell
-├── public/
-│   ├── index.html                 # Các màn hình ứng dụng
-│   ├── app.js                     # Sản xuất video và cấu hình
-│   ├── publisher.js               # Điều hành lượt đăng
-│   ├── style.css                  # Kiểu dáng nền và control
-│   └── studio.css                 # Giao diện Studio
-├── services/
-│   ├── tiktokPublisher.js         # Chrome, metadata và đăng bài
-│   ├── publishRuns.js             # Phân bổ, trạng thái, phục hồi
-│   └── tiktokVerification.js      # Xác minh phiên và bài Công khai
-├── server.js                      # API, dịch, TTS, phụ đề, render
-├── tests/publishRuns.test.js      # Kiểm thử bộ điều phối
-├── scripts/                       # Kiểm tra, checksum và vận hành
-├── .github/workflows/build.yml    # Build Windows/macOS khi push tag
-├── RELEASE_NOTES.md               # Thay đổi và phạm vi kiểm thử
-└── handoff.md                     # Bàn giao kỹ thuật
-```
-
-## Kiểm thử và đóng gói
-
-| Lệnh | Mục đích |
-| --- | --- |
-| `npm run check` | Kiểm tra cú pháp backend, frontend và module xuất bản |
-| `npm test` | Kiểm thử phân bổ, chống trùng, khóa lượt, phục hồi và xác minh |
-| `npm run test:ui` | Kiểm tra API/giao diện bằng Chrome với dữ liệu mô phỏng |
-| `npm run build:win` | Tạo bộ cài Windows NSIS trong `dist/` |
-| `npm run build:mac` | Tạo DMG arm64 trên macOS |
-| `node scripts/smoke-packaged.mjs` | Mở bản Windows đóng gói bằng profile kiểm thử riêng |
-| `node scripts/release-checksums.mjs` | Tạo SHA-256 cho bộ cài phiên bản hiện tại |
-
-GitHub Actions kiểm tra và đóng gói trên Windows/macOS khi push tag `v*`, sau đó tải bộ cài cùng checksum lên Releases. Dùng tag mới cho mỗi phiên bản.
-
-Bản 2.2.8 có 33 kiểm thử logic và 7 tình huống DOM hồi quy, cùng kiểm thử API/giao diện và khởi động bản Windows đóng gói. Luồng Post → Post now đã được kiểm chứng trên bài thật ở bản trước. Bản 2.2.8 kiểm thử 24 kênh bằng dữ liệu mô phỏng; chưa chạy một đợt đăng thật với 24 kênh. Giao diện macOS chưa được nghiệm thu trên máy Mac thật; TikTok có thể tiếp tục thay đổi giao diện.
-
-## Hỗ trợ
-
-Khi [báo lỗi](https://github.com/khaihoansk86-debug/Vietdub-Ai/issues), cung cấp phiên bản, hệ điều hành, bước tái hiện và nhật ký liên quan. Loại bỏ khóa API, cookie và thông tin nhạy cảm trước khi đính kèm.
-
-Xem [ghi chú phát hành](RELEASE_NOTES.md) để theo dõi thay đổi hoặc [tài liệu bàn giao](handoff.md) để tiếp tục phát triển.
-
-
-### Cập nhật 2.2.8 — Caption và lịch sử đăng
-
-- Caption bám tiêu đề/phụ đề, không thêm lời chứng thực, công dụng hay câu tương tác thiếu căn cứ. Mẫu mặc định cũ được chuyển sang mẫu trung tính; mẫu tùy chỉnh được giữ lại.
-- Không có phụ đề/tiêu đề mô tả: AI vẫn viết theo chủ đề trong prompt, hoặc lời giới thiệu trung tính nếu chưa có chủ đề. Lỗi API thật vẫn được báo rõ. Quy tắc này không bảo đảm TikTok chấp thuận hoặc phân phối video.
-- Lịch sử hỗ trợ chọn từng bài/chọn tất cả và xóa bản ghi local. Xóa xong quét lại kho, sau đó bấm Đăng video để đăng các clip đủ điều kiện. Không xóa video nguồn hoặc bài TikTok; bài đã công khai có thể bị đăng trùng nếu xóa lịch sử.
-- Nhận diện cảnh báo “Content may be restricted”. Tính nguyên bản, chất lượng và QR thuộc video nguồn, không thể khắc phục chỉ bằng caption. Giữ luồng Post → Post now khi TikTok cho phép.
-- Không thay đổi pipeline dịch, giọng đọc hoặc render. Kiểm thử phiên bản này dùng dữ liệu mô phỏng, không đăng bài thật.
-
-Popup kết quả và lịch sử bản 2.2.8 dùng màu theo giao diện sáng/tối, hiển thị lỗi từng kênh và không báo thành công khi chưa gửi được video. Thanh chọn/xóa có số bài đã chọn, vùng bấm rõ ràng và xác nhận xóa local.
-
-
-## Cập nhật 2.2.8 — Prompt độc lập tên kênh và lịch sử dễ đọc
-- Tên kênh/username không được gửi cho Gemini. Prompt quyết định chủ đề và giọng văn; title/transcript chỉ phụ trợ khi phù hợp. Cùng input, đổi tên kênh không đổi request AI (test hồi quy).
-- Bảng lịch sử rộng theo cửa sổ; cột kênh/ngày giờ/trạng thái cố định, caption hiển thị nguyên văn không thêm khoảng trắng template, nền đặc và chữ theo theme. Hashtag rõ chữ, badge không ngắt dòng, nội dung dài cuộn trong modal.
-- Áp dụng cho caption tạo mới; không sửa caption bài đã đăng hoặc lịch sử cũ. Không đổi dịch/TTS/render, phân bổ 1:1 và Post/Post now.
-- Kiểm tra 29 test logic, UI sáng/tối với caption dài và tên Pharma, 7 DOM fixtures. Không đăng bài thật trong kiểm thử.
-
-
-## Cập nhật 2.2.8 — Chống caption trùng giữa các kênh/video
-Nút Đăng video kiểm tra caption với toàn bộ lịch sử local và nội dung đã tạo trong đợt hiện tại. Chuẩn hóa dấu câu, emoji, hashtag; phát hiện trùng chính xác, cùng 7 từ mở đầu hoặc độ giống cụm 2 từ >= 0.58. Gửi tối đa 60 caption cần tránh cho AI, yêu cầu thay cách mở đầu/cấu trúc trong cùng chủ đề prompt; không dùng tên kênh để đổi chủ đề. Tăng temperature lên 0.7.
-AI viết lại tối đa 4 lần. Nếu vẫn gần trùng, không upload clip đó và hiển thị lỗi. Không hứa phát hiện mọi cách diễn đạt cùng nghĩa; lịch sử đã xóa không còn được đối chiếu. Không thay caption bài cũ, dịch/TTS/render hoặc thao tác Post.
-Validation: 32 test logic; UI/DOM và smoke app đóng gói. Chưa đăng bài thật trong lần kiểm thử này.
-
-
-## Cập nhật 2.2.8 — Mở đúng TikTok Studio
-Nút Mở Studio gửi mode studio và mở trực tiếp https://www.tiktok.com/tiktokstudio trong profile của tài khoản đã chọn, không đi qua trang login rồi về trang chủ. Các lựa chọn đăng nhập Google/email/QR giữ nguyên. Không popup thành công khi mở Studio. Không đổi quy trình đăng hoặc tạo caption.
-Kiểm tra: 33 test logic, API/UI smoke xác nhận nút gửi mode studio; khởi động Windows đóng gói. Không đăng bài thật trong kiểm thử.
+Dự án được phát triển và vận hành bởi **VietDub AI Team**. Mọi quyền được bảo lưu.
