@@ -2521,6 +2521,7 @@ function getKokoroServerApiContent() {
   return `import os
 import sys
 import io
+import re
 import json
 import numpy as np
 import soundfile as sf
@@ -2531,9 +2532,143 @@ from pydantic import BaseModel
 
 sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
 
-# Import các hàm phụ trợ từ package kokoro_vietnamese
-from kokoro_vietnamese import split_text, merge_audio_chunks, normalize_audio, phonemize
+# Import cac ham phu tro tu kokoro_vietnamese va vig2p
+from kokoro_vietnamese import split_text, merge_audio_chunks, normalize_audio
 from kokoro_vietnamese.core import _download_or_resolve, DEFAULT_HF_REPO_ID, DEFAULT_ONNX_FILE, DEFAULT_CONFIG_FILE, DEFAULT_VOICE
+from vig2p.core import tokenize_text, WORD_RE, _backend_output_to_text, create_backend, fix_phonemes
+
+_backend = create_backend()
+
+# BANG TU DIEN HIEU CHINH AM TIET TIENG VIET CHUAN (Khac phuc triet de loi SEA-G2P nhan nham tieng Anh)
+VI_PHONEME_OVERRIDE = {
+    'to': 'tˈɔ',       # Khac phuc triet de loi "to lon" doc thanh "tu lon"
+    'do': 'zˈɔ',       # "tu do", "ly do" doc dung am do, khong bi doc thanh 'du'
+    'so': 'sˈɔ',       # "so sanh" khong bi doc thanh 'sou'
+    'no': 'nˈɔ',       # "an no" khong bi doc thanh 'nou'
+    'me': 'mˈɛ',       # "qua me" khong bi doc thanh 'mi'
+    'be': 'bˈɛ',       # "be be" khong bi doc thanh 'bi'
+    'he': 'hˈɛ',       # "he he" khong bi doc thanh 'hi'
+    'le': 'lˈɛ',       # "le te", "le loi" khong bi doc thanh 'lo'
+    'de': 'zˈɛ',       # "de dat" khong bi doc thanh 'do'
+    'te': 'tˈɛ',       # "te te"
+    'go': 'ɣˈɔ',       # "xe go"
+    'an': 'aːn',       # "an nhien", "binh an" phat am chuan /a:n/
+    'can': 'kˈaːn',    # "can ngan"
+    'ban': 'bˈaːn',    # "ban ngay"
+    'tan': 'tˈaːn',    # "tan vo"
+    'van': 'vˈaːn',    # "van xin"
+    'man': 'mˈaːn',    # "man mac"
+    'am': 'aːm',       # "am hieu"
+    'in': 'iːn',       # "in an"
+    'on': 'ɔn',
+}
+
+# BO CHUYEN DOI SO VA VIET TAT TIENG VIET
+UNITS = ['khong', 'mot', 'hai', 'ba', 'bon', 'nam', 'sau', 'bay', 'tam', 'chin']
+def read_three_digits(n, is_highest=False):
+    h = n // 100
+    t = (n % 100) // 10
+    u = n % 10
+    res = []
+    if h > 0 or not is_highest:
+        res.append(UNITS[h] + ' tram')
+    if t > 1:
+        res.append(UNITS[t] + ' muoi')
+        if u == 1: res.append('mot')
+        elif u == 4: res.append('tu')
+        elif u == 5: res.append('lam')
+        elif u > 0: res.append(UNITS[u])
+    elif t == 1:
+        res.append('muoi')
+        if u == 5: res.append('lam')
+        elif u > 0: res.append(UNITS[u])
+    elif t == 0:
+        if u > 0:
+            if h > 0 or not is_highest: res.append('linh')
+            res.append(UNITS[u])
+    return ' '.join(res)
+
+def number_to_vietnamese(num_str):
+    try:
+        n = int(num_str)
+    except:
+        return num_str
+    if n == 0: return 'khong'
+    scales = ['', 'nghin', 'trieu', 'ty', 'nghin ty', 'trieu ty']
+    groups = []
+    temp = n
+    while temp > 0:
+        groups.append(temp % 1000)
+        temp //= 1000
+    res = []
+    for i in range(len(groups) - 1, -1, -1):
+        g = groups[i]
+        if g > 0:
+            words = read_three_digits(g, is_highest=(i == len(groups) - 1))
+            res.append(words)
+            if scales[i]: res.append(scales[i])
+    return ' '.join(res).strip()
+
+def normalize_vietnamese_text(text):
+    if not text:
+        return ""
+    s = text
+    s = re.sub(r'(\d+)\s*%', lambda m: number_to_vietnamese(m.group(1)) + ' phan tram', s)
+    s = re.sub(r'(\d+)\s*k\b', lambda m: number_to_vietnamese(m.group(1)) + ' nghin', s, flags=re.IGNORECASE)
+    s = re.sub(r'(\d+)\s*tr\b', lambda m: number_to_vietnamese(m.group(1)) + ' trieu', s, flags=re.IGNORECASE)
+    s = re.sub(r'(\d+)\s*đ\b', lambda m: number_to_vietnamese(m.group(1)) + ' dong', s, flags=re.IGNORECASE)
+    s = re.sub(r'(\d+)\s*vnd\b', lambda m: number_to_vietnamese(m.group(1)) + ' dong', s, flags=re.IGNORECASE)
+    s = re.sub(r'usd\s*(\d+)', lambda m: number_to_vietnamese(m.group(1)) + ' do la', s, flags=re.IGNORECASE)
+    s = re.sub(r'(\d+)\s*usd', lambda m: number_to_vietnamese(m.group(1)) + ' do la', s, flags=re.IGNORECASE)
+    s = re.sub(r'(\d+)[.,](\d+)', lambda m: number_to_vietnamese(m.group(1)) + ' phay ' + number_to_vietnamese(m.group(2)), s)
+    s = re.sub(r'\b\d+\b', lambda m: number_to_vietnamese(m.group(0)), s)
+    s = re.sub(r'\bOK\b', 'o ke', s, flags=re.IGNORECASE)
+    s = re.sub(r'\bTP\.?\s*HCM\b', 'thanh pho Ho Chi Minh', s, flags=re.IGNORECASE)
+    s = re.sub(r'\bTP\.?\s*HN\b', 'thanh pho Ha Noi', s, flags=re.IGNORECASE)
+    s = re.sub(r'\bTP\.', 'thanh pho ', s, flags=re.IGNORECASE)
+    s = re.sub(r'\bĐ\/c\b', 'dia chi', s, flags=re.IGNORECASE)
+    s = re.sub(r'\bĐT\b', 'dien thoai', s, flags=re.IGNORECASE)
+    s = re.sub(r'\bBS\.', 'bac si ', s, flags=re.IGNORECASE)
+    s = re.sub(r'\bTS\.', 'tien si ', s, flags=re.IGNORECASE)
+    s = re.sub(r'\bĐH\b', 'dai hoc', s, flags=re.IGNORECASE)
+    return s
+
+def vietnamese_phonemize(text_chunk: str) -> str:
+    pieces = []
+    for token in tokenize_text(text_chunk):
+        if token.isspace():
+            pieces.append(' ')
+        elif WORD_RE.match(token):
+            lower_token = token.lower()
+            if lower_token in VI_PHONEME_OVERRIDE:
+                pieces.append(VI_PHONEME_OVERRIDE[lower_token])
+            else:
+                raw = _backend_output_to_text(_backend.run(token))
+                pieces.append(fix_phonemes(raw, source_text=token))
+        else:
+            pieces.append(fix_phonemes(token))
+    res = ''.join(pieces).strip()
+    res = re.sub(r'\btuː\b', 'tˈɔ', res)
+    return res
+
+def safe_split_text(text: str) -> list[str]:
+    base_chunks = split_text(text)
+    final_chunks = []
+    for c in base_chunks:
+        if len(c) <= 200:
+            final_chunks.append(c)
+        else:
+            sub_parts = re.split(r'([,;:\n—–]+)', c)
+            curr = ""
+            for sp in sub_parts:
+                if len(curr) + len(sp) > 200 and curr.strip():
+                    final_chunks.append(curr.strip())
+                    curr = sp
+                else:
+                    curr += sp
+            if curr.strip():
+                final_chunks.append(curr.strip())
+    return final_chunks
 
 class KokoroVietnameseONNXNoTorch:
     def __init__(self, repo_id=DEFAULT_HF_REPO_ID, voice=DEFAULT_VOICE, onnx_path=None, voicepack_dir=None, config_path=None):
@@ -2541,25 +2676,22 @@ class KokoroVietnameseONNXNoTorch:
         self.onnx_path = _download_or_resolve(repo_id, DEFAULT_ONNX_FILE, onnx_path)
         self.config_path = _download_or_resolve(repo_id, DEFAULT_CONFIG_FILE, config_path)
         
-        # Load config
         with open(self.config_path, 'r', encoding='utf-8') as f:
             self.config = json.load(f)
         self.context_length = self.config['plbert']['max_position_embeddings']
         
-        # Load voicepack (.npy file)
         voicepack_filename = f"{voice}.npy"
         self.voicepack_path = os.path.join(voicepack_dir, voicepack_filename)
         if not os.path.exists(self.voicepack_path):
-            raise FileNotFoundError(f"Không tìm thấy file giọng đọc npy: {self.voicepack_path}")
+            raise FileNotFoundError(f"Khong tim thay file giong doc npy: {self.voicepack_path}")
         self.voicepack = np.load(self.voicepack_path)
         
-        # Khởi tạo ONNX runtime session (Chỉ dùng CPU)
         self.session = ort.InferenceSession(str(self.onnx_path), providers=['CPUExecutionProvider'])
         
     def phonemes_to_input_ids(self, phonemes, vocab):
         input_ids = [vocab[p] for p in phonemes if p in vocab]
         if len(input_ids) + 2 > self.context_length:
-            raise ValueError(f"Phoneme sequence too long: {len(input_ids) + 2} > {self.context_length}")
+            input_ids = input_ids[:self.context_length - 2]
         return np.asarray([[0, *input_ids, 0]], dtype=np.int64)
         
     def select_voice_style(self, phoneme_count):
@@ -2571,12 +2703,227 @@ class KokoroVietnameseONNXNoTorch:
         phoneme_chunks = []
         speed_value = np.asarray(float(speed), dtype=np.float32)
         
-        for index, text_chunk in enumerate(split_text(text), start=1):
-            ps = phonemize(text_chunk)
+        norm_text = normalize_vietnamese_text(text)
+        for index, text_chunk in enumerate(safe_split_text(norm_text), start=1):
+            ps = vietnamese_phonemize(text_chunk)
             if not ps:
                 continue
             if len(ps) > 510:
-                raise ValueError(f'Phoneme chunk too long ({len(ps)} > 510): {text_chunk[:80]}')
+                ps = ps[:508]
+                
+            phoneme_chunks.append(f'[{index}] {ps}')
+            input_ids = self.phonemes_to_input_ids(ps, self.config['vocab'])
+            ref_s = self.select_voice_style(len(ps))
+            
+            waveform, _duration = self.session.run(
+                None,
+                {
+                    'input_ids': input_ids,
+                    'ref_s': ref_s,
+                    'speed': speed_value,
+                },
+            )
+            audio_chunks.append(np.asarray(waveform, dtype=np.float32).reshape(-1))
+            
+        crossfade_samples = round(24000 * int(crossfade_ms) / 1000)
+        audio = merge_audio_chunks(audio_chunks, crossfade_samples)
+        return normalize_audio(audio), '\\n'.join(phoneme_chunks)
+
+app = FastAPI(title="Kokoro Vietnamese TTS API (ONNX-only)")
+
+KOKORO_DIR = os.path.dirname(os.path.abspath(__file__))
+VOICEPACKS_DIR = os.path.join(KOKORO_DIR, 'voicepacks')
+
+tts_instances = {}
+
+def get_tts_instance(voice: str):
+    if voice not in tts_instances:
+        print(f"Loading Kokoro ONNX model for voice: {voice}...")
+        tts_instances[voice] = KokoroVietnameseONNXNoTorch(
+            voice=voice,
+            voicepack_dir=VOICEPACKS_DIR
+        )
+    return tts_instances[voice]
+
+class TTSRequest(BaseModel):
+    text: str
+    voice: str = "diem_trinh"
+    speed: float = 1.0
+
+@app.post("/tts")
+async def text_to_speech(req: TTSRequest):
+    if not req.text.strip():
+        raise HTTPException(status_code=400, detail="Text cannot be empty")
+    
+    try:
+        tts = get_tts_instance(req.voice)
+        audio, phonemes = tts.synthesize(req.text, speed=req.speed)
+        wav_io = io.BytesIO()
+        sf.write(wav_io, audio, 24000, format='WAV', subtype='PCM_16')
+        wav_io.seek(0)
+        return StreamingResponse(wav_io, media_type="audio/wav")
+    except Exception as e:
+        print(f"Error during TTS synthesis: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/health")
+async def health_check():
+    return {"status": "ok", "device": "cpu_onnx"}
+
+if __name__ == "__main__":
+    port = int(os.environ.get("KOKORO_PORT", 8889))
+    uvicorn.run(app, host="0.0.0.0", port=port)
+`;
+}
+
+# BO CHUYEN DOI SO VA VIET TAT TIENG VIET
+UNITS = ['khong', 'mot', 'hai', 'ba', 'bon', 'nam', 'sau', 'bay', 'tam', 'chin']
+def read_three_digits(n, is_highest=False):
+    h = n // 100
+    t = (n % 100) // 10
+    u = n % 10
+    res = []
+    if h > 0 or not is_highest:
+        res.append(UNITS[h] + ' tram')
+    if t > 1:
+        res.append(UNITS[t] + ' muoi')
+        if u == 1: res.append('mot')
+        elif u == 4: res.append('tu')
+        elif u == 5: res.append('lam')
+        elif u > 0: res.append(UNITS[u])
+    elif t == 1:
+        res.append('muoi')
+        if u == 5: res.append('lam')
+        elif u > 0: res.append(UNITS[u])
+    elif t == 0:
+        if u > 0:
+            if h > 0 or not is_highest: res.append('linh')
+            res.append(UNITS[u])
+    return ' '.join(res)
+
+def number_to_vietnamese(num_str):
+    try:
+        n = int(num_str)
+    except:
+        return num_str
+    if n == 0: return 'khong'
+    scales = ['', 'nghin', 'trieu', 'ty', 'nghin ty', 'trieu ty']
+    groups = []
+    temp = n
+    while temp > 0:
+        groups.append(temp % 1000)
+        temp //= 1000
+    res = []
+    for i in range(len(groups) - 1, -1, -1):
+        g = groups[i]
+        if g > 0:
+            words = read_three_digits(g, is_highest=(i == len(groups) - 1))
+            res.append(words)
+            if scales[i]: res.append(scales[i])
+    return ' '.join(res).strip()
+
+def normalize_vietnamese_text(text):
+    if not text:
+        return ""
+    s = text
+    s = re.sub(r'(\d+)\s*%', lambda m: number_to_vietnamese(m.group(1)) + ' phan tram', s)
+    s = re.sub(r'(\d+)\s*k\b', lambda m: number_to_vietnamese(m.group(1)) + ' nghin', s, flags=re.IGNORECASE)
+    s = re.sub(r'(\d+)\s*tr\b', lambda m: number_to_vietnamese(m.group(1)) + ' trieu', s, flags=re.IGNORECASE)
+    s = re.sub(r'(\d+)\s*đ\b', lambda m: number_to_vietnamese(m.group(1)) + ' dong', s, flags=re.IGNORECASE)
+    s = re.sub(r'(\d+)\s*vnd\b', lambda m: number_to_vietnamese(m.group(1)) + ' dong', s, flags=re.IGNORECASE)
+    s = re.sub(r'\$\s*(\d+)', lambda m: number_to_vietnamese(m.group(1)) + ' do la', s)
+    s = re.sub(r'(\d+)\s*\
+, lambda m: number_to_vietnamese(m.group(1)) + ' do la', s)
+    s = re.sub(r'(\d+)[.,](\d+)', lambda m: number_to_vietnamese(m.group(1)) + ' phay ' + number_to_vietnamese(m.group(2)), s)
+    s = re.sub(r'\b\d+\b', lambda m: number_to_vietnamese(m.group(0)), s)
+    s = re.sub(r'\bOK\b', 'o ke', s, flags=re.IGNORECASE)
+    s = re.sub(r'\bTP\.?\s*HCM\b', 'thanh pho Ho Chi Minh', s, flags=re.IGNORECASE)
+    s = re.sub(r'\bTP\.?\s*HN\b', 'thanh pho Ha Noi', s, flags=re.IGNORECASE)
+    s = re.sub(r'\bTP\.', 'thanh pho ', s, flags=re.IGNORECASE)
+    s = re.sub(r'\bĐ\/c\b', 'dia chi', s, flags=re.IGNORECASE)
+    s = re.sub(r'\bĐT\b', 'dien thoai', s, flags=re.IGNORECASE)
+    s = re.sub(r'\bBS\.', 'bac si ', s, flags=re.IGNORECASE)
+    s = re.sub(r'\bTS\.', 'tien si ', s, flags=re.IGNORECASE)
+    s = re.sub(r'\bĐH\b', 'dai hoc', s, flags=re.IGNORECASE)
+    return s
+
+def vietnamese_phonemize(text_chunk: str) -> str:
+    pieces = []
+    for token in tokenize_text(text_chunk):
+        if token.isspace():
+            pieces.append(' ')
+        elif WORD_RE.match(token):
+            lower_token = token.lower()
+            if lower_token in VI_PHONEME_OVERRIDE:
+                pieces.append(VI_PHONEME_OVERRIDE[lower_token])
+            else:
+                raw = _backend_output_to_text(_backend.run(token))
+                pieces.append(fix_phonemes(raw, source_text=token))
+        else:
+            pieces.append(fix_phonemes(token))
+    res = ''.join(pieces).strip()
+    res = re.sub(r'\btuː\b', 'tˈɔ', res)
+    return res
+
+def safe_split_text(text: str) -> list[str]:
+    base_chunks = split_text(text)
+    final_chunks = []
+    for c in base_chunks:
+        if len(c) <= 200:
+            final_chunks.append(c)
+        else:
+            sub_parts = re.split(r'([,;:\n—–]+)', c)
+            curr = ""
+            for sp in sub_parts:
+                if len(curr) + len(sp) > 200 and curr.strip():
+                    final_chunks.append(curr.strip())
+                    curr = sp
+                else:
+                    curr += sp
+            if curr.strip():
+                final_chunks.append(curr.strip())
+    return final_chunks
+
+class KokoroVietnameseONNXNoTorch:
+    def __init__(self, repo_id=DEFAULT_HF_REPO_ID, voice=DEFAULT_VOICE, onnx_path=None, voicepack_dir=None, config_path=None):
+        import onnxruntime as ort
+        self.onnx_path = _download_or_resolve(repo_id, DEFAULT_ONNX_FILE, onnx_path)
+        self.config_path = _download_or_resolve(repo_id, DEFAULT_CONFIG_FILE, config_path)
+        
+        with open(self.config_path, 'r', encoding='utf-8') as f:
+            self.config = json.load(f)
+        self.context_length = self.config['plbert']['max_position_embeddings']
+        
+        voicepack_filename = f"{voice}.npy"
+        self.voicepack_path = os.path.join(voicepack_dir, voicepack_filename)
+        if not os.path.exists(self.voicepack_path):
+            raise FileNotFoundError(f"Khong tim thay file giong doc npy: {self.voicepack_path}")
+        self.voicepack = np.load(self.voicepack_path)
+        
+        self.session = ort.InferenceSession(str(self.onnx_path), providers=['CPUExecutionProvider'])
+        
+    def phonemes_to_input_ids(self, phonemes, vocab):
+        input_ids = [vocab[p] for p in phonemes if p in vocab]
+        if len(input_ids) + 2 > self.context_length:
+            input_ids = input_ids[:self.context_length - 2]
+        return np.asarray([[0, *input_ids, 0]], dtype=np.int64)
+        
+    def select_voice_style(self, phoneme_count):
+        index = min(phoneme_count, self.voicepack.shape[0]) - 1
+        return np.asarray(self.voicepack[index], dtype=np.float32)
+        
+    def synthesize(self, text, speed=1.0, crossfade_ms=50):
+        audio_chunks = []
+        phoneme_chunks = []
+        speed_value = np.asarray(float(speed), dtype=np.float32)
+        
+        norm_text = normalize_vietnamese_text(text)
+        for index, text_chunk in enumerate(safe_split_text(norm_text), start=1):
+            ps = vietnamese_phonemize(text_chunk)
+            if not ps:
+                continue
+            if len(ps) > 510:
+                ps = ps[:508]
                 
             phoneme_chunks.append(f'[{index}] {ps}')
             input_ids = self.phonemes_to_input_ids(ps, self.config['vocab'])

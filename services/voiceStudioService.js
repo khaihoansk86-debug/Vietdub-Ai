@@ -289,6 +289,36 @@ export function resolveEmotionAcoustics(emotionPrompt = '', userSpeed = 1.0, use
   };
 }
 
+export function normalizeVietnameseScript(text) {
+  if (!text) return '';
+  let s = String(text);
+  
+  // Percent
+  s = s.replace(/(\d+)\s*%/g, '$1 phần trăm');
+  // Currency / Units
+  s = s.replace(/(\d+)\s*k\b/gi, '$1 nghìn');
+  s = s.replace(/(\d+)\s*tr\b/gi, '$1 triệu');
+  s = s.replace(/(\d+)\s*đ\b/gi, '$1 đồng');
+  s = s.replace(/(\d+)\s*vnd\b/gi, '$1 đồng');
+  s = s.replace(/\$\s*(\d+)/g, '$1 đô la');
+  s = s.replace(/(\d+)\s*\$/g, '$1 đô la');
+  
+  // Common abbreviations
+  s = s.replace(/\bOK\b/gi, 'ô kê');
+  s = s.replace(/\bTP\.?\s*HCM\b/gi, 'thành phố Hồ Chí Minh');
+  s = s.replace(/\bTP\.?\s*HN\b/gi, 'thành phố Hà Nội');
+  s = s.replace(/\bTP\./gi, 'thành phố ');
+  s = s.replace(/\bĐ\/c\b/gi, 'địa chỉ');
+  s = s.replace(/\bĐT\b/gi, 'điện thoại');
+  s = s.replace(/\bBS\./gi, 'bác sĩ ');
+  s = s.replace(/\bTS\./gi, 'tiến sĩ ');
+  s = s.replace(/\bĐH\b/gi, 'đại học');
+  s = s.replace(/\bTHCS\b/gi, 'trung học cơ sở');
+  s = s.replace(/\bTHPT\b/gi, 'trung học phổ thông');
+
+  return s;
+}
+
 export async function synthesizeVoiceStudioAudio({
   text,
   profileId = null,
@@ -308,7 +338,7 @@ export async function synthesizeVoiceStudioAudio({
   }
 
   ensureDirectories();
-  const cleanText = text.trim();
+  const cleanText = normalizeVietnameseScript(text.trim());
   const targetDir = outputDir || getVoiceStudioOutputDir();
 
   let profile = null;
