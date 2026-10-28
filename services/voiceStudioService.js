@@ -363,32 +363,41 @@ export async function synthesizeVoiceStudioAudio({
   if (!synthesized) {
     const rawTemp = path.join(os.tmpdir(), `vs_raw_${Date.now()}_${crypto.randomBytes(3).toString('hex')}.mp3`);
     try {
-      if (typeof synthesizeTtsTextFn === 'function') {
-        const ttsOptions = {
-          provider: voice.startsWith('vi-VN-') ? 'edge-neural' : 'kokoro-local',
-          voice: profile ? (profile.tags.includes('Nam') ? 'manh_dung' : 'diem_trinh') : voice,
-          speed: Math.max(0.5, Math.min(2.0, effectiveSpeed)),
-          volume: Math.max(0.2, Math.min(2.0, Number(volume) / 100 || 1.0)),
-          style: 'natural'
-        };
-        await synthesizeTtsTextFn(cleanText, rawTemp, ttsOptions, null);
-      } else {
-        // Direct edge-tts fallback command if available
-        const voiceChoice = profile ? (profile.tags.includes('Nam') ? 'vi-VN-NamMinhNeural' : 'vi-VN-HoaiMyNeural') : voice;
-        await new Promise((resolve, reject) => {
-          const edgeProcess = spawn('edge-tts', [
-            '--voice', voiceChoice,
-            '--text', cleanText,
-            '--write-media', rawTemp
-          ]);
-          edgeProcess.on('close', (code) => {
-            if (code === 0 && fs.existsSync(rawTemp)) resolve();
-            else reject(new Error(`edge-tts failed with code ${code}`));
-          });
-          edgeProcess.on('error', reject);
+      const kokoroVoiceMap = {
+        'vi-VN-HoaiMyNeural': 'diem_trinh',
+        'vi-VN-NamMinhNeural': 'manh_dung'
+      };
+      const kokoroVoice = kokoroVoiceMap[voice] || (profile ? (profile.tags.includes('Nam') ? 'manh_dung' : 'diem_trinh') : voice);
+      let generated = false;
+      try {
+        const kRes = await fetch('http://localhost:8889/tts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            text: cleanText,
+            voice: kokoroVoice,
+            speed: Math.max(0.5, Math.min(2.0, effectiveSpeed))
+          })
         });
-      }
+        if (kRes.ok) {
+          const buf = Buffer.from(await kRes.arrayBuffer());
+          await fsp.writeFile(rawTemp, buf);
+          generated = true;
+        }
+      } catch (_) {}
 
+      if (!generated) {
+        if (typeof synthesizeTtsTextFn === 'function') {
+          const ttsOptions = {
+            provider: voice.startsWith('vi-VN-') ? 'edge-neural' : 'kokoro-local',
+            voice: profile ? (profile.tags.includes('Nam') ? 'manh_dung' : 'diem_trinh') : voice,
+            speed: Math.max(0.5, Math.min(2.0, effectiveSpeed)),
+            volume: Math.max(0.2, Math.min(2.0, Number(volume) / 100 || 1.0)),
+            style: 'natural'
+          };
+          await synthesizeTtsTextFn(cleanText, rawTemp, ttsOptions, null);
+        }
+      }
       const ffmpegArgs = ['-y', '-i', rawTemp];
       if (audioFilters.length > 0) {
         ffmpegArgs.push('-af', audioFilters.join(','));

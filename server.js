@@ -1359,23 +1359,72 @@ async function synthesizeTtsText(text, target, tts, job, cueIndex = 0) {
       await fs.copyFile(vsRes.filePath, target);
       return;
     }
-    if (tts.provider === 'google-translate') return await synthesizeGoogleTts(text, target);
-    if (tts.provider === 'openai-tts') return await synthesizeOpenAiTts(text, target, tts);
     if (tts.provider === 'kokoro-local') return await synthesizeKokoroTts(text, target, tts);
-    return await synthesizeEdgeTts(text, target, tts, job);
-  } catch (error) {
-    if (job) log(job, `TTS lỗi${cueIndex ? ` ở câu ${cueIndex}` : ''}, chuyển sang Edge/Google: ${error.message}`);
+    if (tts.provider === 'openai-tts') return await synthesizeOpenAiTts(text, target, tts);
+    if (tts.provider === 'google-translate') return await synthesizeGoogleTts(text, target);
     try {
-      await synthesizeEdgeTts(text, target, { ...tts, voice: 'vi-VN-HoaiMyNeural' }, job);
+      return await synthesizeEdgeTts(text, target, tts, job);
+    } catch (edgeErr) {
+      // 1. Fallback ưu tiên: Kokoro Local (Hoạt động offline, cực nhanh, không lỗi mạng)
+      try {
+        const isMale = (tts.voice && (tts.voice.includes('Nam') || tts.voice === 'vi-VN-NamMinhNeural'));
+        const kokoroVoice = isMale ? 'manh_dung' : 'diem_trinh';
+        return await synthesizeKokoroTts(text, target, { ...tts, voice: kokoroVoice });
+      } catch (kokoroErr) {
+        return await synthesizeGoogleTts(text, target);
+      }
+    }
+  } catch (error) {
+    if (job) log(job, `TTS lỗi${cueIndex ? ` ở câu ${cueIndex}` : ''}, chuyển sang Kokoro/Google: ${error.message}`);
+    try {
+      const isMale = (tts.voice && (tts.voice.includes('Nam') || tts.voice === 'vi-VN-NamMinhNeural'));
+      const kokoroVoice = isMale ? 'manh_dung' : 'diem_trinh';
+      return await synthesizeKokoroTts(text, target, { ...tts, voice: kokoroVoice });
     } catch {
-      await synthesizeGoogleTts(text, target);
+      return await synthesizeGoogleTts(text, target);
     }
   }
 }
 
 async function synthesizeGoogleTts(text, target) {
-  const url = `https://translate.google.com/translate_tts?ie=UTF-8&tl=vi&client=tw-ob&q=${encodeURIComponent(text)}`;
-  await downloadToFile(url, target, { 'User-Agent': 'Mozilla/5.0' });
+  if (!text || !text.trim()) return;
+  const clean = text.trim();
+  if (clean.length <= 160) {
+    const url = `https://translate.google.com/translate_tts?ie=UTF-8&tl=vi&client=tw-ob&q=${encodeURIComponent(clean)}`;
+    await downloadToFile(url, target, { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' });
+    return;
+  }
+  const chunks = [];
+  const sentences = clean.split(/(?<=[.!?,;\n])/);
+  let currentChunk = '';
+  for (const s of sentences) {
+    if ((currentChunk + s).length > 160) {
+      if (currentChunk.trim()) chunks.push(currentChunk.trim());
+      currentChunk = s;
+    } else {
+      currentChunk += s;
+    }
+  }
+  if (currentChunk.trim()) chunks.push(currentChunk.trim());
+  const chunkFiles = [];
+  for (let i = 0; i < chunks.length; i++) {
+    const cPath = path.join(os.tmpdir(), `gt_${Date.now()}_${i}.mp3`);
+    const url = `https://translate.google.com/translate_tts?ie=UTF-8&tl=vi&client=tw-ob&q=${encodeURIComponent(chunks[i])}`;
+    await downloadToFile(url, cPath, { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' });
+    chunkFiles.push(cPath);
+  }
+  if (chunkFiles.length === 1) {
+    await fs.copyFile(chunkFiles[0], target);
+  } else {
+    const listFile = path.join(os.tmpdir(), `gt_list_${Date.now()}.txt`);
+    const fileListContent = chunkFiles.map(f => `file '${f.replace(/\\/g, '/')}'`).join('\n');
+    await fs.writeFile(listFile, fileListContent, 'utf8');
+    await run(FFMPEG_BIN, ['-y', '-f', 'concat', '-safe', '0', '-i', listFile, '-c', 'copy', target]);
+    try { await fs.unlink(listFile); } catch {}
+  }
+  for (const f of chunkFiles) {
+    try { await fs.unlink(f); } catch {}
+  }
 }
 
 async function fitTtsToCue(job, cue, rawFile) {
