@@ -1125,19 +1125,38 @@ function renderHistory(items) {
 }
 
 function initViews() {
-  viewTabs.forEach((button) => button.addEventListener('click', () => setView(button.dataset.view || 'process')));
-  setView(localStorage.getItem('vietdub-view') || 'publish');
+  viewTabs.forEach((button) => button.addEventListener('click', () => setView(button.dataset.view || 'dashboard')));
+  document.querySelectorAll('[data-goto-view]').forEach(el => {
+    el.addEventListener('click', (e) => {
+      e.preventDefault();
+      setView(el.dataset.gotoView);
+    });
+  });
+  document.querySelector('#topStartBtn')?.addEventListener('click', () => setView('process'));
+  setView(localStorage.getItem('vietdub-view') || 'dashboard');
 }
 
 function setView(view) {
-  const normalized = ['settings', 'publish', 'process', 'voice-studio'].includes(view) ? view : 'publish';
+  const normalized = ['dashboard', 'settings', 'publish', 'process', 'voice-studio'].includes(view) ? view : 'dashboard';
   localStorage.setItem('vietdub-view', normalized);
   document.body.dataset.view = normalized;
-  viewTabs.forEach(button => { button.classList.toggle('active', button.dataset.view === normalized); button.setAttribute('aria-current', button.dataset.view === normalized ? 'page' : 'false'); });
-  for (const [name, id] of Object.entries({ process: 'viewProcess', settings: 'viewSettings', publish: 'viewPublish', 'voice-studio': 'viewVoiceStudio' })) document.getElementById(id)?.classList.toggle('hidden', name !== normalized);
+  viewTabs.forEach(button => {
+    button.classList.toggle('active', button.dataset.view === normalized);
+    button.setAttribute('aria-current', button.dataset.view === normalized ? 'page' : 'false');
+  });
+  for (const [name, id] of Object.entries({
+    dashboard: 'viewDashboard',
+    process: 'viewProcess',
+    settings: 'viewSettings',
+    publish: 'viewPublish',
+    'voice-studio': 'viewVoiceStudio'
+  })) {
+    document.getElementById(id)?.classList.toggle('hidden', name !== normalized);
+  }
   if (normalized === 'voice-studio' && typeof loadVoiceStudioProfiles === 'function') {
     loadVoiceStudioProfiles();
   }
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function applyQuickPreset(name) {

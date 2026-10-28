@@ -37,7 +37,7 @@ try {
   await page.route('**/*', route => route.request().url().startsWith(origin) ? route.continue() : route.abort());
   const errors = []; page.on('pageerror', err => errors.push(err.message));
   page.on('dialog', () => errors.push('Unexpected native dialog'));
-  await page.goto(origin); await page.waitForSelector('#warehouseDistributeBtn');
+  await page.goto(origin); await page.locator('.tab-btn[data-view="publish"]').click(); await page.waitForSelector('#warehouseDistributeBtn');
   assert.equal(await page.title(), 'VietDub AI Studio');
   assert.equal(await page.locator('#pubRunSelect').count(), 0);
   assert.equal(await page.locator('#viewPublish').isVisible(), true);

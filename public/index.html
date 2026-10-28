@@ -39,16 +39,179 @@
         </header>
 
         <nav class="view-tabs" aria-label="Không gian làm việc">
+          <div class="nav-brand-header">
+            <img src="/logo.png" alt="VietDub AI Logo" class="nav-brand-logo" onerror="this.onerror=null; this.src='/icon.png';">
+            <div class="nav-brand-details">
+              <span class="nav-brand-name">VietDub AI</span>
+              <span class="pro-badge">STUDIO 2.0</span>
+            </div>
+          </div>
+
           <div class="nav-caption">KHÔNG GIAN LÀM VIỆC</div>
-          <button class="tab-btn active" type="button" data-view="publish"><span aria-hidden="true">▤</span><span>Xuất bản TikTok</span></button>
-          <button class="tab-btn" type="button" data-view="process"><span aria-hidden="true">▷</span><span>Sản xuất video</span></button>
-          <button class="tab-btn" type="button" data-view="voice-studio"><span aria-hidden="true">🎙️</span><span>Voice Studio</span></button>
-          <button class="tab-btn" type="button" data-view="settings"><span aria-hidden="true">⚙</span><span>Cài đặt & API</span></button>
-          <div class="nav-footer"><span class="status-dot ready"></span> Workspace local<br><small>VietDub AI Studio · 2.0</small></div>
+          <button class="tab-btn active" type="button" data-view="dashboard">
+            <span class="tab-icon" aria-hidden="true">🏠</span>
+            <span class="tab-title">Trang chủ</span>
+          </button>
+          <button class="tab-btn" type="button" data-view="voice-studio">
+            <span class="tab-icon" aria-hidden="true">🎙️</span>
+            <span class="tab-title">Voice Studio</span>
+            <span class="tab-badge">14</span>
+          </button>
+          <button class="tab-btn" type="button" data-view="process">
+            <span class="tab-icon" aria-hidden="true">🎬</span>
+            <span class="tab-title">Sản xuất video</span>
+          </button>
+          <button class="tab-btn" type="button" data-view="publish">
+            <span class="tab-icon" aria-hidden="true">🚀</span>
+            <span class="tab-title">Xuất bản TikTok</span>
+            <span class="tab-badge-accent">1:1</span>
+          </button>
+          <button class="tab-btn" type="button" data-view="settings">
+            <span class="tab-icon" aria-hidden="true">⚙️</span>
+            <span class="tab-title">Cài đặt & API</span>
+          </button>
+
+          <div class="nav-footer">
+            <div class="nav-status-indicator">
+              <span class="status-dot ready"></span>
+              <span>Kokoro Offline Sẵn sàng</span>
+            </div>
+            <div class="nav-version-info">
+              <small>VietDub AI Studio · v2.0</small>
+            </div>
+          </div>
         </nav>
 
         <form id="jobForm" class="panel">
           <!-- TAB 1: WORKFLOW & PROCESSING -->
+          <!-- TAB 0: DASHBOARD (HOME / TỔNG QUAN) -->
+          <div id="viewDashboard" class="view-panel-tab">
+            <div class="dashboard-container">
+              <!-- HERO HEADER -->
+              <div class="dashboard-hero-head">
+                <div class="dashboard-badge-eyebrow">
+                  <span class="pulse-dot"></span>
+                  <span>AI VIDEO & AUDIO STUDIO</span>
+                </div>
+                <h1 class="dashboard-main-title">VietDub AI Studio</h1>
+                <p class="dashboard-subtitle">Lồng tiếng, tạo phụ đề AI và tự động hoá xuất bản TikTok đa kênh chuyên nghiệp trong một không gian làm việc duy nhất.</p>
+              </div>
+
+              <!-- CENTRAL HERO CONCENTRIC ACTION HUB -->
+              <div class="dashboard-hero-action-hub">
+                <div class="concentric-ring outer-ring">
+                  <div class="concentric-ring middle-ring">
+                    <button type="button" class="concentric-hero-btn" data-goto-view="process" title="Bắt đầu sản xuất video mới">
+                      <div class="hero-btn-icon">
+                        <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                          <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                        </svg>
+                      </div>
+                      <span class="hero-btn-label">Bắt đầu sản xuất</span>
+                    </button>
+                  </div>
+                </div>
+                <div class="hero-action-caption">
+                  <h3>Một chạm để bắt đầu</h3>
+                  <p>Chọn nhanh một trong các phân hệ bên dưới để bắt đầu làm việc:</p>
+                </div>
+              </div>
+
+              <!-- 6 MODULAR QUICK CARDS GRID (3x2) -->
+              <div class="dashboard-modules-grid">
+                <!-- CARD 1: VOICE STUDIO -->
+                <div class="module-card" data-goto-view="voice-studio">
+                  <div class="module-card-icon-wrap icon-purple">
+                    <span>🎙️</span>
+                  </div>
+                  <div class="module-card-content">
+                    <h4>Voice Studio - Huấn luyện giọng</h4>
+                    <p>Trích xuất âm sắc từ file mẫu 5s–30s, huấn luyện hồ sơ giọng AI và xuất file âm thanh phòng thu (.WAV / .MP3).</p>
+                  </div>
+                  <div class="module-card-footer">
+                    <span class="module-card-link">Mở Voice Studio <span>→</span></span>
+                    <span class="module-pill">14 giọng Kokoro</span>
+                  </div>
+                </div>
+
+                <!-- CARD 2: VIDEO DUBBING & PROCESS -->
+                <div class="module-card" data-goto-view="process">
+                  <div class="module-card-icon-wrap icon-blue">
+                    <span>🎬</span>
+                  </div>
+                  <div class="module-card-content">
+                    <h4>Sản xuất & Lồng tiếng video</h4>
+                    <p>Tự động tải video YouTube/TikTok/Douyin, dịch thuật phụ đề AI và ghép giọng đọc chuẩn khớp nhịp timeline.</p>
+                  </div>
+                  <div class="module-card-footer">
+                    <span class="module-card-link">Bắt đầu sản xuất <span>→</span></span>
+                    <span class="module-pill">Tự động hoá</span>
+                  </div>
+                </div>
+
+                <!-- CARD 3: TIKTOK 1:1 PUBLISHER -->
+                <div class="module-card" data-goto-view="publish">
+                  <div class="module-card-icon-wrap icon-rose">
+                    <span>🚀</span>
+                  </div>
+                  <div class="module-card-content">
+                    <h4>Xuất bản TikTok đa kênh 1:1</h4>
+                    <p>Phân bổ mỗi kênh 1 video riêng biệt từ kho, chống trùng bằng mã băm SHA-256 và tự động đăng Công khai.</p>
+                  </div>
+                  <div class="module-card-footer">
+                    <span class="module-card-link">Trung tâm xuất bản <span>→</span></span>
+                    <span class="module-pill accent">Phân bổ 1:1</span>
+                  </div>
+                </div>
+
+                <!-- CARD 4: SCRIPT & PROMPT STUDIO -->
+                <div class="module-card" data-goto-view="voice-studio">
+                  <div class="module-card-icon-wrap icon-amber">
+                    <span>📝</span>
+                  </div>
+                  <div class="module-card-content">
+                    <h4>Soạn kịch bản & Prompt cảm xúc</h4>
+                    <p>Soạn thảo văn bản và tuỳ biến phong cách đọc tự nhiên (hào hứng, trầm ấm, gay cấn) với bộ chuẩn âm tiếng Việt.</p>
+                  </div>
+                  <div class="module-card-footer">
+                    <span class="module-card-link">Soạn kịch bản ngay <span>→</span></span>
+                    <span class="module-pill">Đọc chuẩn ngữ âm</span>
+                  </div>
+                </div>
+
+                <!-- CARD 5: WAREHOUSE & HISTORY -->
+                <div class="module-card" data-goto-view="publish">
+                  <div class="module-card-icon-wrap icon-teal">
+                    <span>📁</span>
+                  </div>
+                  <div class="module-card-content">
+                    <h4>Kho video & Lịch sử xuất bản</h4>
+                    <p>Quét kho video nguồn, kiểm tra trạng thái các clip chờ đăng và theo dõi chi tiết báo cáo từng kênh.</p>
+                  </div>
+                  <div class="module-card-footer">
+                    <span class="module-card-link">Xem kho & lịch sử <span>→</span></span>
+                    <span class="module-pill">Quản lý kho</span>
+                  </div>
+                </div>
+
+                <!-- CARD 6: SETTINGS & API -->
+                <div class="module-card" data-goto-view="settings">
+                  <div class="module-card-icon-wrap icon-gray">
+                    <span>⚙️</span>
+                  </div>
+                  <div class="module-card-content">
+                    <h4>Cài đặt hệ thống & Khóa API</h4>
+                    <p>Kiểm tra trạng thái máy chủ Kokoro offline, cấu hình Google Gemini API, OpenAI và thư mục xuất bản.</p>
+                  </div>
+                  <div class="module-card-footer">
+                    <span class="module-card-link">Cấu hình API <span>→</span></span>
+                    <span class="module-pill">Riêng tư 100%</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div id="viewProcess" class="view-panel-tab">
             <!-- MASTER EXPAND / COLLAPSE TOOLBAR -->
             <div class="sections-global-toggle-bar">
@@ -104,7 +267,7 @@
                   <span>Danh sách link video hoặc link SRT</span>
                   <span id="batchCountBadge" class="field-badge hidden">0 video</span>
                 </span>
-                <textarea name="links" id="linksInput" rows="5" placeholder="Dán một hoặc nhiều link video (TikTok, Douyin, YouTube, Facebook, Kuaishou, MP4...). Mỗi link một dòng."></textarea>
+                <textarea spellcheck="false" name="links" id="linksInput" rows="5" placeholder="Dán một hoặc nhiều link video (TikTok, Douyin, YouTube, Facebook, Kuaishou, MP4...). Mỗi link một dòng."></textarea>
               </label>
 
               <!-- Real-time Batch Numbering Inspector Preview -->
@@ -416,7 +579,7 @@
 
                 <!-- Hàng 1: Đường dẫn kho video & Chọn thư mục (đồng đều chiều cao 40px) -->
                 <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 10px;">
-                  <input type="text" id="warehouseFolderPath" aria-label="Đường dẫn kho video" placeholder="Đường dẫn thư mục kho video (Ví dụ: G:\My Drive\VietDubAI hoặc D:\Video Export)..." style="flex: 1; height: 40px; padding: 0 14px; font-size: 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--line); background: var(--bg-subtle); color: var(--text);">
+                  <input  type="text" spellcheck="false" id="warehouseFolderPath" aria-label="Đường dẫn kho video" placeholder="Đường dẫn thư mục kho video (Ví dụ: G:\My Drive\VietDubAI hoặc D:\Video Export)..." style="flex: 1; height: 40px; padding: 0 14px; font-size: 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--line); background: var(--bg-subtle); color: var(--text);">
                   <button type="button" class="secondary tiktok-btn-sm" id="warehouseBrowseBtn" style="height: 40px; min-width: 145px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; font-weight: 500;">
                     <span>📁</span> Chọn Thư Mục
                   </button>
@@ -449,7 +612,7 @@
                 <input type="hidden" name="tiktokPostMode" id="tiktokPostMode" value="public">
                 <div class="publish-fields">
                   <label class="field"><span>Thời gian chờ giữa các kênh (giây)</span><input name="tiktokChannelDelay" id="tiktokChannelDelay" type="number" min="2" max="300" value="6"></label>
-                  <label class="field"><span>Hashtags bổ sung (tùy chọn)</span><input name="tiktokHashtags" id="tiktokHashtags" type="text" placeholder="Hashtag liên quan đến nội dung video"></label>
+                  <label class="field"><span>Hashtags bổ sung (tùy chọn)</span><input  name="tiktokHashtags" id="tiktokHashtags" type="text" spellcheck="false" placeholder="Hashtag liên quan đến nội dung video"></label>
                 </div>
                 <!-- TIKTOK PROMPT PRESETS MANAGER -->
                 <div class="tiktok-prompt-manager">
@@ -536,7 +699,7 @@
 
               <label class="field" style="margin-top: 10px;">
                 <span>Từ điển thuật ngữ & Tên riêng (Glossary)</span>
-                <textarea name="glossary" id="glossary" rows="3" placeholder="Nhập các từ khóa chuyên ngành, tên thương hiệu, tên riêng (ví dụ: SK-II, Niacinamide, Retinol, Khải Hoàn...). AI sẽ luôn dịch chính xác 100% các từ này."></textarea>
+                <textarea spellcheck="false" name="glossary" id="glossary" rows="3" placeholder="Nhập các từ khóa chuyên ngành, tên thương hiệu, tên riêng (ví dụ: SK-II, Niacinamide, Retinol, Khải Hoàn...). AI sẽ luôn dịch chính xác 100% các từ này."></textarea>
               </label>
 
               <div class="inline-actions" style="margin-top: 14px;">
@@ -564,7 +727,7 @@
                 <div style="display: flex; gap: 10px; align-items: flex-end; margin-top: 8px;">
                   <label class="field" style="flex: 1; margin-bottom: 0;">
                     <span>Đường dẫn thư mục lưu trữ</span>
-                    <input name="outputDir" id="outputDir" type="text" placeholder="Để trống để lưu tại thư mục tạm của app">
+                    <input  name="outputDir" id="outputDir" type="text" spellcheck="false" placeholder="Để trống để lưu tại thư mục tạm của app">
                   </label>
                   <button class="secondary" id="selectOutputDirBtn" type="button" style="height: 42px; flex-shrink: 0; padding: 0 18px;">📁 Chọn thư mục</button>
                 </div>
@@ -595,7 +758,7 @@
                 <legend>💾 Lưu Preset Cấu Hình Riêng</legend>
                 <label class="field">
                   <span>Tên preset cá nhân</span>
-                  <input id="customPresetName" type="text" placeholder="Ví dụ: Khải Hoàn Shorts Chuẩn">
+                  <input  id="customPresetName" type="text" spellcheck="false" placeholder="Ví dụ: Khải Hoàn Shorts Chuẩn">
                 </label>
                 <div class="inline-actions">
                   <button class="secondary" id="savePresetBtn" type="button">💾 Lưu cấu hình</button>
@@ -995,7 +1158,7 @@
           <label id="tiktokInputModalLabel" for="tiktokInputModalField" style="display: block; font-size: 0.86rem; color: #cbd5e1; margin-bottom: 8px;">
             Nhập tên gợi nhớ cho kênh (Ví dụ: Kênh Chính, Kênh 2, Kênh Review):
           </label>
-          <input type="text" id="tiktokInputModalField" class="tiktok-modal-input" placeholder="Nhập tên kênh..." autocomplete="off">
+          <input  type="text" spellcheck="false" id="tiktokInputModalField" class="tiktok-modal-input" placeholder="Nhập tên kênh..." autocomplete="off">
         </div>
 
         <div class="tiktok-modal-footer" style="justify-content: flex-end; gap: 12px;">
