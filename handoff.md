@@ -1,3 +1,14 @@
+# Bản 2.2.9 — Tích hợp toàn diện Voice Studio (Voice Cloning, Prompt TTS & Studio Export)
+
+- Tích hợp đầy đủ tính năng từ VoiceStudio (debpalash/VoiceStudio) trực tiếp vào 1 ứng dụng duy nhất VietDub AI Studio.
+- Tab điều hướng mới "🎙️ Voice Studio": Quản lý hồ sơ giọng clone, import audio mẫu (5s-30s), kéo thả dropzone, nghe thử mẫu giọng.
+- Hồ sơ giọng AI (Voice Profiles): Lưu trữ tại `data/voice_profiles.json` và `data/voice_samples/`, chuẩn hóa audio WAV 24kHz Mono qua FFmpeg.
+- Liên kết tab Lồng tiếng: Hồ sơ giọng clone tự động xuất hiện trong danh sách giọng đọc của tab "Sản xuất video" (provider `voice-studio`), cho phép lồng tiếng video bằng chính giọng đã clone.
+- Multi-engine Synthesis: Ưu tiên kết nối VoiceStudio FastAPI Local (`http://127.0.0.1:8000/v1/audio/speech`), tự động fallback sang Kokoro Vietnamese hoặc Edge-TTS Neural kết hợp bộ lọc xử lý âm sắc, EQ và Pitch/Speed/Volume.
+- Kịch bản & Prompt cảm xúc: Hỗ trợ bộ Prompt Pills cảm xúc (Hào hứng, Trầm ấm, Kịch tính, Tự sự, Tin tức, Hài hước), bộ đếm ký tự/từ ngữ thời gian thực.
+- Xuất file phòng thu: Xuất file WAV 24kHz / MP3 320kbps vào thư mục `D:\VietDubOutputs\VoiceStudio` với nút "Mở thư mục" trong Explorer và "Tải file xuống" phục vụ content editors dựng video (CapCut, Premiere, DaVinci).
+- Kiểm thử: 37 unit tests logic toàn diện (100% PASS), vượt qua toàn bộ cú pháp check script.
+
 # Bản 2.2.3
 
 - Shell không giới hạn max-width; sidebar left 16px, chiều rộng cố định, không cộng lề căn giữa.
@@ -379,3 +390,12 @@ Validation: 32 test logic; UI/DOM và smoke app đóng gói. Chưa đăng bài t
 ## Cập nhật 2.2.8 — Mở đúng TikTok Studio
 Nút Mở Studio gửi mode studio và mở trực tiếp https://www.tiktok.com/tiktokstudio trong profile của tài khoản đã chọn, không đi qua trang login rồi về trang chủ. Các lựa chọn đăng nhập Google/email/QR giữ nguyên. Không popup thành công khi mở Studio. Không đổi quy trình đăng hoặc tạo caption.
 Kiểm tra: 33 test logic, API/UI smoke xác nhận nút gửi mode studio; khởi động Windows đóng gói. Không đăng bài thật trong kiểm thử.
+
+
+## Cập nhật 2.2.9 (2026-10-28) — Tích hợp toàn diện Voice Studio
+- Tích hợp trọn vẹn bộ tính năng từ VoiceStudio (`debpalash/VoiceStudio`) vào cùng 1 tool VietDub AI Studio duy nhất.
+- Module mới: `services/voiceStudioService.js` xử lý lưu trữ hồ sơ giọng, chuẩn hóa audio mẫu bằng FFmpeg, gọi API VoiceStudio Local hoặc fallback thông minh qua Kokoro-VN / Edge-TTS kết hợp DSP pitch/tone/EQ.
+- Giao diện: Thêm tab `🎙️ Voice Studio` trên thanh điều hướng, khu vực import & dropzone audio mẫu, quản lý danh sách hồ sơ giọng clone, nhập prompt cảm xúc và kịch bản, bảng điều khiển tốc độ/cao độ/âm lượng, nghe thử và xuất audio phòng thu.
+- Thư mục xuất file editor: `D:\VietDubOutputs\VoiceStudio` với nút mở trực tiếp File Explorer và liên kết tải về cho content editor (CapCut, Premiere Pro, DaVinci Resolve).
+- Tích hợp tab Sản xuất video: Cho phép chọn trực tiếp giọng đã clone trong dropdown lồng tiếng video.
+- Kiểm thử: 37/37 unit tests logic vượt qua 100%, bảo toàn toàn bộ tính năng đăng TikTok và sản xuất video hiện có.
