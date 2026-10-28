@@ -475,7 +475,7 @@ app.get('/api/voice-studio/engine-status', async (req, res) => {
 
 app.post('/api/voice-studio/synthesize', async (req, res) => {
   try {
-    const { text, profileId, voice, speed, pitch, volume, emotionPrompt, format, voiceStudioUrl } = req.body;
+    const { text, profileId, voice, speed, pitch, volume, emotionPrompt, prompt, format, voiceStudioUrl } = req.body;
     const result = await synthesizeVoiceStudioAudio({
       text,
       profileId,
@@ -483,7 +483,7 @@ app.post('/api/voice-studio/synthesize', async (req, res) => {
       speed,
       pitch,
       volume,
-      emotionPrompt,
+      emotionPrompt: emotionPrompt || prompt || '',
       format: format || 'wav',
       savePermanent: false,
       synthesizeTtsTextFn: synthesizeTtsText,
@@ -505,7 +505,7 @@ app.post('/api/voice-studio/synthesize', async (req, res) => {
 
 app.post('/api/voice-studio/export', async (req, res) => {
   try {
-    const { text, profileId, voice, speed, pitch, volume, emotionPrompt, format, outputDir, voiceStudioUrl } = req.body;
+    const { text, profileId, voice, speed, pitch, volume, emotionPrompt, prompt, format, outputDir, voiceStudioUrl } = req.body;
     const result = await synthesizeVoiceStudioAudio({
       text,
       profileId,
@@ -513,7 +513,7 @@ app.post('/api/voice-studio/export', async (req, res) => {
       speed,
       pitch,
       volume,
-      emotionPrompt,
+      emotionPrompt: emotionPrompt || prompt || '',
       format: format || 'wav',
       outputDir,
       savePermanent: true,

@@ -200,6 +200,84 @@ export async function checkVoiceStudioEngineStatus(voiceStudioUrl = 'http://127.
   return { online: false, url: voiceStudioUrl, message: 'VoiceStudio local API chưa bật (Đang dùng Built-in Neural Engine).' };
 }
 
+
+export function resolveEmotionAcoustics(emotionPrompt = '', userSpeed = 1.0, userPitch = 0, userVolume = 100) {
+  const p = (emotionPrompt || '').toLowerCase();
+  let speedMultiplier = 1.0;
+  let promptPitchSemitones = 0;
+  const audioFilters = [];
+
+  // 1. Kịch tính / Hồi hộp / Gay cấn / Hành động / Phim / Trailer / Gấp gáp
+  if (/kịch tính|hồi hộp|gay cấn|hành động|phim|trailer|căng thẳng|gấp gáp|dồn dập/.test(p)) {
+    speedMultiplier = 1.10; // Tiết tấu dồn dập, hồi hộp
+    promptPitchSemitones = -1.2; // Gằn giọng đanh điện ảnh
+    audioFilters.push(
+      'compand=attacks=0.02:decays=0.15:points=-75/-75|-42/-22|-18/-8|0/-1.5:gain=3.5',
+      'equalizer=f=95:width_type=q:w=1.2:g=4.5', // Sub-bass rền vang
+      'equalizer=f=480:width_type=q:w=1.5:g=-3.0', // Cắt đục om tai
+      'equalizer=f=3300:width_type=q:w=1.2:g=4.2' // Rõ từng hơi thở và phụ âm
+    );
+  }
+  // 2. Trầm ấm / Sâu lắng / Chậm rãi / Tâm sự / Kể chuyện / Tự sự
+  else if (/trầm|sâu lắng|chậm|tâm sự|kể chuyện|tự sự|nhẹ nhàng|suy ngẫm|triết lý/.test(p)) {
+    speedMultiplier = 0.90; // Chậm rãi truyền cảm
+    promptPitchSemitones = -1.6; // Hạ âm vực trầm ấm
+    audioFilters.push(
+      'equalizer=f=130:width_type=q:w=1.4:g=5.5', // Ngực trầm cộng hưởng ấm áp
+      'equalizer=f=6000:width_type=q:w=1.0:g=-3.0', // Dịu dải cao
+      'aecho=0.8:0.85:30:0.18' // Không gian phòng thu ấm
+    );
+  }
+  // 3. Hào hứng / Sôi nổi / Vui vẻ / Năng lượng / Viral / Nhiệt huyết
+  else if (/hào hứng|sôi nổi|năng lượng|vui vẻ|viral|tươi vui|nhiệt huyết/.test(p)) {
+    speedMultiplier = 1.12; // Nhịp điệu tươi nhanh
+    promptPitchSemitones = 1.5; // Cao độ sáng bổng
+    audioFilters.push(
+      'equalizer=f=2600:width_type=q:w=1.4:g=4.0', // Tươi sáng năng lượng
+      'equalizer=f=7500:width_type=q:w=1.2:g=3.2', // Độ air bén
+      'compand=attacks=0.03:decays=0.2:points=-65/-65|-30/-15|0/-1:gain=2'
+    );
+  }
+  // 4. Trang trọng / Dứt khoát / Tin tức / Thời sự / Chuyên nghiệp
+  else if (/trang trọng|dứt khoát|tin tức|thời sự|chuyên nghiệp|phát thanh|mc/.test(p)) {
+    speedMultiplier = 1.0;
+    promptPitchSemitones = 0;
+    audioFilters.push(
+      'highpass=f=85',
+      'equalizer=f=220:width_type=q:w=1.5:g=2.5',
+      'equalizer=f=3200:width_type=q:w=1.2:g=3.2',
+      'compand=attacks=0.05:decays=0.25:points=-60/-60|-30/-14|0/-1:gain=1.5'
+    );
+  }
+  // 5. Hài hước / Dí dỏm / Vui nhộn / Troll
+  else if (/hài hước|dí dỏm|vui nhộn|troll|hài kịch/.test(p)) {
+    speedMultiplier = 1.08;
+    promptPitchSemitones = 2.4;
+    audioFilters.push(
+      'equalizer=f=1800:width_type=q:w=1.5:g=3.5',
+      'equalizer=f=4000:width_type=q:w=1.2:g=3.0'
+    );
+  }
+
+  const effectiveSpeed = Math.max(0.5, Math.min(2.0, (Number(userSpeed) || 1.0) * speedMultiplier));
+  const totalPitchSemitones = (Number(userPitch) || 0) / 10 + promptPitchSemitones;
+
+  if (Math.abs(totalPitchSemitones) > 0.05) {
+    const pitchScale = Math.pow(2, totalPitchSemitones / 12);
+    audioFilters.unshift('rubberband=pitch=' + pitchScale.toFixed(4));
+  }
+
+  const numVol = Number(userVolume);
+  if (!isNaN(numVol) && numVol !== 100 && numVol > 0) {
+    audioFilters.push('volume=' + (numVol / 100).toFixed(2));
+  }
+
+  return {
+    effectiveSpeed,
+    audioFilters
+  };
+}
+
 export async function synthesizeVoiceStudioAudio({
   text,
   profileId = null,
@@ -262,6 +340,18 @@ export async function synthesizeVoiceStudioAudio({
     }
   }
 
+  // Calculate acoustic transformation from emotion prompt, speed, pitch, volume
+  const { effectiveSpeed, audioFilters } = resolveEmotionAcoustics(emotionPrompt, speed, pitch, volume);
+
+  // If cloned profile has custom timbre, apply custom tone
+  if (profile) {
+    if (profile.tags && profile.tags.includes('Nam')) {
+      audioFilters.push('equalizer=f=140:width_type=q:w=1.5:g=3.0');
+    } else if (profile.tags && profile.tags.includes('Nữ')) {
+      audioFilters.push('equalizer=f=2800:width_type=q:w=1.5:g=2.5');
+    }
+  }
+
   // 2. Built-in High Quality Fallback (Kokoro-VN or Edge-TTS or synthesizeTtsTextFn)
   if (!synthesized) {
     const rawTemp = path.join(os.tmpdir(), `vs_raw_${Date.now()}_${crypto.randomBytes(3).toString('hex')}.mp3`);
@@ -269,9 +359,9 @@ export async function synthesizeVoiceStudioAudio({
       if (typeof synthesizeTtsTextFn === 'function') {
         const ttsOptions = {
           provider: voice.startsWith('vi-VN-') ? 'edge-neural' : 'kokoro-local',
-          voice: profile ? (profile.tags.includes('Nam') ? 'vi-VN-NamMinhNeural' : 'vi-VN-HoaiMyNeural') : voice,
-          speed: Math.max(0.7, Math.min(1.5, Number(speed) || 1.0)),
-          volume: Math.max(0.5, Math.min(1.5, Number(volume) || 1.0)),
+          voice: profile ? (profile.tags.includes('Nam') ? 'manh_dung' : 'diem_trinh') : voice,
+          speed: Math.max(0.5, Math.min(2.0, effectiveSpeed)),
+          volume: Math.max(0.2, Math.min(2.0, Number(volume) / 100 || 1.0)),
           style: 'natural'
         };
         await synthesizeTtsTextFn(cleanText, rawTemp, ttsOptions, null);
@@ -290,20 +380,6 @@ export async function synthesizeVoiceStudioAudio({
           });
           edgeProcess.on('error', reject);
         });
-      }
-
-      // Convert raw audio to clean WAV and apply pitch/tone morphing if cloned profile has styling
-      const audioFilters = [];
-      const numPitch = Number(pitch) || 0;
-      if (numPitch !== 0) {
-        // Pitch scale in semitones or rubberband
-        const pitchFactor = Math.pow(2, numPitch / 12);
-        audioFilters.push(`asetrate=24000*${pitchFactor.toFixed(3)},aresample=24000`);
-      }
-      if (emotionPrompt && emotionPrompt.toLowerCase().includes('trầm')) {
-        audioFilters.push('equalizer=f=120:width_type=o:width=2:g=3');
-      } else if (emotionPrompt && emotionPrompt.toLowerCase().includes('trong')) {
-        audioFilters.push('equalizer=f=3000:width_type=o:width=1.5:g=2.5');
       }
 
       const ffmpegArgs = ['-y', '-i', rawTemp];

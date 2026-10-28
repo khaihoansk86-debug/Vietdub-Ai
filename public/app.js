@@ -1545,10 +1545,7 @@ async function checkKokoroStatus() {
             ? 'Kokoro Local Server is stopped. Click <button type="button" class="btn-link" id="kokoroStartInlineBtn">Start Server</button> to run.'
             : 'Máy chủ lồng tiếng Kokoro đang dừng. Bấm <button type="button" class="btn-link" id="kokoroStartInlineBtn">Khởi chạy máy chủ</button> để chạy.';
           
-          document.querySelector('#kokoroStartInlineBtn')?.addEventListener('click', async () => {
-            await fetch('/api/kokoro/retry', { method: 'POST' });
-            checkKokoroStatus();
-          });
+          // Handled by delegated listener
           retryBtn.classList.add('hidden');
         }
       }
@@ -1557,6 +1554,16 @@ async function checkKokoroStatus() {
     console.error('Lỗi khi kiểm tra trạng thái Kokoro:', err);
   }
 }
+
+document.addEventListener('click', async (e) => {
+  const inlineBtn = e.target.closest('#kokoroStartInlineBtn');
+  if (inlineBtn && !inlineBtn.disabled) {
+    inlineBtn.disabled = true;
+    inlineBtn.textContent = 'Đang khởi chạy máy chủ...';
+    try { await fetch('/api/kokoro/retry', { method: 'POST' }); } catch (_) {}
+    setTimeout(checkKokoroStatus, 800);
+  }
+});
 
 document.querySelector('#kokoroRetryBtn')?.addEventListener('click', async () => {
   const retryBtn = document.querySelector('#kokoroRetryBtn');
@@ -3052,7 +3059,7 @@ function initVoiceStudio() {
       const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, voice, prompt, speed, pitch, volume, format })
+        body: JSON.stringify({ text, voice, prompt, emotionPrompt: prompt, speed, pitch, volume, format })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Lỗi khi tạo âm thanh');
