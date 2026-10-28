@@ -1,7 +1,7 @@
 # VietDub AI Studio v2.0
 
 <p align="center">
-  <img src="public/logo.png" alt="VietDub AI Studio" width="120" style="border-radius: 20px;" />
+  <img src="docs/banner.png" alt="VietDub AI Studio v2.0" width="240" style="border-radius: 24px;" />
 </p>
 
 <p align="center">
